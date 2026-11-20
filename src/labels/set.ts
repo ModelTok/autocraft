@@ -6,8 +6,8 @@ export type LabelDef = { name: string; color: string; description: string };
 export const TYPE_LABELS: LabelDef[] = [
   { name: "bugfix", color: "d73a4a", description: "Fixes something that is broken: wrong result, crash, data loss" },
   { name: "performance", color: "fbca04", description: "Same behaviour, faster or uses less memory" },
-  { name: "missing feature", color: "0e8a16", description: "The reference application has it and we do not, or only part of it" },
-  { name: "small extra", color: "c5def5", description: "Goes beyond the reference application, but is tiny and changes no default" },
+  { name: "missing feature", color: "0e8a16", description: "In the project's scope (docs, roadmap or upstream) but not built yet, or only in part" },
+  { name: "small extra", color: "c5def5", description: "Outside what the project promises, but tiny and changes no default" },
   { name: "plugin candidate", color: "7057ff", description: "A good idea that is too specific or too big for the core" },
   { name: "infra", color: "bfd4f2", description: "Tests, CI, docs, build, packaging, tooling" },
 ];
