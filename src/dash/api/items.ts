@@ -271,7 +271,7 @@ export async function listItems(db: DatabaseSync, req: Req): Promise<ItemList> {
   const ids = (db.prepare(pageFrom.replace("%COLS", "i.rowid AS rid") + whereSql(pageWhere) +
     ` ORDER BY ${order}, i.repo, i.number DESC LIMIT :limit OFFSET :offset`).all({ ...b.params, limit, offset }) as { rid: number }[]).map((r) => r.rid);
   const byId = new Map((ids.length ? db.prepare(`SELECT i.rowid AS rid, i.repo, i.number, i.kind, i.state, i.title, i.author,
-      i.created_at, i.updated_at, i.comments_count, s.status, s.label, s.source, s.top, s.jev_label, s.haiku_label, s.flags,
+      i.created_at, i.updated_at, i.comments_count, s.status, s.label, s.source, s.top, s.basal_label, s.haiku_label, s.flags,
       s.referee_label, s.referee_sure, s.referee_reason, ${MERGED_AT} AS merged_by_us_at
     FROM items i LEFT JOIN temp.item_settled s ON s.repo = i.repo AND s.number = i.number WHERE i.rowid IN (${ids.map(() => "?").join(",")})`).all(...ids) as Row[] : [])
     .map((r) => [r.rid, r]));

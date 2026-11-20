@@ -95,9 +95,9 @@ export function mergeFixFields(original: string, fix: string, problems: readonly
   return original.replace(BLOCK, (whole, lang: string, nl: string) => (changed.has(lang) && blocks.get(lang)?.text === whole ? `\`\`\`${lang}${nl}${JSON.stringify(blocks.get(lang)!.root)}\n\`\`\`` : whole));
 }
 
-/** The semantic reference check accepts a yes from Jev at this probability or more, and a no below the second one; Haiku decides in between. */
-export const REFERENCE_JEV_ACCEPT = 0.9;
-export const REFERENCE_JEV_REJECT = 0.3;
+/** The semantic reference check accepts a yes from basal at this probability or more, and a no below the second one; Haiku decides in between. */
+export const REFERENCE_BASAL_ACCEPT = 0.9;
+export const REFERENCE_BASAL_REJECT = 0.3;
 
 /** What lint.reference.haiku is asked about: one text with the ref of the item it is written for. */
 export type ReferenceLintInput = { ref: string; text: string };

@@ -1,8 +1,8 @@
-// Claude account controls: usage bars, pause levels, the Jev switch and the label and concurrency form.
+// Claude account controls: usage bars, pause levels, the basal switch and the label and concurrency form.
 import { useEffect, useState } from "react";
 import { PencilSimpleIcon } from "@phosphor-icons/react";
 import { useApi, useQuery } from "../../api/client";
-import type { ClaudeAccount, JevStatus, UsagePause } from "../../api/types";
+import type { ClaudeAccount, BasalStatus, UsagePause } from "../../api/types";
 import { clock, nowMs, span } from "../../lib/format";
 import { Button } from "../../ui/atoms/Button";
 import { cn } from "../../ui/cn";
@@ -93,20 +93,20 @@ export function PauseLevels({ operator }: { operator: boolean }) {
   );
 }
 
-export function JevLine({ operator }: { operator: boolean }) {
+export function BasalLine({ operator }: { operator: boolean }) {
   const api = useApi();
   const write = useWrite();
-  const q = useQuery<JevStatus>("accounts-jev", (a) => a.accounts.jev());
+  const q = useQuery<BasalStatus>("accounts-basal", (a) => a.accounts.basal());
   if (!q.data) return <ErrorLine error={q.error?.message} />;
   const { enabled, unavailable } = q.data;
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       <span className="text-ink/60">
-        {unavailable ? `Jev unavailable (${unavailable.reason}) since ${clock(unavailable.since)} — Haiku does Jev's work` : "Jev in use"}
+        {unavailable ? `Basal unavailable (${unavailable.reason}) since ${clock(unavailable.since)} — Haiku does basal's work` : "Basal in use"}
       </span>
       {operator && (
-        <Button variant="secondary" size="sm" loading={write.busy === "jev"} onClick={() => void write.run("jev", () => api.accounts.setJev({ enabled: !enabled })).then((ok) => ok && q.refetch())} className="max-md:h-11">
-          {enabled ? "Turn Jev off" : "Turn Jev on"}
+        <Button variant="secondary" size="sm" loading={write.busy === "basal"} onClick={() => void write.run("basal", () => api.accounts.setBasal({ enabled: !enabled })).then((ok) => ok && q.refetch())} className="max-md:h-11">
+          {enabled ? "Turn basal off" : "Turn basal on"}
         </Button>
       )}
       <ErrorLine error={write.error} className="basis-full" />

@@ -33,7 +33,7 @@ let junk = false;
 const hooks: FileHooks = {
   box, provider, baseUrl: "https://craft.example",
   exec: async (_cmd, args, opts) => { calls.push({ args, input: opts?.input }); return { code: 0, stdout: args[1] === "create" ? "https://github.com/ModelTok/photocraft/issues/41\n" : "", stderr: "" }; },
-  judge: { jev: async () => (junk ? 0.95 : 0.05), haiku: async () => junk },
+  judge: { basal: async () => (junk ? 0.95 : 0.05), haiku: async () => junk },
 };
 const deps = { db, log: () => {} };
 const req = { reporter: "rep1", repo: "photocraft", title: "Export ignores quality", body: "Quality 40 gives the same size as 100.", kind: "bug" as const };

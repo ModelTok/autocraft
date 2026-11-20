@@ -269,18 +269,18 @@ export function SettledBadge({ s, detail }: { s: Settled; detail?: boolean }) {
   const conf = s.confidence !== null ? ` ${s.confidence.toFixed(2)}` : "";
   if (s.status === "settled")
     return (
-      <span className="relative z-10 inline-flex min-w-0 items-center gap-1.5" title={s.source === "jev" ? `Jev is sure (top probability${conf})` : `Jev unsure (${conf.trim()}), Haiku agrees`}>
+      <span className="relative z-10 inline-flex min-w-0 items-center gap-1.5" title={s.source === "basal" ? `Basal is sure (top probability${conf})` : `Basal unsure (${conf.trim()}), Haiku agrees`}>
         <Badge tone="ok">{s.label}</Badge>
-        <span className="num text-2xs text-ink/45">{s.source === "jev" ? `Jev${conf}` : `Jev${conf} + Haiku`}</span>
+        <span className="num text-2xs text-ink/45">{s.source === "basal" ? `Basal${conf}` : `Basal${conf} + Haiku`}</span>
       </span>
     );
   const [text, tone] = STATUS[s.status];
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
       <Badge tone={tone}>{s.status === "waiting" ? "Waiting" : s.status === "disagree" ? "Disagree" : text}</Badge>
-      {s.jevLabel && (
+      {s.basalLabel && (
         <span className="text-2xs text-ink/50">
-          Jev {s.jevLabel}
+          basal {s.basalLabel}
           {conf}
           {s.status === "disagree" ? ` · Haiku ${s.haikuLabel}` : ""}
           {s.referee && s.status === "disagree" ? ` · Sonnet ${s.referee.label}, unsure: ${s.referee.reason}` : ""}

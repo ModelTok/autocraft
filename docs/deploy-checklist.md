@@ -13,7 +13,7 @@ deploy/container/build-push.sh --no-push     # build only; local name autocraft
 
 - The script refuses a working tree with uncommitted or untracked changes, tags the image with the 12-character commit id and `latest`, and pushes both tags. `DOCKER_HOST` is honoured. Extra build arguments go in `BUILD_ARGS`, for example `BUILD_ARGS="--build-arg CLAUDE_CODE_VERSION=2.1.309"`.
 - Contents: Docker Hardened Images for Node 26 on Debian 13 (the shell-less runtime variant; the build stages use the dev variant), `git`, `bubblewrap`, `sqlite3`, `curl`, `zstd`, `tini`, `bash`, `dash` (`/bin/sh`), coreutils, grep, sed, tar, gzip, findutils, `script`, `pnpm`, `gh` (pinned by checksum), the Claude CLI (pinned, auto-update off), the production dependencies and the built dashboard. It runs as uid 10001 and declares the volumes `/data` and `/config`.
-- Not in the image: `jev` (Haiku does Jev's work while it is missing; a derived image restores it) and the sandbox build workers.
+- Not in the image: basal-serve, the basal model server (Haiku does basal's work while none is reachable at `AUTOCRAFT_BASAL_URL`), and the sandbox build workers.
 - One image serves every process. The first argument picks it: `dashboard` (default), `runner`, `sync`, `backup`, or any `autocraft` subcommand.
 
 ## VPS with Docker Compose
@@ -23,7 +23,7 @@ On one VPS, `deploy/compose/compose.yaml` runs the same three processes (dashboa
 - **Proxy.** Any TLS reverse proxy on the VPS forwards the origin to `127.0.0.1:3005`, the only published port. It must pass `Host`, set `X-Forwarded-For` and not buffer `GET /api/live`.
 - **DNS.** Point the origin's record at the VPS. If the origin stays the same, the GitHub App's callback, setup and webhook URLs and the OAuth callback URL stay as they are.
 - **Build workers.** None on the VPS. A separate build box reaches the worker API (8981) through a TLS proxy on its own hostname that accepts only its address, never through the dashboard's site. Register it with `autocraft-server envs add <id> --label TEXT --kind remote --slots N --print` (the full command with the key handling is under "Build workers" in the migration runbook). Disable the old install's `local-sandbox` environments (`envs set <id> --enabled no`), or their health checks fail.
-- **`jev`.** Not in the image. Haiku does the classify, priority, duplicate and signal work through the Claude accounts until a derived image adds it.
+- **Basal (basal-serve).** Not in the image. Haiku does the classify, priority, duplicate and signal work through the Claude accounts until `AUTOCRAFT_BASAL_URL` names a basal-serve the containers reach.
 - **Backups.** The daily snapshot sits on the VPS disk. Copy it, and `/config`, off the VPS on a schedule.
 
 ## Processes
@@ -55,6 +55,8 @@ The image sets every path (`/data/...`, `/config/...`). A deployment sets only t
 | `AUTOCRAFT_DISCORD_KEY_FILE` | with the token file | none | File of at least 32 random characters (mode 600) that encrypts stored message references. Set it on the dashboard as well to show message links. |
 | `AUTOCRAFT_MERGE_CMD` | no | built-in `safe-merge` | External merge command; it must accept `--head <sha>`. |
 | `AUTOCRAFT_CALL_IDLE_MIN` | no | `15` | Minutes a model call may stay silent before it is stopped. |
+| `AUTOCRAFT_BASAL_URL` | no | `http://127.0.0.1:8000` | The basal-serve that answers basal's requests. Without one, Haiku does basal's work. |
+| `AUTOCRAFT_BASAL_KEY_FILE` | with a keyed server | none | File holding the key of a basal-serve started with `--api-keys` (mode 600). |
 
 Never set `AUTOCRAFT_DEV_AUTH`: it signs in as any login and is allowed only on a loopback address.
 
@@ -144,4 +146,4 @@ Check after the move: sign in, open the GitHub App page, and confirm the item pa
 - Secret management. Today `secrets.json` is copied to the config volume by hand and `GH_TOKEN` comes from a Kubernetes Secret. Whether a secret manager replaces either is not decided.
 - Runner settings on the real cluster (see above): untested.
 - Off-volume backup copy: mechanism not chosen (on a VPS, see the migration runbook for an example).
-- `jev` is not in the image; Haiku does its work (see "Not in the image").
+- basal-serve is not in the image; Haiku does basal's work until `AUTOCRAFT_BASAL_URL` reaches one (see "Not in the image").

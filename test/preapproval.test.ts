@@ -318,7 +318,7 @@ describe("add to merge queue (a pre-approved merge without a fix-up)", () => {
     }
     // An open scope question still refuses it, also behind a label that gets no review.
     assert.throws(() => preapproveMerge(w.db, { repo: "app", number: 18, by: OPERATOR }), /scope question is still open/);
-    w.db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', 17, 'jev', 'r1', ?, 'plugin candidate', '[]', '{\"top\":0.95}')").run(T0);
+    w.db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', 17, 'basal', 'r1', ?, 'plugin candidate', '[]', '{\"top\":0.95}')").run(T0);
     w.review(17, { head: "sha17" });
     settle(w);
     assert.equal(preapprovalOf(w.db, "app", 17)?.state, "ci");

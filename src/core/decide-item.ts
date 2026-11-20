@@ -13,7 +13,7 @@ const act = (kind: Action["kind"], head: string | null, params?: Record<string, 
 export function scopeReason(f: ItemFacts): "needs-decision" | "scope-disagreement" | null {
   const c = f.classification;
   if (c.status === "settled" && c.flags.includes("needs decision")) return "needs-decision";
-  if (c.status === "disagree" && isScope(c.jevLabel) && isScope(c.haikuLabel)) return "scope-disagreement";
+  if (c.status === "disagree" && isScope(c.basalLabel) && isScope(c.haikuLabel)) return "scope-disagreement";
   return null;
 }
 
@@ -28,7 +28,7 @@ function fixCandidate(f: ItemFacts): boolean {
   return fix.openPr === null;
 }
 
-/** Jev and Haiku chose different labels and it is not a scope call: a referee (Sonnet, then Opus when Sonnet was unsure) still has to settle it. An unsure Opus settles the label too and flags a scope decision. */
+/** Basal and Haiku chose different labels and it is not a scope call: a referee (Sonnet, then Opus when Sonnet was unsure) still has to settle it. An unsure Opus settles the label too and flags a scope decision. */
 const labelDisagreement = (f: ItemFacts): boolean => f.classification.status === "disagree" && scopeReason(f) !== "scope-disagreement";
 
 /** A scope decision should be asked: the reason holds and no open decision, scope decision or Backlog answer covers the item. Labelling or a later stage does not suppress it. */
@@ -64,16 +64,16 @@ export function decideItem(f: ItemFacts): ItemPlan {
   const live = f.inScope && !f.integration;
   const actions: Action[] = [];
 
-  // classify-new: Jev for items without a verdict or whose classifier input changed (unless Haiku classified the item alone at this input);
-  // Haiku for items Jev is unsure of that have no Haiku verdict as new as Jev's.
-  const jevDue = !c.haiku?.aloneCurrent && (!c.jev || c.jev.changed);
-  const haikuDue = !!c.jev && c.jev.unsure && (!c.haiku || c.haiku.at < c.jev.at);
-  if (f.run && live && (jevDue || haikuDue)) actions.push(act("classify", null, { source: jevDue ? "jev" : "haiku" }));
+  // classify-new: Basal for items without a verdict or whose classifier input changed (unless Haiku classified the item alone at this input);
+  // Haiku for items basal is unsure of that have no Haiku verdict as new as basal's.
+  const basalDue = !c.haiku?.aloneCurrent && (!c.basal || c.basal.changed);
+  const haikuDue = !!c.basal && c.basal.unsure && (!c.haiku || c.haiku.at < c.basal.at);
+  if (f.run && live && (basalDue || haikuDue)) actions.push(act("classify", null, { source: basalDue ? "basal" : "haiku" }));
   // referee: open, not a draft, not held, in scope.
   // A failed Opus call is asked again after a backoff; the third failure sends the item to Decide.
   const backoff = !!c.referee?.failedAt && Date.parse(c.referee.failedAt) > f.now - RECOMMEND_RETRY_MS;
-  // Not while Jev or Haiku is due again: the referee would judge the verdicts they are about to replace.
-  if (f.run && live && !f.draft && state === "referee-due" && !backoff && !jevDue && !haikuDue) actions.push(act("referee", null, { source: c.referee ? "opus" : "sonnet" }));
+  // Not while basal or Haiku is due again: the referee would judge the verdicts they are about to replace.
+  if (f.run && live && !f.draft && state === "referee-due" && !backoff && !basalDue && !haikuDue) actions.push(act("referee", null, { source: c.referee ? "opus" : "sonnet" }));
   // prioritize: no priority row at the current text hash.
   if (live && f.priorityHash !== f.embedHash) actions.push(act("prioritize", null));
   // embed: every open item, with no scope test.

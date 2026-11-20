@@ -1,17 +1,17 @@
-// The settled type label of an item for one classification run. Jev judges
-// every item; Haiku gives a second opinion on the items Jev is unsure about.
+// The settled type label of an item for one classification run. Basal judges
+// every item; Haiku gives a second opinion on the items basal is unsure about.
 //
-// - Jev's top probability >= SURE: Jev's label is settled.
-// - Otherwise, Haiku agrees with Jev: settled with that label.
+// - basal's top probability >= SURE: Basal's label is settled.
+// - Otherwise, Haiku agrees with basal: settled with that label.
 // - Otherwise unsettled: "waiting" while Haiku hasn't answered, "disagree" when
 //   it gave another label. A disagreement the Sonnet referee is sure about is
 //   settled with its label (source "sonnet"); when it was unsure, the item stays
 //   "disagree" with the referee's answer attached, for a person.
-// - No Jev verdict in the run (Jev was unavailable): Haiku's label and flags
+// - No basal verdict in the run (Basal was unavailable): Haiku's label and flags
 //   settle the item, source "haiku". Without either verdict: "unclassified".
 //
-// Each flag (security, needs decision) follows the same rule on its own: Jev
-// sure yes sets it, Jev sure no clears it, and between the two bands Haiku's
+// Each flag (security, needs decision) follows the same rule on its own: Basal
+// sure yes sets it, basal sure no clears it, and between the two bands Haiku's
 // flag counts once Haiku has answered (not set before). The type's state does
 // not matter for the flags.
 //
@@ -20,15 +20,15 @@
 import type { DatabaseSync } from "node:sqlite";
 import { audit } from "../dash/audit.ts";
 import { REFEREE_MAX_FAILURES } from "../core/item-rules.ts";
-import { flagBand, JEV_NEEDS_DECISION_YES, JEV_SECURITY_YES } from "./parse.ts";
+import { flagBand, BASAL_NEEDS_DECISION_YES, BASAL_SECURITY_YES } from "./parse.ts";
 
 export const SURE = 0.9;
 
 /**
- * Rows that make an item or a run count as classified: Jev's, and Haiku's when it classified alone (Jev unavailable).
+ * Rows that make an item or a run count as classified: Basal's, and Haiku's when it classified alone (Basal unavailable).
  * Only that path sets input_hash on a Haiku row; a second opinion or an evaluation row has none.
  */
-export const VERDICT_SQL = "(classifier = 'jev' OR (classifier = 'haiku' AND input_hash IS NOT NULL))";
+export const VERDICT_SQL = "(classifier = 'basal' OR (classifier = 'haiku' AND input_hash IS NOT NULL))";
 
 export type SettledStatus = "settled" | "waiting" | "disagree" | "unclassified";
 
@@ -50,9 +50,9 @@ export const refereeClosed = (r: Referee | null | undefined): boolean => !!r && 
 export type Settled = {
   status: SettledStatus;
   label: string | null;          // set only when status is "settled"
-  source: "jev" | "haiku" | "sonnet" | null;
-  confidence: number | null;     // Jev's top probability
-  jevLabel: string | null;
+  source: "basal" | "haiku" | "sonnet" | null;
+  confidence: number | null;     // basal's top probability
+  basalLabel: string | null;
   haikuLabel: string | null;
   // Flags that are set: see the rule above.
   flags: string[];
@@ -60,64 +60,64 @@ export type Settled = {
   referee: Referee | null;
 };
 
-/** Jev's needs_decision probability a settled bugfix needs before its "needs decision" flag counts. */
+/** Basal's needs_decision probability a settled bugfix needs before its "needs decision" flag counts. */
 export const BUGFIX_NEEDS_DECISION = 0.7;
 
-/** Jev raises needs_decision too freely on plain bugs: on a settled bugfix the flag counts only when Jev is firm. */
+/** Basal raises needs_decision too freely on plain bugs: on a settled bugfix the flag counts only when basal is firm. */
 function firmFlags(s: Settled, nd: number | null | undefined): Settled {
   if (s.label !== "bugfix" || !s.flags.includes("needs decision") || (nd ?? 0) >= BUGFIX_NEEDS_DECISION) return s;
   return { ...s, flags: s.flags.filter((f) => f !== "needs decision") };
 }
 
-type JevVerdict = Verdict & { top: number | null; nd?: number | null; sec?: number | null };
+type BasalVerdict = Verdict & { top: number | null; nd?: number | null; sec?: number | null };
 
-/** One flag: Jev's band decides; unsure takes Haiku's answer, if any. A missing probability falls back to Jev's stored flag. */
-function flagSet(name: string, p: number | null | undefined, yesMin: number, jev: JevVerdict, haiku: Verdict | null): boolean {
-  if (typeof p !== "number") return jev.flags.includes(name);
+/** One flag: Basal's band decides; unsure takes Haiku's answer, if any. A missing probability falls back to basal's stored flag. */
+function flagSet(name: string, p: number | null | undefined, yesMin: number, basal: BasalVerdict, haiku: Verdict | null): boolean {
+  if (typeof p !== "number") return basal.flags.includes(name);
   const band = flagBand(p, yesMin);
   return band === "unsure" ? !!haiku?.flags.includes(name) : band === "yes";
 }
 
-/** `jev.nd` and `jev.sec` are Jev's needs_decision and security probabilities (needsDecisionOf, securityOf). */
-export function settle(jev: JevVerdict | null, haiku: Verdict | null, referee: Referee | null = null): Settled {
-  const s = settleLabel(jev, haiku, referee);
-  if (!jev) return s;
+/** `basal.nd` and `basal.sec` are basal's needs_decision and security probabilities (needsDecisionOf, securityOf). */
+export function settle(basal: BasalVerdict | null, haiku: Verdict | null, referee: Referee | null = null): Settled {
+  const s = settleLabel(basal, haiku, referee);
+  if (!basal) return s;
   const flags = [
-    ...(flagSet("security", jev.sec, JEV_SECURITY_YES, jev, haiku) ? ["security"] : []),
-    ...(flagSet("needs decision", jev.nd, JEV_NEEDS_DECISION_YES, jev, haiku) ? ["needs decision"] : []),
+    ...(flagSet("security", basal.sec, BASAL_SECURITY_YES, basal, haiku) ? ["security"] : []),
+    ...(flagSet("needs decision", basal.nd, BASAL_NEEDS_DECISION_YES, basal, haiku) ? ["needs decision"] : []),
   ];
-  const firm = firmFlags({ ...s, flags }, jev.nd);
+  const firm = firmFlags({ ...s, flags }, basal.nd);
   // The last referee was unsure whether we have the feature or want the difference: the label stands and a maintainer makes the call.
   return refereeClosed(referee) && !referee!.sure && !firm.flags.includes("needs decision") ? { ...firm, flags: [...firm.flags, "needs decision"] } : firm;
 }
 
-function settleLabel(jev: (Verdict & { top: number | null }) | null, haiku: Verdict | null, referee: Referee | null): Settled {
-  if (!jev && haiku) return { status: "settled", label: haiku.label, source: "haiku", confidence: null, jevLabel: null, haikuLabel: haiku.label, flags: haiku.flags, referee: null };
-  if (!jev) return { status: "unclassified", label: null, source: null, confidence: null, jevLabel: null, haikuLabel: null, flags: [], referee: null };
-  const base = { confidence: jev.top, jevLabel: jev.label, haikuLabel: haiku?.label ?? null, referee: null };
+function settleLabel(basal: (Verdict & { top: number | null }) | null, haiku: Verdict | null, referee: Referee | null): Settled {
+  if (!basal && haiku) return { status: "settled", label: haiku.label, source: "haiku", confidence: null, basalLabel: null, haikuLabel: haiku.label, flags: haiku.flags, referee: null };
+  if (!basal) return { status: "unclassified", label: null, source: null, confidence: null, basalLabel: null, haikuLabel: null, flags: [], referee: null };
+  const base = { confidence: basal.top, basalLabel: basal.label, haikuLabel: haiku?.label ?? null, referee: null };
   const flags: string[] = [];
-  if ((jev.top ?? 0) >= SURE) return { ...base, status: "settled", label: jev.label, source: "jev", flags };
+  if ((basal.top ?? 0) >= SURE) return { ...base, status: "settled", label: basal.label, source: "basal", flags };
   if (!haiku) return { ...base, status: "waiting", label: null, source: null, flags };
-  if (haiku.label === jev.label) return { ...base, status: "settled", label: jev.label, source: "haiku", flags };
+  if (haiku.label === basal.label) return { ...base, status: "settled", label: basal.label, source: "haiku", flags };
   if (referee?.sure || refereeClosed(referee)) return { ...base, referee, status: "settled", label: referee!.label, source: "sonnet", flags };
   return { ...base, referee, status: "disagree", label: null, source: null, flags };
 }
 
-/** The run of the newest Jev or Haiku-alone verdict: two indexed lookups, the newer wins. */
+/** The run of the newest basal or Haiku-alone verdict: two indexed lookups, the newer wins. */
 export function newestVerdictRun(db: DatabaseSync): string | null {
-  const jev = db.prepare("SELECT run_id, at FROM classifications WHERE classifier = 'jev' ORDER BY at DESC LIMIT 1").get() as { run_id: string; at: string } | undefined;
+  const basal = db.prepare("SELECT run_id, at FROM classifications WHERE classifier = 'basal' ORDER BY at DESC LIMIT 1").get() as { run_id: string; at: string } | undefined;
   const alone = db.prepare("SELECT run_id, at FROM main.classifications INDEXED BY classifications_alone WHERE classifier = 'haiku' AND input_hash IS NOT NULL ORDER BY at DESC LIMIT 1").get() as { run_id: string; at: string } | undefined;
-  return (alone && (!jev || alone.at > jev.at) ? alone : jev)?.run_id ?? null;
+  return (alone && (!basal || alone.at > basal.at) ? alone : basal)?.run_id ?? null;
 }
 
-// The run the dashboard shows: the current classification run (settings.classify_run), else the one with the newest Jev verdict.
+// The run the dashboard shows: the current classification run (settings.classify_run), else the one with the newest basal verdict.
 export function latestRun(db: DatabaseSync): string | null {
   const set = db.prepare("SELECT value FROM settings WHERE key = 'classify_run'").get() as { value: string } | undefined;
   if (set?.value) return set.value;
   return newestVerdictRun(db);
 }
 
-/** True when `run` has at least one Jev or Haiku verdict. */
+/** True when `run` has at least one basal or Haiku verdict. */
 export const runExists = (db: DatabaseSync, run: string): boolean =>
   !!db.prepare(`SELECT 1 FROM classifications WHERE run_id = ? AND ${VERDICT_SQL} LIMIT 1`).get(run);
 
@@ -140,9 +140,9 @@ export function settledLookup(db: DatabaseSync, run: string | null): (repo: stri
   if (!run) return () => settle(null, null);
   const q = db.prepare("SELECT type_label, flags, probs, reason, at, input_hash FROM classifications WHERE repo = ? AND number = ? AND classifier = ? AND run_id = ?");
   return (repo, number) => {
-    const j = q.get(repo, number, "jev", run) as { type_label: string; flags: string | null; probs: string | null; at: string } | undefined;
+    const j = q.get(repo, number, "basal", run) as { type_label: string; flags: string | null; probs: string | null; at: string } | undefined;
     const h0 = q.get(repo, number, "haiku", run) as { type_label: string; flags: string | null; at: string; input_hash: string | null } | undefined;
-    // A Haiku row without a Jev row counts only when Haiku classified alone.
+    // A Haiku row without a basal row counts only when Haiku classified alone.
     const h = h0 && (j || h0.input_hash !== null) ? h0 : undefined;
     const r = j && h ? (q.get(repo, number, "sonnet", run) as { type_label: string; probs: string | null; reason: string | null; at: string } | undefined) : undefined;
     return settle(
@@ -189,8 +189,8 @@ export function topOf(probs: string | null): number | null {
 
 // Settled verdicts of one run as a temp table on this connection, for queries
 // that count or filter many items:
-//   temp.item_settled(repo, number, status, label, source, top, jev_label, haiku_label, flags JSON, security, needs_decision)
-// Items without a Jev or Haiku verdict have no row ("unclassified"). Classifiers only
+//   temp.item_settled(repo, number, status, label, source, top, basal_label, haiku_label, flags JSON, security, needs_decision)
+// Items without a basal or Haiku verdict have no row ("unclassified"). Classifiers only
 // insert (INSERT OR REPLACE gives a new rowid), so verdicts with a rowid above
 // the last one seen are applied item by item; a new run or fewer rows than
 // expected rebuilds the table.
@@ -198,11 +198,11 @@ type Seen = { run: string | null; maxRowid: number; count: number };
 const seen = new WeakMap<DatabaseSync, Seen>();
 
 type VerdictRow = { repo: string; number: number; jl: string | null; jf: string | null; probs: string | null; hl: string | null; hf: string | null; sl: string | null; ss: number | null; sr: string | null; sf: number | null; sx: number | null };
-// Items with a Jev or a Haiku verdict: Haiku alone settles an item when Jev was unavailable.
+// Items with a basal or a Haiku verdict: Haiku alone settles an item when basal was unavailable.
 const VERDICTS = `SELECT k.repo, k.number, j.type_label AS jl, j.flags AS jf, j.probs, h.type_label AS hl, h.flags AS hf,
     s.type_label AS sl, json_extract(CASE WHEN json_valid(s.probs) THEN s.probs END, '$.sure') AS ss, s.reason AS sr, json_extract(CASE WHEN json_valid(s.probs) THEN s.probs END, '$.final') AS sf, json_extract(CASE WHEN json_valid(s.probs) THEN s.probs END, '$.opusFailures') AS sx
-  FROM (SELECT repo, number FROM main.classifications WHERE run_id = :run AND classifier = 'jev' UNION SELECT repo, number FROM main.classifications WHERE run_id = :run AND classifier = 'haiku' AND input_hash IS NOT NULL) k
-  LEFT JOIN main.classifications j ON j.repo = k.repo AND j.number = k.number AND j.classifier = 'jev' AND j.run_id = :run
+  FROM (SELECT repo, number FROM main.classifications WHERE run_id = :run AND classifier = 'basal' UNION SELECT repo, number FROM main.classifications WHERE run_id = :run AND classifier = 'haiku' AND input_hash IS NOT NULL) k
+  LEFT JOIN main.classifications j ON j.repo = k.repo AND j.number = k.number AND j.classifier = 'basal' AND j.run_id = :run
   LEFT JOIN main.classifications h ON h.repo = k.repo AND h.number = k.number AND h.classifier = 'haiku' AND h.run_id = :run
   LEFT JOIN main.classifications s ON s.repo = k.repo AND s.number = k.number AND s.classifier = 'sonnet' AND s.run_id = :run
     AND s.at >= j.at AND s.at >= h.at AND json_extract(CASE WHEN json_valid(s.probs) THEN s.probs END, '$.sure') IS NOT NULL
@@ -213,13 +213,13 @@ export function settledTable(db: DatabaseSync, run: string | null): void {
   const prev = seen.get(db);
   if (prev && prev.run === run && prev.maxRowid === now.maxRowid && prev.count === now.count) return;
   db.exec(`CREATE TEMP TABLE IF NOT EXISTS item_settled (repo TEXT NOT NULL, number INTEGER NOT NULL, status TEXT NOT NULL, label TEXT,
-    source TEXT, top REAL, jev_label TEXT, haiku_label TEXT, flags TEXT NOT NULL, security INTEGER NOT NULL, needs_decision INTEGER NOT NULL,
+    source TEXT, top REAL, basal_label TEXT, haiku_label TEXT, flags TEXT NOT NULL, security INTEGER NOT NULL, needs_decision INTEGER NOT NULL,
     referee_label TEXT, referee_sure INTEGER, referee_reason TEXT, referee_final INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (repo, number))`);
   const ins = db.prepare("INSERT OR REPLACE INTO temp.item_settled VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
   const put = (r: VerdictRow) => {
     const ref = r.sl !== null && r.ss !== null ? { label: r.sl, sure: !!r.ss, reason: r.sr ?? "", ...(r.sf ? { final: true } : {}), ...(r.sx ? { failures: r.sx } : {}) } : null;
     const s = settle(r.jl === null ? null : { label: r.jl, flags: parseFlags(r.jf), top: topOf(r.probs), nd: needsDecisionOf(r.probs), sec: securityOf(r.probs) }, r.hl === null ? null : { label: r.hl, flags: parseFlags(r.hf) }, ref);
-    ins.run(r.repo, r.number, s.status, s.label, s.source, s.confidence, s.jevLabel, s.haikuLabel, JSON.stringify(s.flags),
+    ins.run(r.repo, r.number, s.status, s.label, s.source, s.confidence, s.basalLabel, s.haikuLabel, JSON.stringify(s.flags),
       s.flags.includes("security") ? 1 : 0, s.flags.includes("needs decision") ? 1 : 0, s.referee?.label ?? null, s.referee ? Number(s.referee.sure) : null, s.referee?.reason ?? null, refereeClosed(s.referee) ? 1 : 0);
   };
   db.exec("BEGIN IMMEDIATE");
@@ -250,7 +250,7 @@ export function settledTable(db: DatabaseSync, run: string | null): void {
 
 export type SettledRow = {
   status: string | null; label: string | null; source: string | null;
-  top: number | null; jev_label: string | null; haiku_label: string | null; flags: string | null;
+  top: number | null; basal_label: string | null; haiku_label: string | null; flags: string | null;
   referee_label: string | null; referee_sure: number | null; referee_reason: string | null; referee_final?: number | null;
 };
 
@@ -259,7 +259,7 @@ export function fromRow(r: Partial<SettledRow> | undefined): Settled {
   if (!r?.status) return settle(null, null);
   return {
     status: r.status as SettledStatus, label: r.label ?? null, source: (r.source as Settled["source"]) ?? null,
-    confidence: r.top ?? null, jevLabel: r.jev_label ?? null, haikuLabel: r.haiku_label ?? null, flags: parseFlags(r.flags ?? null),
+    confidence: r.top ?? null, basalLabel: r.basal_label ?? null, haikuLabel: r.haiku_label ?? null, flags: parseFlags(r.flags ?? null),
     referee: r.referee_label != null && r.referee_sure != null ? { label: r.referee_label, sure: !!r.referee_sure, reason: r.referee_reason ?? "", ...(r.referee_final ? { final: true } : {}) } : null,
   };
 }

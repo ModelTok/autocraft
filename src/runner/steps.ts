@@ -86,8 +86,8 @@ export function modelsOf(step: StepDef | undefined, params: Params): string[] {
   return typeof m === "function" ? m(params) : (m ?? []);
 }
 
-/** Models served through a Claude account (everything but Jev, which has none). */
-export const usesClaude = (models: string[]): boolean => models.some((m) => m !== "jev");
+/** Models served through a Claude account (everything but basal, which has none). */
+export const usesClaude = (models: string[]): boolean => models.some((m) => m !== "basal");
 
 /** Merging is opt-in per repo: tracked repos include ones we do not maintain. */
 async function checkMergeApproved(db: DatabaseSync, p: Params): Promise<string | null> {
@@ -160,22 +160,22 @@ export const STEPS: StepDef[] = [
   {
     name: "classify-new",
     title: "Classify new and changed items",
-    description: "Jev labels open items that have no verdict in the current classification run, or whose text changed since; Haiku gives a second opinion where Jev is under 90 % sure.",
+    description: "Basal labels open items that have no verdict in the current classification run, or whose text changed since; Haiku gives a second opinion where basal is under 90 % sure.",
     stage: runStage("classify-new"),
     requires: "operator",
     exclusive: "classify",
-    models: ["jev", "haiku"],
+    models: ["basal", "haiku"],
     params: [{ name: "limit", label: "At most", kind: "int", min: 1, max: 5000, default: 500, help: "items per model in this job" }],
     run: async (ctx) => (await import("./classify.ts")).classifyNew(ctx),
   },
   {
     name: "classify-all",
     title: "Classification pass",
-    description: "Jev labels every open item of the tracked repos into the given run, then Haiku the ones Jev is unsure of. A stopped pass continues where it left off when started again with the same run id; once complete, the run becomes the current one.",
+    description: "Basal labels every open item of the tracked repos into the given run, then Haiku the ones basal is unsure of. A stopped pass continues where it left off when started again with the same run id; once complete, the run becomes the current one.",
     stage: runStage("classify-all"),
     requires: "operator",
     exclusive: "classify",
-    models: ["jev", "haiku"],
+    models: ["basal", "haiku"],
     params: [
       { name: "run", label: "Run id", kind: "run-id", required: true, help: "lowercase letters, digits and dashes" },
       { name: "limit", label: "At most", kind: "int", min: 1, max: 30000, default: 30000, help: "items per model in this job" },
@@ -251,7 +251,7 @@ export const STEPS: StepDef[] = [
     name: "decide",
     priority: 1,
     title: "Ask decisions",
-    description: "Turns items that need a decision, and items where Jev and Haiku disagree between scope labels, into decisions on the dashboard, then prepares every open decision: one call of the judgement model writes the summary, the pick and drafted answers from what stopped the pipeline. Each prepare call counts as an item.",
+    description: "Turns items that need a decision, and items where basal and Haiku disagree between scope labels, into decisions on the dashboard, then prepares every open decision: one call of the judgement model writes the summary, the pick and drafted answers from what stopped the pipeline. Each prepare call counts as an item.",
     stage: runStage("decide"),
     requires: "operator",
     models: () => ["opus"],
@@ -450,25 +450,25 @@ export const STEPS: StepDef[] = [
   {
     name: "prioritize",
     title: "Prioritize open items",
-    description: "Jev rates the priority level (P0 to P4, P4 = backlog) of open items whose text has no priority yet; Haiku decides where Jev is under 90 % sure. Then every item's reach (the tie-breaker inside a level) is recomputed from comments, linked PRs, duplicates, age and the security flag.",
+    description: "Basal rates the priority level (P0 to P4, P4 = backlog) of open items whose text has no priority yet; Haiku decides where basal is under 90 % sure. Then every item's reach (the tie-breaker inside a level) is recomputed from comments, linked PRs, duplicates, age and the security flag.",
     stage: runStage("prioritize"),
     requires: "operator",
-    models: ["jev", "haiku"],
-    params: [{ name: "limit", label: "At most", kind: "int", min: 1, max: 30000, default: 1000, help: "items sent to Jev in this job" }],
+    models: ["basal", "haiku"],
+    params: [{ name: "limit", label: "At most", kind: "int", min: 1, max: 30000, default: 1000, help: "items sent to basal in this job" }],
     run: async (ctx) => {
       const { runPrioritize } = await import("../priority/index.ts");
       const r = await runPrioritize(ctx.db, { limit: Number(ctx.params.limit), onSent: ctx.handled, cancelled: ctx.cancelled, log: ctx.log });
-      return r.due ? `rated ${r.saved} of ${r.sent} items (${r.jev} by Jev, ${r.haiku} by Haiku), ${r.due - r.sent > 0 ? r.due - r.sent : 0} left; ${r.rescored} reach values changed` : `nothing new to rate; ${r.rescored} reach values changed`;
+      return r.due ? `rated ${r.saved} of ${r.sent} items (${r.basal} by basal, ${r.haiku} by Haiku), ${r.due - r.sent > 0 ? r.due - r.sent : 0} left; ${r.rescored} reach values changed` : `nothing new to rate; ${r.rescored} reach values changed`;
     },
   },
   {
     name: "dupes",
     title: "Find duplicates",
-    description: "Looks up the nearest neighbours of new and changed open items in the same repo, among open items and items closed in the last year. Jev checks each pair; Haiku gives a second opinion where Jev is under 90 % sure either way. Each confirmed duplicate becomes a \"Close as a duplicate?\" decision; the act step closes only on an operator's answer. Writes nothing to GitHub.",
+    description: "Looks up the nearest neighbours of new and changed open items in the same repo, among open items and items closed in the last year. Basal checks each pair; Haiku gives a second opinion where basal is under 90 % sure either way. Each confirmed duplicate becomes a \"Close as a duplicate?\" decision; the act step closes only on an operator's answer. Writes nothing to GitHub.",
     stage: runStage("dupes"),
     requires: "operator",
     exclusive: "dupes",
-    models: ["jev", "haiku"],
+    models: ["basal", "haiku"],
     params: [{ name: "limit", label: "At most", kind: "int", min: 1, max: 5000, default: 2000, help: "pairs to check in this job" }],
     run: async (ctx) => {
       const { runDupes } = await import("../dupes/index.ts");
@@ -633,7 +633,7 @@ export const STEPS: StepDef[] = [
   {
     name: "referee",
     title: "Referee label disagreements",
-    description: "Sonnet settles items where Jev and Haiku chose different type labels and at least one is not a scope label (scope disagreements go to Decide). A sure answer settles the type. When Sonnet is unsure, Opus answers; its label settles the item either way, and an unsure Opus also flags a scope decision for an operator.",
+    description: "Sonnet settles items where basal and Haiku chose different type labels and at least one is not a scope label (scope disagreements go to Decide). A sure answer settles the type. When Sonnet is unsure, Opus answers; its label settles the item either way, and an unsure Opus also flags a scope decision for an operator.",
     stage: runStage("referee"),
     requires: "operator",
     models: ["sonnet", "opus"],
@@ -836,11 +836,11 @@ export const STEPS: StepDef[] = [
   {
     name: "areas-rescan",
     title: "Re-scan areas",
-    description: "Asks again for the open items of a repo that have no area (never asked, none of these, or unassigned by a removed area) against the repo's current area list: Jev first, Haiku where Jev is under 90 % sure or unavailable.",
+    description: "Asks again for the open items of a repo that have no area (never asked, none of these, or unassigned by a removed area) against the repo's current area list: Basal first, Haiku where basal is under 90 % sure or unavailable.",
     stage: runStage("areas-rescan"),
     requires: "operator",
     exclusive: "classify",
-    models: ["jev", "haiku"],
+    models: ["basal", "haiku"],
     params: [
       { name: "repo", label: "Repo", kind: "repo", required: true },
       { name: "limit", label: "At most", kind: "int", min: 1, max: 30000, default: 5000, help: "items in this job" },
@@ -850,7 +850,7 @@ export const STEPS: StepDef[] = [
       const usageRun = `areas-${ctx.job.id}`;
       ctx.usageRun(usageRun);
       const r = await assignAreas(ctx.db, { repo: String(ctx.params.repo), limit: Number(ctx.params.limit), rescan: true, usageRun, onSent: ctx.handled, cancelled: ctx.cancelled, progress: ctx.progress, log: ctx.log });
-      return `${ctx.params.repo}: ${r.due} items asked; Jev settled ${r.jev}, Haiku ${r.haiku}; ${r.none} fit none of the areas, ${r.left} unanswered`;
+      return `${ctx.params.repo}: ${r.due} items asked; basal settled ${r.basal}, Haiku ${r.haiku}; ${r.none} fit none of the areas, ${r.left} unanswered`;
     },
   },
   {

@@ -34,7 +34,7 @@ type Shape = { question: string; options: OptionKey[] };
 export function shapeOf(c: Candidate): Shape {
   const s = c.settled;
   if (c.reason === "scope-disagreement") {
-    const pair = new Set([s.jevLabel, s.haikuLabel]);
+    const pair = new Set([s.basalLabel, s.haikuLabel]);
     if (pair.has("small extra") && pair.has("plugin candidate"))
       return { question: "Keep this in core as a small extra, or treat it as a plug-in?", options: ["small-extra", "plugin", "take", "need-info", "close"] };
     const other = OPTION_OF_LABEL[pair.has("small extra") ? "small extra" : "plugin candidate"]!;
@@ -85,7 +85,7 @@ export function factsOf(db: DatabaseSync, c: Candidate, now = Date.now()): strin
   const facts = [`${c.repo} ${i.kind === "pr" ? "PR" : "issue"}${size}${age}, ${comments} comment${comments === 1 ? "" : "s"}`, authorFact(db, i.author, i.author_id)];
   const s = c.settled;
   const conf = s.confidence === null ? "" : ` (${s.confidence.toFixed(2)})`;
-  facts.push(`Jev: ${s.jevLabel ?? "none"}${conf}; Haiku: ${s.haikuLabel ?? "not asked"}${s.status === "settled" ? `; settled: ${s.label}` : ""}`);
+  facts.push(`Basal: ${s.basalLabel ?? "none"}${conf}; Haiku: ${s.haikuLabel ?? "not asked"}${s.status === "settled" ? `; settled: ${s.label}` : ""}`);
   const labels = list(i.labels).filter((x): x is string => typeof x === "string");
   if (labels.length) facts.push(`GitHub labels: ${labels.join(", ")}`);
   const linked: string[] = [];
@@ -104,7 +104,7 @@ export function factsOf(db: DatabaseSync, c: Candidate, now = Date.now()): strin
 
 export function contextOf(c: Candidate): string {
   const s = c.settled;
-  if (c.reason === "scope-disagreement") return `Jev says ${s.jevLabel}, Haiku says ${s.haikuLabel}: a scope call either way.`;
+  if (c.reason === "scope-disagreement") return `Basal says ${s.basalLabel}, Haiku says ${s.haikuLabel}: a scope call either way.`;
   return `The classifiers settled on ${s.label} and flagged it as needing a maintainer's call.`;
 }
 

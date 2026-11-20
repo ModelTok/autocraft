@@ -1,6 +1,6 @@
 # AutoCraft
 
-AutoCraft is a model harness for maintaining GitHub repositories with a large backlog. It mirrors every issue and PR into a local database and runs a pipeline of model steps over them. Jev classifiers and Claude Haiku, Sonnet and Opus classify, prioritise, find duplicates, ask maintainers for decisions, review, write fixes, verify and merge.
+AutoCraft is a model harness for maintaining GitHub repositories with a large backlog. It mirrors every issue and PR into a local database and runs a pipeline of model steps over them. Basal classifiers (models on a self-hosted basal-serve) and Claude Haiku, Sonnet and Opus classify, prioritise, find duplicates, ask maintainers for decisions, review, write fixes, verify and merge.
 
 The models' tools are a fixed set of GitHub actions (comments, labels, branches, PRs, merges), all behind one write module and `safe-merge`-style checks. Actions run automatically where the rules say they are safe. Otherwise a model proposes and a person accepts. Each issue and PR has its own conversation between Opus and a maintainer, with action cards the maintainer can run. The pipeline is built around maintainers' judgement, which is the limited resource, not around token cost.
 
@@ -14,9 +14,9 @@ Stages run in this order. Details, limits and rules for each are in [docs/pipeli
 | Stage | What it does | Model | Stops for a person |
 |---|---|---|---|
 | Sync | Mirrors every issue, PR and comment of the tracked repos into the local database each minute, reads the CI state of each default branch every 2 minutes, and makes a vector of each item's title and body for similar-item search. | Local embedding model | no |
-| Duplicates | Finds items that describe the same bug or request as another open item, or one closed in the last year, and compares each group. | Jev, Haiku, Opus, Sonnet | yes: duplicate? decision |
-| Classify | Gives each open item one type label and two flags (security, needs decision). Jev goes first, Haiku gives a second opinion, and a referee settles disagreements outside the scope labels. | Jev, Haiku, Sonnet, Opus | yes: scope disagreements and labels the referees were unsure of (through Decide) |
-| Priority | Gives each open item a level from P0 to P4, then orders the candidates of later stages by a work rank. | Jev, Haiku | no |
+| Duplicates | Finds items that describe the same bug or request as another open item, or one closed in the last year, and compares each group. | Basal, Haiku, Opus, Sonnet | yes: duplicate? decision |
+| Classify | Gives each open item one type label and two flags (security, needs decision). Basal goes first, Haiku gives a second opinion, and a referee settles disagreements outside the scope labels. | Basal, Haiku, Sonnet, Opus | yes: scope disagreements and labels the referees were unsure of (through Decide) |
+| Priority | Gives each open item a level from P0 to P4, then orders the candidates of later stages by a work rank. | Basal, Haiku | no |
 | Decide | Asks an operator for scope calls, prepares every open decision with a summary, a pick and drafted answers, and answers questions about an item in its conversation. | Haiku, Opus | yes: an operator answers |
 | Label | Writes each settled type label and flag to GitHub. A label a person set is never changed. | none | yes: per-repo approval |
 | Review | Opus reviews every wanted PR at its current head, reading the repo, and gives a verdict with the complete fix list. It writes nothing to GitHub until the final review is posted. | Opus | yes: hold, close and merge-outside-rule verdicts |
@@ -55,7 +55,7 @@ See [Trust boundary](docs/pipeline.md#trust-boundary).
 | `git` | Clones, diffs and pushes |
 | `claude` (Claude Code CLI) | All Claude calls |
 | `bwrap` (bubblewrap, `/usr/bin/bwrap`) | Sandbox for tool-using calls. Without it, those calls run without tools; `AUTOCRAFT_NO_SANDBOX=1` forces that |
-| `jev` (optional) | CLI for TypeSafe's Jev model, used by the classify, priority and duplicate steps (`jev --compact ask`). Without it, switched off (`autocraft-server accounts jev off`), or when its account is out of credit or its key is rejected, Haiku does Jev's work through the Claude accounts (more Claude usage) |
+| basal-serve (optional) | Serves the basal typed-decision model of the classify, priority and duplicate steps: [basal](https://github.com/rkinas/basal) (Apache-2.0, models on Hugging Face under `Remek/`), a Python server for an NVIDIA GPU, Apple Silicon or the CPU, for example `basal-serve --model Remek/basal-2.0-4.5B --mode fast --template-prefix off --host 127.0.0.1 --port 8000` (install steps in basal's README). AutoCraft posts each request to `AUTOCRAFT_BASAL_URL` (default `http://127.0.0.1:8000`) and, for a server started with `--api-keys`, sends the key held in the file `AUTOCRAFT_BASAL_KEY_FILE` names. With no server reachable, switched off (`autocraft-server accounts basal off`), or when the server refuses the key, Haiku does basal's work through the Claude accounts (more Claude usage) |
 | Podman and a second OS user | Build environments for Verify and Fix (optional) |
 | `sqlite3`, `curl` | `deploy/backup.sh` and `deploy/hook.sh` |
 
@@ -126,8 +126,8 @@ New accounts start disabled. Enable and size them:
 ```sh
 autocraft-server accounts list
 autocraft-server accounts set a --label main --enabled yes --max-concurrent 3
-autocraft-server accounts jev 4        # parallel Jev calls
-autocraft-server accounts jev off      # Haiku does Jev's work; `on` switches Jev back on
+autocraft-server accounts basal 4        # parallel basal calls
+autocraft-server accounts basal off      # Haiku does basal's work; `on` switches basal back on
 ```
 
 See [Claude accounts and agent runs](docs/pipeline.md#claude-accounts-and-agent-runs).
@@ -197,7 +197,7 @@ An instance runs its model calls in one of two modes, which an operator switches
 - `server` (default): calls run on this host with the Claude accounts registered on the Accounts page.
 - `user-local`: calls are queued, and maintainers' and operators' own Claude Code or Codex subscriptions run them through a small Task Runner (`autocraft`) on their machines, in a sandbox. A Task Runner logs in with `autocraft login`, approved on the Connect page; its credential is separate from an MCP Connector token. Held claims make pickup immediate. Maintainers and operators can also reserve a queued call for their own Task Runners (**Run on my Task Runner** in the model call queue) or switch their Task Runners to Manual only.
 
-The planner, gates, Jev calls, embeddings, GitHub writes and builds always stay on the server. A Task Runner only receives a call's prompt, read-only checkouts and per-call tools, and sends back a reply. See [User-local inference](docs/operations.md#user-local-inference) for setup, eligibility and limits.
+The planner, gates, basal calls, embeddings, GitHub writes and builds always stay on the server. A Task Runner only receives a call's prompt, read-only checkouts and per-call tools, and sends back a reply. See [User-local inference](docs/operations.md#user-local-inference) for setup, eligibility and limits.
 
 ## Development
 

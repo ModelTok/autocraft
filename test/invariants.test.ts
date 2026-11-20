@@ -81,7 +81,7 @@ function randomItem(x: Rnd): ItemFacts {
     repoFacts: { labelsApproved: x.bool(0.8), commentApproved: x.bool(0.8), fixIssueApproved: x.bool(0.8) },
     classification: {
       status: x.pick(["settled", "settled", "waiting", "disagree", "unclassified"] as const), label: x.pick(["bugfix", "bugfix", "plugin candidate", null]),
-      flags: x.pick([[], [], ["needs decision"], ["security"]]), jevLabel: x.pick(["bugfix", "small extra", "plugin candidate"]), haikuLabel: x.pick([null, "bugfix", "small extra"]),
+      flags: x.pick([[], [], ["needs decision"], ["security"]]), basalLabel: x.pick(["bugfix", "small extra", "plugin candidate"]), haikuLabel: x.pick([null, "bugfix", "small extra"]),
     },
     embeddedHash: x.pick(["e1", "e1", null]), priorityHash: x.pick(["e1", "e1", null]), scannedHash: x.pick(["e1", "e1", null]),
     pairsToCheck: x.int(2), inGroupToAsk: x.bool(0.1), dupeAnswers: x.bool(0.1) ? ["d1"] : [],

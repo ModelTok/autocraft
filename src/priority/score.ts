@@ -32,7 +32,7 @@ export const LEVEL_MEANING: Record<Level, string> = {
 /** The level after the security flag: one higher, never above P0. */
 export const levelWith = (level: Level, security: boolean): Level => (security ? LEVELS[Math.max(0, LEVELS.indexOf(level) - 1)]! : level);
 
-/** Jev's probability for its impact choice from which the choice stands without Haiku. */
+/** Basal's probability for its impact choice from which the choice stands without Haiku. */
 export const SURE = 0.9;
 
 export type Reach = {
@@ -56,16 +56,16 @@ export const reachScore = (r: Reach): number => Math.min(99, Math.round(reachOf(
 
 export const isImpact = (v: unknown): v is Level => typeof v === "string" && (LEVELS as readonly string[]).includes(v);
 
-/** The impact that counts: Jev's when it is sure, else Haiku's, else Jev's anyway. */
-export function settleImpact(jev: { impact: Impact; p: number } | null, haiku: Impact | null): { impact: Impact; model: "jev" | "haiku" | "jev-unsure" } | null {
-  if (jev && jev.p >= SURE) return { impact: jev.impact, model: "jev" };
+/** The impact that counts: Basal's when it is sure, else Haiku's, else basal's anyway. */
+export function settleImpact(basal: { impact: Impact; p: number } | null, haiku: Impact | null): { impact: Impact; model: "basal" | "haiku" | "basal-unsure" } | null {
+  if (basal && basal.p >= SURE) return { impact: basal.impact, model: "basal" };
   if (haiku) return { impact: haiku, model: "haiku" };
-  return jev ? { impact: jev.impact, model: "jev-unsure" } : null;
+  return basal ? { impact: basal.impact, model: "basal-unsure" } : null;
 }
 
-export type JevImpactAnswers = { impact?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
+export type BasalImpactAnswers = { impact?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } };
 
-export function jevImpact(a: JevImpactAnswers | undefined): { impact: Impact; p: number } | null {
+export function basalImpact(a: BasalImpactAnswers | undefined): { impact: Impact; p: number } | null {
   const t = a?.impact;
   if (!t || !isImpact(t.choice)) return null;
   const p = t.probabilities?.[t.choice] ?? t.confidence;

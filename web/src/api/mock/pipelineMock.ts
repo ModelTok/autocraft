@@ -10,12 +10,12 @@ const iso = (minAgo: number) => new Date(NOW - minAgo * 60_000).toISOString();
 const STEPS: Omit<PipelineStep, "lastJob">[] = [
   {
     name: "classify-new", title: "Classify new and changed items", stage: 2, requires: "operator", unavailable: null,
-    description: "Jev labels open items that have no verdict in the current classification run, or whose text changed since; Haiku gives a second opinion where Jev is under 90 % sure.",
+    description: "Basal labels open items that have no verdict in the current classification run, or whose text changed since; Haiku gives a second opinion where basal is under 90 % sure.",
     params: [{ name: "limit", label: "At most", kind: "int", min: 1, max: 5000, default: 500, required: false, help: "items per model in this job" }],
   },
   {
     name: "classify-all", title: "Classification pass", stage: 2, requires: "operator", unavailable: null,
-    description: "Jev labels every open item of the tracked repos into the given run, then Haiku the ones Jev is unsure of. A stopped pass continues where it left off when started again with the same run id; once complete, the run becomes the current one.",
+    description: "Basal labels every open item of the tracked repos into the given run, then Haiku the ones basal is unsure of. A stopped pass continues where it left off when started again with the same run id; once complete, the run becomes the current one.",
     params: [
       { name: "run", label: "Run id", kind: "run-id", required: true, help: "lowercase letters, digits and dashes" },
       { name: "limit", label: "At most", kind: "int", min: 1, max: 30000, default: 30000, required: false, help: "items per model in this job" },
@@ -58,7 +58,7 @@ const job = (id: number, step: string, state: Job["state"], startMin: number | n
   id, step, params: {}, requestedBy: "ochre-fox", requestedAt: iso((startMin ?? 0) + 1), state,
   startedAt: startMin === null ? null : iso(startMin), endedAt: state === "running" || state === "queued" ? null : iso((startMin ?? 0) - minutes),
   progress: null, summary: null, error: null, cancelRequested: false, usage: null,
-  models: step.startsWith("classify") ? ["jev", "haiku"] : step === "opus-review" ? ["opus"] : step === "decide" ? ["opus"] : [], accounts: state === "queued" ? [] : step === "opus-review" || step === "decide" || step.startsWith("classify") ? ["Account B"] : [], waiting: null, ...extra,
+  models: step.startsWith("classify") ? ["basal", "haiku"] : step === "opus-review" ? ["opus"] : step === "decide" ? ["opus"] : [], accounts: state === "queued" ? [] : step === "opus-review" || step === "decide" || step.startsWith("classify") ? ["Account B"] : [], waiting: null, ...extra,
 });
 
 const pr = (repo: string, number: number, title: string) => ({ repo, number, kind: "pr" as const, state: "open" as const, title });
@@ -74,20 +74,20 @@ function seed(): Job[] {
     job(50, "labels-apply", "done", 6, 1, { params: { repo: "designcraft" }, summary: "designcraft: labelled 7 items" }),
     job(51, "opus-review", "queued", null, 0, { params: { repo: "photocraft", limit: 5 }, waiting: "No Task Runner takes photocraft" }),
     job(48, "classify-new", "queued", null, 0, { params: { limit: 200 }, requestedBy: "pipeline" }),
-    job(47, "classify-new", "running", 9, 0, { params: { limit: 200 }, requestedBy: "pipeline", progress: "Jev: 120 of 164 items", usage: { calls: 120, input: 98_400, output: 6_100, costUsd: null } }),
+    job(47, "classify-new", "running", 9, 0, { params: { limit: 200 }, requestedBy: "pipeline", progress: "Basal: 120 of 164 items", usage: { calls: 120, input: 98_400, output: 6_100, costUsd: null } }),
     job(46, "embed", "done", 25, 2, { params: { scope: "changed" }, requestedBy: "pipeline", summary: "embedded new and changed items" }),
-    job(45, "classify-new", "done", 72, 6, { params: { limit: 200 }, requestedBy: "pipeline", summary: "Run org-1102: Jev classified 38 of 38 new or changed items; Haiku gave a second opinion on 9 of 9.", usage: { calls: 39, input: 61_200, output: 4_400, costUsd: 0.07 } }),
-    job(44, "classify-all", "cancelled", 300, 41, { params: { run: "org-1102", limit: 30000 }, progress: "Jev: 6,400 of 21,310 items", usage: { calls: 6_400, input: 5_210_000, output: 330_000, costUsd: null } }),
+    job(45, "classify-new", "done", 72, 6, { params: { limit: 200 }, requestedBy: "pipeline", summary: "Run org-1102: Basal classified 38 of 38 new or changed items; Haiku gave a second opinion on 9 of 9.", usage: { calls: 39, input: 61_200, output: 4_400, costUsd: 0.07 } }),
+    job(44, "classify-all", "cancelled", 300, 41, { params: { run: "org-1102", limit: 30000 }, progress: "Basal: 6,400 of 21,310 items", usage: { calls: 6_400, input: 5_210_000, output: 330_000, costUsd: null } }),
     job(43, "classify-new", "failed", 1500, 1, { params: { limit: 500 }, error: "There is no classification run yet; start a classification pass first." }),
   ];
 }
 
 const LOG = `2026-11-02T10:31:02.114Z job 47: classify-new {"limit":200}, requested by pipeline
-run org-1102: 21310 open items, 164 due for Jev, taking 164
-Jev: 40 of 164 items
-Jev: 80 of 164 items
-jev: no valid answer for photocraft#2214
-Jev: 120 of 164 items`;
+run org-1102: 21310 open items, 164 due for basal, taking 164
+Basal: 40 of 164 items
+Basal: 80 of 164 items
+basal: no valid answer for photocraft#2214
+Basal: 120 of 164 items`;
 
 /** `?mock=drain` on the page address starts the mock pipeline in the Draining state, for screenshots. */
 const MOCK_DRAIN = typeof location !== "undefined" && /[?&]mock=drain\b/.test(location.search);

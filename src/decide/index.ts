@@ -29,7 +29,7 @@ export type DecideParams = {
   /** Most decisions to create in this run. */
   limit?: number;
   dryRun?: boolean;
-  /** Classification run; default the one with the newest Jev verdict. */
+  /** Classification run; default the one with the newest basal verdict. */
   run?: string;
   /** Called with the running count of items sent to the model. */
   onSent?: (n: number) => void;
@@ -79,7 +79,7 @@ export async function runDecide(db: DatabaseSync, params: DecideParams = {}, log
   const run = params.run ?? latestRun(db);
   const result: DecideResult = { run, dryRun: !!params.dryRun, byRepo: {}, asked: 0, prepared: 0, usageRun: null };
   const picked: Candidate[] = [];
-  if (!run) log("decide: no classification run with Jev verdicts");
+  if (!run) log("decide: no classification run with basal verdicts");
   else {
     const lookup = settledLookup(db, run);
     const all: Candidate[] = plannedItems(db, "decide", { run, bucket: "new" })

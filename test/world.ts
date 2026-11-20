@@ -38,8 +38,8 @@ const itemBase = (): ItemFacts => ({
   repo: "app", number: 1, kind: "issue", open: true, assignment: { login: "bot", assignees: ["dev"], ours: false }, now: NOW, pipelineOn: true, draft: false, inScope: true, integration: false, held: null, fast: false, score: 100,
   repoFacts: { labelsApproved: true, commentApproved: true, fixIssueApproved: true }, run: "run1",
   classification: {
-    status: "settled", label: "bugfix", flags: [], jevLabel: "bugfix", haikuLabel: null, referee: null,
-    jev: { at: "2026-11-04T08:00:00.000Z", changed: false, unsure: false }, haiku: null,
+    status: "settled", label: "bugfix", flags: [], basalLabel: "bugfix", haikuLabel: null, referee: null,
+    basal: { at: "2026-11-04T08:00:00.000Z", changed: false, unsure: false }, haiku: null,
   },
   embedHash: "e1", embeddedHash: "e1", priorityHash: "e1", scannedHash: "e1", pairsToCheck: 0, inGroupToAsk: false, inCompareSet: false, dupeAnswers: [],
   scope: { open: false, answer: null, covered: false, recommend: null },

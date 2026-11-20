@@ -1,16 +1,16 @@
 // Checks of public-facing model text against the repo's private reference documentation: an overlap check
 // (shingles of five words shared with the reference pages, see quotedTexts) and a semantic one (does the text refer to
-// documentation or a vendor of another product: Jev first, Haiku for the unsure and while Jev is unavailable).
+// documentation or a vendor of another product: Basal first, Haiku for the unsure and while basal is unavailable).
 // Both only run for a repo that has a reference folder.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { isHalt } from "./agents/call.ts";
-import { jevAvailable } from "./agents/jev.ts";
+import { basalAvailable } from "./agents/basal-availability.ts";
 import { runModelStep } from "./agents/step.ts";
 import { inferenceMode } from "./remote/mode.ts";
-import { REFERENCE_HAIKU, REFERENCE_JEV } from "./agents/steps.ts";
-import { QUOTE_WORDS, REFERENCE_JEV_ACCEPT, REFERENCE_JEV_REJECT, type LintProblem } from "./replylint.ts";
+import { REFERENCE_HAIKU, REFERENCE_BASAL } from "./agents/steps.ts";
+import { QUOTE_WORDS, REFERENCE_BASAL_ACCEPT, REFERENCE_BASAL_REJECT, type LintProblem } from "./replylint.ts";
 import { REFERENCE_LEAK } from "./review/opus-parse.ts";
 
 /** Letters of other scripts that read as Latin ones; a quote written with them compares as the Latin text. */
@@ -146,12 +146,12 @@ export function quotesReference(text: string, dir: string): boolean {
 }
 
 export type SemanticDeps = {
-  /** Jev's yes-probability that the text refers to outside documentation or a vendor; null when it gave no valid answer. */
-  jev(text: string): Promise<number | null>;
+  /** Basal's yes-probability that the text refers to outside documentation or a vendor; null when it gave no valid answer. */
+  basal(text: string): Promise<number | null>;
   /** Haiku's verdict (true: it refers); null when it gave no valid answer. */
   haiku(text: string): Promise<boolean | null>;
-  /** False while Jev is unavailable: Haiku then decides alone. Absent means available. */
-  jevUsable?(): boolean;
+  /** False while basal is unavailable: Haiku then decides alone. Absent means available. */
+  basalUsable?(): boolean;
 };
 
 /** The longest wait for a free account slot before the Haiku check gives up (counts as no): the fix turn must follow while the prompt cache is warm. */
@@ -164,27 +164,27 @@ export const HAIKU_WAIT_REMOTE_MS = 10 * 60_000;
 
 export function defaultSemanticDeps(db: DatabaseSync, ref: string): SemanticDeps {
   return {
-    async jev(text) {
-      const r = await runModelStep(db, REFERENCE_JEV, { ref, text });
+    async basal(text) {
+      const r = await runModelStep(db, REFERENCE_BASAL, { ref, text });
       return r.ok ? r.value : null;
     },
     async haiku(text) {
       const r = await runModelStep(db, REFERENCE_HAIKU, [{ ref, text }], { maxWaitMs: inferenceMode(db) === "user-local" ? HAIKU_WAIT_REMOTE_MS : HAIKU_WAIT_MS });
       return r.ok ? r.value : null;
     },
-    jevUsable: () => jevAvailable(db),
+    basalUsable: () => basalAvailable(db),
   };
 }
 
-/** Whether the text refers to outside documentation or a vendor: Jev at 0.9 or more says yes and below 0.3 no; Haiku decides the rest and everything while Jev is unavailable. An unanswered check counts as no. */
+/** Whether the text refers to outside documentation or a vendor: Basal at 0.9 or more says yes and below 0.3 no; Haiku decides the rest and everything while basal is unavailable. An unanswered check counts as no. */
 export async function refersToDocumentation(text: string, deps: SemanticDeps): Promise<boolean> {
   // A failed call (no account, a wait that ran out) counts as no for this text; a cancel stops the whole lint.
   const guard = async <T>(f: () => Promise<T>): Promise<T | null> => {
     try { return await f(); } catch (e) { if (isHalt(e)) throw e; console.log(`reference check failed: ${(e as Error).message}`); return null; }
   };
-  const p = (deps.jevUsable?.() ?? true) ? await guard(() => deps.jev(text)) : null;
-  if (p !== null && p >= REFERENCE_JEV_ACCEPT) return true;
-  if (p !== null && p < REFERENCE_JEV_REJECT) return false;
+  const p = (deps.basalUsable?.() ?? true) ? await guard(() => deps.basal(text)) : null;
+  if (p !== null && p >= REFERENCE_BASAL_ACCEPT) return true;
+  if (p !== null && p < REFERENCE_BASAL_REJECT) return false;
   return (await guard(() => deps.haiku(text))) === true;
 }
 

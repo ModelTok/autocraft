@@ -1,13 +1,13 @@
-// The model-step runner: every model call goes through runModelStep (one step) or runTiered (Jev first, Haiku
-// where Jev is unsure or unavailable). A step is declared once (src/agents/steps.ts) with its parser, retries,
-// lint and fallbacks; the runner does the calls, retries, lint and fix turn (askClaude), the Jev reply parse, the
+// The model-step runner: every model call goes through runModelStep (one step) or runTiered (Basal first, Haiku
+// where basal is unsure or unavailable). A step is declared once (src/agents/steps.ts) with its parser, retries,
+// lint and fallbacks; the runner does the calls, retries, lint and fix turn (askClaude), the basal reply parse, the
 // usage rows and the error result.
 import type { DatabaseSync } from "node:sqlite";
 import { NoTakerError, poolRoom, repoBatches } from "./call.ts";
-import { jevAvailable } from "./jev.ts";
-import { jevParallel } from "./accounts.ts";
-import { add, askClaude, askJev, pool, saveUsage, type AskOptions, type LintedReply, type Usage } from "../classify/run.ts";
-import { CLAUDE_PROMPTS, JEV_PROMPTS, JEV_USD_PER_INPUT_TOKEN, renderJev, type ClaudePromptId, type JevPromptId } from "../prompts/index.ts";
+import { basalAvailable } from "./basal-availability.ts";
+import { basalParallel } from "./accounts.ts";
+import { add, askClaude, askBasal, pool, saveUsage, type AskOptions, type LintedReply, type Usage } from "../classify/run.ts";
+import { CLAUDE_PROMPTS, BASAL_PROMPTS, BASAL_USD_PER_INPUT_TOKEN, renderBasal, type ClaudePromptId, type BasalPromptId } from "../prompts/index.ts";
 import type { DupePair } from "../dupes/pair.ts";
 import type { Item } from "../classify/parse.ts";
 import type { Lint, LintProblem } from "../replylint.ts";
@@ -20,7 +20,7 @@ export type ParseCtx = {
   /** Claude: what the lint still found after the fix turn (absent without lint); true when a fix turn ran. */
   problems?: LintProblem[];
   fixTurn?: boolean;
-  /** Jev: the exit code of `jev ask`. */
+  /** Basal: 0 for an answer from basal-serve, 1 for an HTTP error, -1 when it could not be reached, null for no answer in time. */
   code?: number | null;
 };
 
@@ -51,12 +51,12 @@ export type ClaudeStep<I, V, C = void> = StepBase<I, V> & {
   fallback?: (text: string, input: I, ctx: ParseCtx, c: C) => V | null;
 };
 
-export type JevStep<I, V, C = void> = StepBase<I, V> & {
-  provider: "jev";
-  id: JevPromptId;
+export type BasalStep<I, V, C = void> = StepBase<I, V> & {
+  provider: "basal";
+  id: BasalPromptId;
   /** The item the run records and the request body (default body: the registered request for the item). */
   request: (input: I, ctx: C) => { item: Item | DupePair | { ref: string }; body?: string };
-  /** `answers` of Jev's JSON reply; null is a parse error. Not called when the reply was not JSON. */
+  /** `answers` of basal's JSON reply; null is a parse error. Not called when the reply was not JSON. */
   parse: (answers: unknown, input: I, ctx: ParseCtx, c: C) => Parsed<I, V> | null;
 };
 
@@ -71,16 +71,16 @@ export type UsageSave = {
   items?: (answered: boolean, inputSize: number, restSize: number) => number;
   /** Rows of an earlier pass under the same agent name are renamed first, so the replace does not overwrite their cost. */
   keepEarlier?: boolean;
-  /** No row when the step got no usage at all (Jev: no reply with a usage field). */
+  /** No row when the step got no usage at all (Basal: no reply with a usage field). */
   skipWhen?: (r: { ok: boolean }) => boolean;
-  /** Jev: also save the row (with zero tokens) when no reply carried a usage field. */
+  /** Basal: also save the row (with zero tokens) when no reply carried a usage field. */
   withoutUsage?: boolean;
 };
 
 export type StepOpts<I, C = void> = Omit<AskOptions, "lint"> & {
   /** Claude: a model other than the prompt's first registered one. */
   model?: string;
-  /** Jev: what `request` needs besides the input. */
+  /** Basal: what `request` needs besides the input. */
   ctx?: C;
   usage?: UsageSave;
   cancelled?: () => boolean;
@@ -109,8 +109,8 @@ type Reply = { text: string; usage: Usage; problems?: LintProblem[]; fixTurn?: b
  * a taker (NoTakerError) ends the attempts: with earlier answers they are returned with the rest unanswered, as when the
  * attempts run out; without, the usage of what ran is saved and the error is thrown.
  */
-export async function runModelStep<I, V, C = void>(db: DatabaseSync, step: ClaudeStep<I, V, C> | JevStep<I, V, C>, input: I, opts: StepOpts<I, C> = {}): Promise<StepResult<I, V>> {
-  const reg = step.provider === "jev" ? JEV_PROMPTS[step.id] : CLAUDE_PROMPTS[step.id];
+export async function runModelStep<I, V, C = void>(db: DatabaseSync, step: ClaudeStep<I, V, C> | BasalStep<I, V, C>, input: I, opts: StepOpts<I, C> = {}): Promise<StepResult<I, V>> {
+  const reg = step.provider === "basal" ? BASAL_PROMPTS[step.id] : CLAUDE_PROMPTS[step.id];
   const attempts = step.attempts ?? reg.limits.attempts;
   const start = new Date().toISOString();
   const values: V[] = [];
@@ -120,7 +120,7 @@ export async function runModelStep<I, V, C = void>(db: DatabaseSync, step: Claud
   let ran: string | undefined, untaken: NoTakerError | undefined;
   for (let attempt = 0; attempt < attempts && todo !== undefined; attempt++) {
     if (opts.cancelled?.()) break;
-    if (step.provider === "jev" && !jevAvailable(db)) { error = "jev unavailable"; break; }
+    if (step.provider === "basal" && !basalAvailable(db)) { error = "basal unavailable"; break; }
     if (attempt > 0 && step.backoffMs) await sleep(step.backoffMs);
     opts.onAttempt?.(todo, attempt);
     let r: Reply | null;
@@ -154,7 +154,7 @@ export async function runModelStep<I, V, C = void>(db: DatabaseSync, step: Claud
     const total = sizeOf(step, input);
     const items = u.items ? u.items(ok, total, rest === undefined ? 0 : sizeOf(step, rest)) : total - (rest === undefined ? 0 : sizeOf(step, rest));
     const model = u.model ?? reg.models[0]!;
-    const saved = step.provider === "jev" ? { ...usage, cost: usage.input * JEV_USD_PER_INPUT_TOKEN } : usage;
+    const saved = step.provider === "basal" ? { ...usage, cost: usage.input * BASAL_USD_PER_INPUT_TOKEN } : usage;
     if (u.keepEarlier) db.prepare("UPDATE main.token_usage SET agent = agent || '@' || COALESCE(started_at, '') WHERE run_id = ? AND agent = ?").run(u.run, u.agent);
     saveUsage(db, u.run, u.agent, u.stage, model, items, saved, start, new Date().toISOString());
   }
@@ -164,7 +164,7 @@ export async function runModelStep<I, V, C = void>(db: DatabaseSync, step: Claud
   return { ok: true, value: values[values.length - 1]!, values, ...(rest !== undefined && { rest }), usage, runId, ...(ran && { model: ran }) };
 }
 
-async function call<I, V, C>(db: DatabaseSync, step: ClaudeStep<I, V, C> | JevStep<I, V, C>, input: I, opts: StepOpts<I, C>): Promise<Reply | null> {
+async function call<I, V, C>(db: DatabaseSync, step: ClaudeStep<I, V, C> | BasalStep<I, V, C>, input: I, opts: StepOpts<I, C>): Promise<Reply | null> {
   if (step.provider === "claude") {
     const lint = step.lint?.make(input, opts.ctx as C);
     const { ctx: _c, usage: _u, cancelled: _x, ask, model: m, onAttempt: _a, onReply: _r, ...ask_ } = opts;
@@ -172,7 +172,7 @@ async function call<I, V, C>(db: DatabaseSync, step: ClaudeStep<I, V, C> | JevSt
     return ask ? ask(input, lint) : askClaude(step.id, model, (step.toPrompt ? step.toPrompt(input) : input) as never, db, { ...ask_, ...(lint && { lint }) });
   }
   const { item, body } = step.request(input, opts.ctx as C);
-  const p = await askJev(step.id, item as never, db, body ?? renderJev(step.id, item as Item | DupePair), opts.usage === undefined);
+  const p = await askBasal(step.id, item as never, db, body ?? renderBasal(step.id, item as Item | DupePair), opts.usage === undefined);
   type Json = { answers?: unknown; usage?: { input_tokens?: number; output_tokens?: number } };
   let parsed: unknown = null;
   try { parsed = JSON.parse(p.stdout); } catch { /* the step reports an unreadable answer */ }
@@ -181,9 +181,9 @@ async function call<I, V, C>(db: DatabaseSync, step: ClaudeStep<I, V, C> | JevSt
   return { answers: j?.answers, usage, code: p.code, json: j !== null };
 }
 
-/** A Jev step with its Haiku fallback. Jev answers each item; Haiku answers (in batches) the items Jev is not sure about. */
+/** A basal step with its Haiku fallback. Basal answers each item; Haiku answers (in batches) the items basal is not sure about. */
 export type TieredStep<It, JV, HV, C = void, B = It[]> = {
-  jev: JevStep<It, JV, C>;
+  basal: BasalStep<It, JV, C>;
   /** Haiku answers a batch; its value is `[ref, answer]` pairs, and `rest` the batch items without one. */
   haiku: ClaudeStep<B, [string, HV][], C>;
   /** The Haiku input for a batch of items (default: the list). */
@@ -191,17 +191,17 @@ export type TieredStep<It, JV, HV, C = void, B = It[]> = {
   ref: (item: It) => string;
   /** The item's repo: the model queue's room is asked for the repos of the next batch. */
   repo: (item: It) => string;
-  /** Jev's answer settles the item: it is not sent to Haiku. */
-  sure: (jev: JV) => boolean;
-  /** An item Jev gave no valid answer for goes to Haiku: always, or only when Jev is unavailable (a failure with Jev up leaves the item for the next pass). */
-  onJevFailure: "haiku" | "haiku-when-unavailable";
+  /** Basal's answer settles the item: it is not sent to Haiku. */
+  sure: (basal: JV) => boolean;
+  /** An item basal gave no valid answer for goes to Haiku: always, or only when basal is unavailable (a failure with basal up leaves the item for the next pass). */
+  onBasalFailure: "haiku" | "haiku-when-unavailable";
 };
 
 export type TieredOpts<It, C> = {
   ctx?: C;
-  /** Jev call width (default: the Jev parallelism setting). */
-  jevWidth?: number | (() => number);
-  jevUsage?: (item: It) => UsageSave;
+  /** Basal call width (default: the basal parallelism setting). */
+  basalWidth?: number | (() => number);
+  basalUsage?: (item: It) => UsageSave;
   /** Haiku batch size; default: the prompt's `perCall`. */
   perCall?: number;
   haikuUsage?: (batch: It[], n: number) => UsageSave;
@@ -211,10 +211,10 @@ export type TieredOpts<It, C> = {
 };
 
 export type TieredResult<JV, HV> = {
-  /** Jev's answer per ref (null: none, or Jev was not asked). */
-  jev: Map<string, JV | null>;
+  /** Basal's answer per ref (null: none, or basal was not asked). */
+  basal: Map<string, JV | null>;
   haiku: Map<string, HV>;
-  /** Items Jev could not be asked or answer because it is unavailable, so Haiku decided alone. */
+  /** Items basal could not be asked or answer because it is unavailable, so Haiku decided alone. */
   alone: Set<string>;
   /** Items sent to Haiku. */
   asked: Set<string>;
@@ -223,20 +223,20 @@ export type TieredResult<JV, HV> = {
 };
 
 export async function runTiered<It, JV, HV, C = void, B = It[]>(db: DatabaseSync, tier: TieredStep<It, JV, HV, C, B>, items: It[], opts: TieredOpts<It, C> = {}): Promise<TieredResult<JV, HV>> {
-  const out: TieredResult<JV, HV> = { jev: new Map(), haiku: new Map(), alone: new Set(), asked: new Set(), skipped: new Set() };
-  if (jevAvailable(db)) {
+  const out: TieredResult<JV, HV> = { basal: new Map(), haiku: new Map(), alone: new Set(), asked: new Set(), skipped: new Set() };
+  if (basalAvailable(db)) {
     await pool(items.map((x) => async () => {
-      if (!jevAvailable(db)) return;
-      const r = await runModelStep(db, tier.jev, x, { ctx: opts.ctx, usage: opts.jevUsage?.(x), cancelled: opts.cancelled });
-      out.jev.set(tier.ref(x), r.ok ? r.value : null);
-    }), opts.jevWidth ?? (() => jevParallel(db)));
+      if (!basalAvailable(db)) return;
+      const r = await runModelStep(db, tier.basal, x, { ctx: opts.ctx, usage: opts.basalUsage?.(x), cancelled: opts.cancelled });
+      out.basal.set(tier.ref(x), r.ok ? r.value : null);
+    }), opts.basalWidth ?? (() => basalParallel(db)));
   }
-  const down = !jevAvailable(db);
+  const down = !basalAvailable(db);
   const ask: It[] = [];
   for (const x of items) {
-    const jv = out.jev.get(tier.ref(x)) ?? null;
+    const jv = out.basal.get(tier.ref(x)) ?? null;
     if (jv !== null && tier.sure(jv)) continue;
-    if (jv === null && !down && tier.onJevFailure === "haiku-when-unavailable") continue;
+    if (jv === null && !down && tier.onBasalFailure === "haiku-when-unavailable") continue;
     if (jv === null && down) out.alone.add(tier.ref(x));
     ask.push(x);
   }

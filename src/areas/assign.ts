@@ -1,18 +1,19 @@
-// Assigns items to the areas of their repo's list: one Jev `choice` question per item among the areas plus
-// "none of these". Jev's top choice at AREA_SURE or more settles it; below that Haiku decides, and Haiku
-// decides alone while Jev is unavailable. Repos without a list are skipped. An item asked against the current
+// Assigns items to the areas of their repo's list: one basal `choice` question per item among the areas plus
+// "none of these". Basal's top choice at AREA_SURE or more settles it; below that Haiku decides, and Haiku
+// decides alone while basal is unavailable. Repos without a list are skipped. An item asked against the current
 // list version is not asked again unless a re-scan asks for the unassigned ones.
 import { jobItem } from "../runner/job-items.ts";
 import type { DatabaseSync } from "node:sqlite";
 import { freeSlots } from "../agents/accounts.ts";
 import { takersFirst } from "../agents/call.ts";
-import { jevAvailable } from "../agents/jev.ts";
+import { basalAvailable } from "../agents/basal-availability.ts";
 import { notOwnIntegrationSql } from "../dupes/held.ts";
 import { refOf } from "../classify/parse.ts";
 import { pool } from "../classify/run.ts";
 import { runTiered } from "../agents/step.ts";
 import { AREAS } from "../agents/steps.ts";
 import { pilotSql } from "../pilot.ts";
+import { BASAL_MODEL } from "../prompts/index.ts";
 import { cachedDiff, ghDiff, splitDiff } from "../review/diff.ts";
 import { settles } from "./parse.ts";
 import { currentList, setItemArea } from "./store.ts";
@@ -73,7 +74,7 @@ export type AssignParams = {
   progress?: (line: string) => void;
   log?: (line: string) => void;
 };
-export type AssignResult = { due: number; jev: number; haiku: number; none: number; left: number };
+export type AssignResult = { due: number; basal: number; haiku: number; none: number; left: number };
 
 async function withPaths(items: Due[], source: PathSource): Promise<AreaItem[]> {
   const prs = items.filter((x) => x.kind === "pr");
@@ -89,28 +90,28 @@ async function withPaths(items: Due[], source: PathSource): Promise<AreaItem[]> 
 async function assignRepo(db: DatabaseSync, repo: string, due: Due[], p: AssignParams, r: AssignResult): Promise<void> {
   const list = currentList(db, repo)!;
   const version = list.version;
-  const store = (x: AreaItem, area: string | null, source: "jev" | "haiku", conf: number | null) => {
+  const store = (x: AreaItem, area: string | null, source: "basal" | "haiku", conf: number | null) => {
     // The list was edited while this pass ran: the answer is for a list that is gone.
     if (currentList(db, repo)?.version !== version) return;
     setItemArea(db, x.repo, x.number, area, source, conf, version);
-    if (source === "jev") r.jev++; else r.haiku++;
+    if (source === "basal") r.basal++; else r.haiku++;
     if (area === null) r.none++;
     jobItem(db, x.repo, x.number, area === null ? "fits none of the areas" : `assigned area ${area}`, p.log);
   };
   for (let i = 0; i < due.length && !p.cancelled?.(); i += CHUNK) {
     // With neither model available there is nothing to ask, so no diff is fetched.
-    if (!jevAvailable(db) && freeSlots(db) <= 0 && !p.paths) { p.log?.(`areas: no model available for ${repo}`); break; }
+    if (!basalAvailable(db) && freeSlots(db) <= 0 && !p.paths) { p.log?.(`areas: no model available for ${repo}`); break; }
     const chunk = await withPaths(due.slice(i, i + CHUNK), p.paths ?? diffPaths(db));
     const t = await runTiered(db, AREAS, chunk, {
       ctx: { repo, areas: list.areas },
       cancelled: p.cancelled,
-      jevUsage: (x) => ({ run: p.usageRun, agent: `areas-jev-${refOf(x)}`, stage: "areas", model: "jev-latest", items: () => 1, keepEarlier: true }),
+      basalUsage: (x) => ({ run: p.usageRun, agent: `areas-basal-${refOf(x)}`, stage: "areas", model: BASAL_MODEL, items: () => 1, keepEarlier: true }),
       haikuUsage: (_batch, n) => ({ run: p.usageRun, agent: `areas-haiku-${repo}-${String(n).padStart(3, "0")}`, stage: "areas", keepEarlier: true }),
     });
     p.onSent?.(chunk.length - t.skipped.size);
     for (const x of chunk) {
-      const a = t.jev.get(refOf(x));
-      if (a && settles(a.top)) store(x, a.area, "jev", a.top);
+      const a = t.basal.get(refOf(x));
+      if (a && settles(a.top)) store(x, a.area, "basal", a.top);
       else if (t.haiku.has(refOf(x))) store(x, t.haiku.get(refOf(x))!, "haiku", null);
     }
     p.progress?.(`Areas ${repo}: ${Math.min(i + CHUNK, due.length)} of ${due.length} items`);
@@ -120,15 +121,15 @@ async function assignRepo(db: DatabaseSync, repo: string, due: Due[], p: AssignP
 /** Assigns areas to the due items. Returns counts; `left` is the due items that got no answer in this pass. */
 export async function assignAreas(db: DatabaseSync, p: AssignParams): Promise<AssignResult> {
   const due = dueForArea(db, { repo: p.repo, limit: p.limit, rescan: p.rescan });
-  const r: AssignResult = { due: due.length, jev: 0, haiku: 0, none: 0, left: 0 };
+  const r: AssignResult = { due: due.length, basal: 0, haiku: 0, none: 0, left: 0 };
   const byRepo = new Map<string, Due[]>();
   for (const x of due) byRepo.set(x.repo, [...(byRepo.get(x.repo) ?? []), x]);
   for (const [repo, items] of byRepo) {
     if (p.cancelled?.()) break;
     await assignRepo(db, repo, items, p, r);
   }
-  r.left = r.due - r.jev - r.haiku;
-  p.log?.(`areas: ${r.due} items due, Jev settled ${r.jev}, Haiku ${r.haiku}, ${r.none} with none of the areas, ${r.left} unanswered`);
+  r.left = r.due - r.basal - r.haiku;
+  p.log?.(`areas: ${r.due} items due, basal settled ${r.basal}, Haiku ${r.haiku}, ${r.none} with none of the areas, ${r.left} unanswered`);
   return r;
 }
 

@@ -4,7 +4,7 @@ import type { Item } from "../classify/parse.ts";
 /** One entry of a repo's area list. */
 export type Area = { name: string; description: string };
 
-/** The choice Jev and Haiku give when no area fits. Not a valid area name. */
+/** The choice basal and Haiku give when no area fits. Not a valid area name. */
 export const NONE_OF_THESE = "none of these";
 
 export const AREA_NAME_MAX = 60;
@@ -18,7 +18,7 @@ export const PROPOSE_TITLES = 300;
 export const SUGGEST_ITEMS = 150;
 export const SUGGEST_MAX = 8;
 export const AREA_SUGGEST_BODY = 500;
-/** Jev's top probability from which its area stands without Haiku. Same as the type label's. */
+/** Basal's top probability from which its area stands without Haiku. Same as the type label's. */
 export const AREA_SURE = 0.9;
 
 /** An item as the area prompts see it: the classifier's view plus the paths a pull request changes. */

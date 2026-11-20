@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS comments_created ON comments(created_at);
 -- One row per classifier verdict; several classifiers may judge the same item.
 CREATE TABLE IF NOT EXISTS classifications (
   repo TEXT NOT NULL, number INTEGER NOT NULL,
-  classifier TEXT NOT NULL,           -- 'haiku' | 'jev' | 'sonnet' | 'owner'
+  classifier TEXT NOT NULL,           -- 'haiku' | 'basal' | 'sonnet' | 'owner'
   run_id TEXT NOT NULL,
   at TEXT NOT NULL,
   type_label TEXT,                    -- bugfix | performance | missing feature | small extra | plugin candidate | infra
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS classifications (
   flags TEXT,                         -- JSON array
   dup_of INTEGER,
   reason TEXT,
-  probs TEXT,                         -- JSON, Jev: {type: {label: p}, top, security, needs_decision}
+  probs TEXT,                         -- JSON, basal: {type: {label: p}, top, security, needs_decision}
   PRIMARY KEY (repo, number, classifier, run_id)
 );
 
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS token_usage (
   input_tokens INTEGER, output_tokens INTEGER,
   cache_read_tokens INTEGER, cache_write_tokens INTEGER,
   started_at TEXT, ended_at TEXT,
-  cost_usd REAL,                      -- as reported by the CLI; Jev: input tokens at TypeSafe's price
+  cost_usd REAL,                      -- as reported by the CLI; basal: 0 on basal-serve (rows of the hosted model before it: input tokens at TypeSafe's price)
   PRIMARY KEY (run_id, agent)
 );
 
@@ -777,9 +777,9 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   stage INTEGER NOT NULL,
   prompt_id TEXT NOT NULL,
   prompt_version TEXT NOT NULL,
-  provider TEXT NOT NULL,             -- claude | jev
+  provider TEXT NOT NULL,             -- claude | basal
   model TEXT NOT NULL,
-  account_id TEXT,                    -- null for Jev
+  account_id TEXT,                    -- null for basal
   items TEXT NOT NULL DEFAULT '[]',   -- JSON [{repo, number}], at most 50
   item_count INTEGER NOT NULL DEFAULT 0,
   state TEXT NOT NULL,                -- running | done | failed
@@ -789,7 +789,7 @@ CREATE TABLE IF NOT EXISTS agent_runs (
   summary TEXT,
   error TEXT,
   progress TEXT,                      -- running: the latest line of what the call is doing
-  cost_usd REAL,                      -- the call's cost in USD (Jev: input tokens times the flat price); null for rows from before this column
+  cost_usd REAL,                      -- the call's cost in USD (Basal: input tokens times the flat price); null for rows from before this column
   user_login TEXT,                    -- user-local mode: the maintainer whose helper ran the call
   harness TEXT,                       -- user-local mode: claude | codex
   reported_model TEXT                 -- user-local mode: the model the harness reported
@@ -801,11 +801,11 @@ CREATE INDEX IF NOT EXISTS agent_runs_account ON agent_runs(account_id, id);
 CREATE INDEX IF NOT EXISTS agent_runs_job ON agent_runs(job_id, id);
 CREATE INDEX IF NOT EXISTS agent_runs_started ON agent_runs(started_at);
 
--- Model calls waiting for a slot (Claude) or Jev capacity: bookkeeping for the call queue in src/agents/call.ts.
+-- Model calls waiting for a slot (Claude) or basal capacity: bookkeeping for the call queue in src/agents/call.ts.
 -- Written by the calling process every poll; rows not seen for 30 s are ignored, runner start deletes all.
 CREATE TABLE IF NOT EXISTS model_waits (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  provider TEXT NOT NULL,             -- claude | jev
+  provider TEXT NOT NULL,             -- claude | basal
   class INTEGER NOT NULL,             -- 0 | 1 | 2
   job_id INTEGER,
   step TEXT NOT NULL,
@@ -1129,12 +1129,12 @@ CREATE TABLE IF NOT EXISTS pr_builds (
 CREATE INDEX IF NOT EXISTS pr_builds_state ON pr_builds(state);
 -- Priority of an open item (Prioritize step). text_hash is the item's embed_hash when the models ran;
 -- the models run again only when it changes, while score is recomputed from the mirror on each pass.
--- impact: the priority level, P0 (critical) to P4 (backlog). score: reach 0-99, the tie-breaker inside a level. model: jev (sure) | haiku | jev-unsure (no Haiku answer).
+-- impact: the priority level, P0 (critical) to P4 (backlog). score: reach 0-99, the tie-breaker inside a level. model: basal (sure) | haiku | basal-unsure (no Haiku answer).
 CREATE TABLE IF NOT EXISTS item_priority (
   repo TEXT NOT NULL, number INTEGER NOT NULL,
   text_hash TEXT NOT NULL,
   impact TEXT NOT NULL,
-  jev_impact TEXT, jev_p REAL,
+  basal_impact TEXT, basal_p REAL,
   haiku_impact TEXT,
   score INTEGER NOT NULL,
   model TEXT NOT NULL,
@@ -1147,15 +1147,15 @@ INSERT OR IGNORE INTO stage_limits (step, per_day) VALUES ('prioritize', 3000);
 CREATE INDEX IF NOT EXISTS verifications_finished ON verifications(finished_at);
 
 -- Duplicate candidates (Duplicates stage). a < b. A pair is checked once per pair of text hashes
--- (embed_hash of each item); verdict is NULL until a model has answered. jev_p is Jev's yes-probability,
--- haiku the second opinion (duplicate | distinct | unsure) when Jev was not sure either way.
+-- (embed_hash of each item); verdict is NULL until a model has answered. basal_p is basal's yes-probability,
+-- haiku the second opinion (duplicate | distinct | unsure) when basal was not sure either way.
 -- canonical is the one to keep. by_operator marks a pair an operator answered "not a duplicate" or "keep both" for.
 CREATE TABLE IF NOT EXISTS duplicate_pairs (
   repo TEXT NOT NULL,
   a INTEGER NOT NULL, b INTEGER NOT NULL,
   a_hash TEXT NOT NULL, b_hash TEXT NOT NULL,
   similarity REAL NOT NULL,
-  jev_p REAL,
+  basal_p REAL,
   haiku TEXT,
   verdict TEXT,                       -- duplicate | distinct | unsure
   canonical INTEGER,
@@ -1503,8 +1503,8 @@ CREATE TABLE IF NOT EXISTS area_lists (
 CREATE TABLE IF NOT EXISTS item_areas (
   repo TEXT NOT NULL, number INTEGER NOT NULL,
   area TEXT,
-  source TEXT NOT NULL,               -- jev | haiku | operator
-  confidence REAL,                    -- Jev's top probability, else NULL
+  source TEXT NOT NULL,               -- basal | haiku | operator
+  confidence REAL,                    -- basal's top probability, else NULL
   list_version INTEGER NOT NULL,
   at TEXT NOT NULL,
   PRIMARY KEY (repo, number)

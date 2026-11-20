@@ -61,13 +61,13 @@ Stage vocabulary (`stages.stage`, latest row per item wins): `classified`, `revi
 |---|---|
 | Open | open in the mirror |
 | Classified | has a settled type label in the latest classification run (below) |
-| Waiting for a second opinion / disagreement | Jev unsure and Haiku hasn't answered / Haiku gave another label |
+| Waiting for a second opinion / disagreement | Basal unsure and Haiku hasn't answered / Haiku gave another label |
 | Reviewed | has a `reviewed` stage |
 | Taken / held / to close / waiting for a decision | latest stage `take` / `hold` / `close` / `needs-decision` |
 | In a batch | latest stage `batched` |
 | Done | item closed or merged since tracking began, split by: merged by the pipeline, closed by the pipeline, closed by others |
 
-The settled type label (`src/classify/settled.ts`): Jev's label when its top probability is at least 0.9; otherwise Haiku's when Haiku agrees with Jev; otherwise the item is unsettled, waiting for Haiku or in disagreement. The latest run is the one with the newest Jev verdict.
+The settled type label (`src/classify/settled.ts`): Basal's label when its top probability is at least 0.9; otherwise Haiku's when Haiku agrees with basal; otherwise the item is unsettled, waiting for Haiku or in disagreement. The latest run is the one with the newest basal verdict.
 
 Done counts and trends start at `settings.tracking_started_at`, set when the database is first opened (the earliest repo sync, or that moment).
 
@@ -121,7 +121,7 @@ Same blocks as Progress, filtered to one repo, plus its decisions and its batche
 
 ### Items (`/items`)
 
-One table over every tracked repo: ref, title, kind, state, author, updated, settled label with Jev's confidence, flags, latest stage. Filters, all kept in the URL: full-text query over titles, bodies and comments (words, "phrases", prefix\*, -excluded, OR; the matching snippet is shown), repo (several), kind, state (default open), settled label, settled status, flags, author, updated since. Sort by relevance, updated, created or number; 50 rows a page; cards on phones. The top-bar search jumps to `repo#n` and links here for full results.
+One table over every tracked repo: ref, title, kind, state, author, updated, settled label with basal's confidence, flags, latest stage. Filters, all kept in the URL: full-text query over titles, bodies and comments (words, "phrases", prefix\*, -excluded, OR; the matching snippet is shown), repo (several), kind, state (default open), settled label, settled status, flags, author, updated since. Sort by relevance, updated, created or number; 50 rows a page; cards on phones. The top-bar search jumps to `repo#n` and links here for full results.
 
 ### Item (`/items/<repo>/<n>`)
 
@@ -133,7 +133,7 @@ Table: login, tier (whitelisted / not / override allow / override deny), merged 
 
 ### Classifiers
 
-Agreement between classifiers on the same items (for the Jev vs Haiku trial, later Sonnet as the reference): per field (`type_label`, `want`), an agreement rate and a confusion matrix, with a link to the disagreeing items.
+Agreement between classifiers on the same items (for the basal vs Haiku trial, later Sonnet as the reference): per field (`type_label`, `want`), an agreement rate and a confusion matrix, with a link to the disagreeing items.
 
 ### Access (operators)
 
@@ -167,10 +167,10 @@ Operators and maintainers only (other readers get 404). The list shows every sca
 
 ### Agents (`/agents`, `/agents/<run>`)
 
-An agent run is one model call: one `claude -p` call or one Jev batch request, made through the prompt registry. The page has three parts.
+An agent run is one model call: one `claude -p` call or one basal batch request, made through the prompt registry. The page has three parts.
 
 - **Claude accounts**: one card per account the signed-in user may see. Everyone sees enabled accounts; operators also see disabled ones. A card shows the operator-set label (never an email or path), the enabled state, 5-hour and weekly use as bars with reset times ("resets in 2 h 40 m"), the age of the reading, runs now against the concurrency limit, and the reason when the account is paused. Operators edit label, enabled and max concurrent inline (`PUT /api/accounts/:id`; audited).
-- **Running now**: every active run, refreshed every 5 s while the tab is visible. Each shows step and stage, model, account label (Jev has no account), the items it works on as `repo#n` links with "+N more", elapsed time and tokens so far.
+- **Running now**: every active run, refreshed every 5 s while the tab is visible. Each shows step and stage, model, account label (Basal has no account), the items it works on as `repo#n` links with "+N more", elapsed time and tokens so far.
 - **Recent runs**: newest first, filtered on the server by step, account, state and repo, and read by keyset cursor ("Load more"); the page never shows a total. A run opens a detail panel (a bottom sheet on phones) with the rendered prompt (collapsible; its registry id and version link to the Prompts page), the output, the error, token counts and a link to the job. Prompt and output are kept for ten years; after that the panel says "Prompt text removed after ten years".
 
 ### Build environments (`/envs`, `/envs/<task>`)

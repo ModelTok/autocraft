@@ -48,7 +48,7 @@ export type CompareDeps = {
   ask(id: "dupes.compare-prs.opus", model: string, input: ComparePrs, checkout?: string, lint?: Lint): Promise<Reply>;
   ask(id: "dupes.compare-issues.sonnet", model: string, input: CompareIssues): Promise<Reply>;
   now(): Date;
-  /** The semantic reference check of carry points; absent: the default (Jev, then Haiku). */
+  /** The semantic reference check of carry points; absent: the default (Basal, then Haiku). */
   semantic?: SemanticDeps;
 };
 

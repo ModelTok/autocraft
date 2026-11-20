@@ -1,14 +1,14 @@
-// The registry of model steps: per prompt id, the parser, retries, lint and (for Jev) the Haiku fallback.
+// The registry of model steps: per prompt id, the parser, retries, lint and (for basal) the Haiku fallback.
 // A caller names a step and passes the input; src/agents/step.ts runs it. The prompts' text stays in src/prompts.
-import { refOf, parseHaikuReply, jevVerdict, type Item, type JevAnswers, type Verdict } from "../classify/parse.ts";
-import { jevAreaChoice, parseAreaReply, settles, type AreaAnswer } from "../areas/parse.ts";
+import { refOf, parseHaikuReply, basalVerdict, type Item, type BasalAnswers, type Verdict } from "../classify/parse.ts";
+import { basalAreaChoice, parseAreaReply, settles, type AreaAnswer } from "../areas/parse.ts";
 import type { Area, AreaItem } from "../areas/types.ts";
 import { parsePairReply, type DupePair, type PairAnswer } from "../dupes/pair.ts";
 import { carryTexts, lintComparison, parseIssueComparison, parsePrComparison, type CompareIssues, type ComparePrs, type IssueComparison, type PrComparison } from "../dupes/group.ts";
-import { jevImpact, parseHaikuImpacts, SURE, type Impact, type JevImpactAnswers } from "../priority/score.ts";
-import { renderAreaJev, renderReferenceJev } from "../prompts/index.ts";
+import { basalImpact, parseHaikuImpacts, SURE, type Impact, type BasalImpactAnswers } from "../priority/score.ts";
+import { renderAreaBasal, renderReferenceBasal } from "../prompts/index.ts";
 import type { ReferenceLintInput } from "../replylint.ts";
-import type { ClaudeStep, JevStep, TieredStep } from "./step.ts";
+import type { ClaudeStep, BasalStep, TieredStep } from "./step.ts";
 import type { DatabaseSync } from "node:sqlite";
 import { parseRefereeReply, type Referee } from "../classify/parse.ts";
 import { lintOpusReply, parseOpusReply, publicTexts as opusTexts, rawReason, type OpusPr, type OpusReview } from "../review/opus-parse.ts";
@@ -34,7 +34,7 @@ export function leftOf<T>(xs: T[], key: (x: T) => string, missing: string[]): T[
 const probability = (p: unknown): number | null => (typeof p === "number" && p >= 0 && p <= 1 ? p : null);
 const single = <V,>(v: V | null) => (v === null ? null : { value: v });
 
-// Classify: Jev per item, Haiku per batch (the two run as separate passes of the classify pipeline).
+// Classify: Basal per item, Haiku per batch (the two run as separate passes of the classify pipeline).
 export const CLASSIFY_HAIKU: ClaudeStep<Item[], Verdict[]> = {
   provider: "claude", id: "classify.haiku",
   parse: (text, todo) => {
@@ -42,20 +42,20 @@ export const CLASSIFY_HAIKU: ClaudeStep<Item[], Verdict[]> = {
     return { value: verdicts, rest: leftOf(todo, refOf, missing) };
   },
 };
-export const CLASSIFY_JEV: JevStep<Item, Verdict> = {
-  provider: "jev", id: "classify.jev",
+export const CLASSIFY_BASAL: BasalStep<Item, Verdict> = {
+  provider: "basal", id: "classify.basal",
   request: (item) => ({ item }),
-  parse: (answers, item) => single(answers ? jevVerdict(refOf(item), answers as JevAnswers) : null),
+  parse: (answers, item) => single(answers ? basalVerdict(refOf(item), answers as BasalAnswers) : null),
 };
 
-// Priority: Jev's level, Haiku where Jev is under SURE or gave none.
-export type JevImpact = { impact: Impact; p: number };
+// Priority: Basal's level, Haiku where basal is under SURE or gave none.
+export type BasalImpact = { impact: Impact; p: number };
 export type HaikuImpactValue = { impact: Impact; reason: string };
-export const PRIORITY: TieredStep<Item, JevImpact, HaikuImpactValue> = {
-  jev: {
-    provider: "jev", id: "priority.jev",
+export const PRIORITY: TieredStep<Item, BasalImpact, HaikuImpactValue> = {
+  basal: {
+    provider: "basal", id: "priority.basal",
     request: (item) => ({ item }),
-    parse: (answers) => single(jevImpact(answers as JevImpactAnswers | undefined)),
+    parse: (answers) => single(basalImpact(answers as BasalImpactAnswers | undefined)),
   },
   haiku: {
     provider: "claude", id: "priority.haiku",
@@ -67,18 +67,18 @@ export const PRIORITY: TieredStep<Item, JevImpact, HaikuImpactValue> = {
   ref: refOf,
   repo: (x) => x.repo,
   sure: (v) => v.p >= SURE,
-  onJevFailure: "haiku",
+  onBasalFailure: "haiku",
 };
 
-// Areas: Jev's choice settles from AREA_SURE; Haiku decides below it, and alone while Jev is unavailable.
+// Areas: Basal's choice settles from AREA_SURE; Haiku decides below it, and alone while basal is unavailable.
 export type AreasCtx = { repo: string; areas: Area[] };
 type AreasBatch = { repo: string; areas: Area[]; items: AreaItem[] };
 export const AREAS: TieredStep<AreaItem, AreaAnswer, string | null, AreasCtx, AreasBatch> = {
-  jev: {
-    provider: "jev", id: "areas.jev",
-    request: (x, c) => ({ item: x, body: renderAreaJev(x, c.areas) }),
-    // An answer from a failed `jev ask` is not used.
-    parse: (answers, _x, ctx, c) => single(ctx.code === 0 ? jevAreaChoice(answers, c.areas) : null),
+  basal: {
+    provider: "basal", id: "areas.basal",
+    request: (x, c) => ({ item: x, body: renderAreaBasal(x, c.areas) }),
+    // An answer from a failed basal request is not used.
+    parse: (answers, _x, ctx, c) => single(ctx.code === 0 ? basalAreaChoice(answers, c.areas) : null),
   },
   haiku: {
     provider: "claude", id: "areas.haiku",
@@ -94,12 +94,12 @@ export const AREAS: TieredStep<AreaItem, AreaAnswer, string | null, AreasCtx, Ar
   ref: refOf,
   repo: (x) => x.repo,
   sure: (a) => settles(a.top),
-  onJevFailure: "haiku-when-unavailable",
+  onBasalFailure: "haiku-when-unavailable",
 };
 
-// Duplicate pairs: Jev's probability, Haiku for the unsure pairs (the bands are in src/dupes/pair.ts).
-export const DUPES_JEV: JevStep<DupePair, number> = {
-  provider: "jev", id: "dupes.jev",
+// Duplicate pairs: Basal's probability, Haiku for the unsure pairs (the bands are in src/dupes/pair.ts).
+export const DUPES_BASAL: BasalStep<DupePair, number> = {
+  provider: "basal", id: "dupes.basal",
   request: (pair) => ({ item: pair }),
   parse: (answers) => single(probability((answers as { same?: { noul?: unknown } } | undefined)?.same?.noul)),
 };
@@ -136,10 +136,10 @@ export const COMPARE_ISSUES: ClaudeStep<IssueCompareInput, IssueComparison> = {
   fallback: (text, x) => parseIssueComparison(text, x.numbers, true),
 };
 
-// Reference lint: does a public text refer to outside documentation? Jev's probability, Haiku for the rest.
-export const REFERENCE_JEV: JevStep<ReferenceLintInput, number> = {
-  provider: "jev", id: "lint.reference.jev",
-  request: (x) => ({ item: { ref: x.ref }, body: renderReferenceJev(x.text) }),
+// Reference lint: does a public text refer to outside documentation? Basal's probability, Haiku for the rest.
+export const REFERENCE_BASAL: BasalStep<ReferenceLintInput, number> = {
+  provider: "basal", id: "lint.reference.basal",
+  request: (x) => ({ item: { ref: x.ref }, body: renderReferenceBasal(x.text) }),
   parse: (answers) => single(probability((answers as { refers?: { noul?: unknown } } | undefined)?.refers?.noul)),
 };
 export const REFERENCE_HAIKU: ClaudeStep<ReferenceLintInput[], boolean> = {
@@ -245,7 +245,7 @@ export const VERIFY_COMPARE: ClaudeStep<ScreenshotCompareInput, CompareParsed, C
   },
 };
 
-/** The Sonnet referee between Jev and Haiku: a batch per call; items without a verdict are asked again. */
+/** The Sonnet referee between basal and Haiku: a batch per call; items without a verdict are asked again. */
 export const REFEREE_SONNET: ClaudeStep<Item[], Referee[]> = {
   provider: "claude", id: "referee.sonnet",
   parse: (text, todo) => {

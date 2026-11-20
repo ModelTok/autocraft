@@ -550,8 +550,11 @@ export function apiRoutes(opts: ApiOptions = {}): Route[] {
     get("/api/accounts", agents.accounts),
     get("/api/accounts/pause", agents.getPause),
     { method: "PUT", pattern: "/api/accounts/pause", operator: true, handler: ok(agents.putPause) },
-    get("/api/accounts/jev", agents.getJev),
-    { method: "PUT", pattern: "/api/accounts/jev", operator: true, handler: ok(agents.putJev) },
+    get("/api/accounts/basal", agents.getBasal),
+    { method: "PUT", pattern: "/api/accounts/basal", operator: true, handler: ok(agents.putBasal) },
+    // The routes' names from before basal replaced the hosted model, for a dashboard bundle loaded before the rename.
+    get("/api/accounts/jev", agents.getBasal),
+    { method: "PUT", pattern: "/api/accounts/jev", operator: true, handler: ok(agents.putBasal) },
     { method: "PUT", pattern: "/api/accounts/:id", operator: true, handler: ok(agents.putAccount) },
     { method: "POST", pattern: "/api/accounts", operator: true, handler: ok(agents.postAccount) },
     { method: "POST", pattern: "/api/accounts/:id/login", operator: true, handler: ok(agents.loginStart) },

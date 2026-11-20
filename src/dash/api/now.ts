@@ -4,7 +4,7 @@ import type { DatabaseSync } from "node:sqlite";
 import type { ItemRef, ItemShown, Now, NowEntry, NowFeed, NowHealth, NowProblem } from "../../../web/src/api/types.ts";
 import { PRIVATE_STEPS_SQL } from "../../build/tasks.ts";
 import { listAccounts } from "../../agents/accounts.ts";
-import { jevEnabled, jevOutage } from "../../agents/jev.ts";
+import { basalEnabled, basalOutage } from "../../agents/basal-availability.ts";
 import { GITHUB_ACTIONS } from "../../github/actions.ts";
 import { mainCiRepos } from "../../mainci/index.ts";
 import { pipelineRepos } from "../../pilot.ts";
@@ -80,8 +80,8 @@ export async function healthOf(db: DatabaseSync, hidden: HiddenRepos, internals:
     if (a.auth.loggedIn === false) add({ id: `account:${a.id}`, area: "account", tone: "bad", text: `Account ${a.label} is signed out`, to: "/accounts", since: null });
     else if (a.pausedReason) add({ id: `account:${a.id}`, area: "account", tone: "warn", text: `Account ${a.label} is paused${blankIfHidden(a.pausedReason, hidden) ? `: ${clip(a.pausedReason, 100)}` : ""}`, to: "/accounts", since: null });
   }
-  const outage = jevEnabled(db) ? jevOutage(db) : null;
-  if (outage) add({ id: "jev", area: "jev", tone: "warn", text: `Jev is unavailable: ${clip(outage.reason, 100)}`, to: "/accounts", since: outage.since });
+  const outage = basalEnabled(db) ? basalOutage(db) : null;
+  if (outage) add({ id: "basal", area: "basal", tone: "warn", text: `Basal is unavailable: ${clip(outage.reason, 100)}`, to: "/accounts", since: outage.since });
 
   for (const r of mainCiRepos(db, hidden).filter((x) => x.state === "red" && on.has(x.repo))) {
     const names = r.failing.map((f) => f.name).slice(0, 2).join(", ");
@@ -225,7 +225,7 @@ function feed(db: DatabaseSync, hidden: HiddenRepos, staff: boolean, operator: b
        FROM agent_runs r LEFT JOIN claude_accounts a ON a.id = r.account_id WHERE r.state = 'running'${hiddenRuns} ORDER BY r.id`, ...hideArgs(hidden))) {
       const its = all<{ repo: string; number: number }>(db, "SELECT repo, number FROM agent_run_items WHERE run_id = ? ORDER BY repo, number LIMIT ?", r.id, PER_KIND);
       placeChild(r.job_id, base({
-        key: `run:${r.id}`, kind: "call", state: "running", at: r.started_at, title: stepTitle(r.step), what: r.provider === "jev" ? "Jev" : r.user_login ? r.model : operator ? `${r.model} on ${r.label ?? "an unknown account"}` : r.model, progress: blankIfHidden(r.progress, hidden) || null,
+        key: `run:${r.id}`, kind: "call", state: "running", at: r.started_at, title: stepTitle(r.step), what: r.provider === "basal" ? "Basal" : r.user_login ? r.model : operator ? `${r.model} on ${r.label ?? "an unknown account"}` : r.model, progress: blankIfHidden(r.progress, hidden) || null,
         item: its[0] ? item(its[0].repo, its[0].number) : null, items: its.map((i) => item(i.repo, i.number)), itemCount: Math.max(r.item_count, its.length), event: its[0] ? `run:${r.id}` : null, detail: `/agents/${r.id}`,
         ...(staff && r.user_login && { via: { login: r.user_login, harness: r.harness ?? "", model: r.reported_model ?? "" } }),
       }));

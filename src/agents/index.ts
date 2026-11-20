@@ -1,11 +1,11 @@
-// autocraft-server accounts list | set <id> [--label X] [--enabled yes|no] [--max-concurrent N] | jev [N | on | off] | pause [show | --five-hour N --weekly N]
+// autocraft-server accounts list | set <id> [--label X] [--enabled yes|no] [--max-concurrent N] | basal [N | on | off] | pause [show | --five-hour N --weekly N]
 import { connect } from "../db.ts";
-import { jevEnabled, jevOutage, setJevEnabled } from "./jev.ts";
-import { AccountError, jevParallel, listAccounts, setJevParallel, setUsagePause, updateAccount, usagePause } from "./accounts.ts";
+import { basalEnabled, basalOutage, setBasalEnabled } from "./basal-availability.ts";
+import { AccountError, basalParallel, listAccounts, setBasalParallel, setUsagePause, updateAccount, usagePause } from "./accounts.ts";
 
 const USAGE = `usage: autocraft-server accounts list
        autocraft-server accounts set <id> [--label <text>] [--enabled yes|no] [--max-concurrent <N>]   (N from 1 to 100)
-       autocraft-server accounts jev [<N> | on | off]   Jev calls at once (1 to 100), or switch Jev on or off; shows the setting and whether Jev is in use
+       autocraft-server accounts basal [<N> | on | off]   basal calls at once (1 to 100), or switch basal on or off; shows the setting and whether basal is in use
        autocraft-server accounts pause [show]   usage levels (%) at which an account stops taking calls
        autocraft-server accounts pause --five-hour <N> --weekly <N>   set them (each 1 to 100)`;
 
@@ -48,21 +48,21 @@ function set(args: string[]): void {
   print();
 }
 
-function jev(args: string[]): void {
+function basal(args: string[]): void {
   const db = connect();
   if (args.length > 1) die(USAGE);
-  if (args[0] === "on" || args[0] === "off") setJevEnabled(db, args[0] === "on", "cli");
+  if (args[0] === "on" || args[0] === "off") setBasalEnabled(db, args[0] === "on", "cli");
   else if (args[0] !== undefined) {
     try {
-      setJevParallel(db, Number(args[0]), "cli");
+      setBasalParallel(db, Number(args[0]), "cli");
     } catch (e) {
       if (e instanceof AccountError) die(e.message);
       throw e;
     }
   }
-  console.log(`Jev calls at once: ${jevParallel(db)}`);
-  const o = jevOutage(db);
-  console.log(o ? `Jev unavailable (${o.reason}) since ${o.since}; Haiku does its work` : jevEnabled(db) ? "Jev in use" : "Jev off");
+  console.log(`Basal calls at once: ${basalParallel(db)}`);
+  const o = basalOutage(db);
+  console.log(o ? `Basal unavailable (${o.reason}) since ${o.since}; Haiku does its work` : basalEnabled(db) ? "Basal in use" : "Basal off");
 }
 
 function pause(args: string[]): void {
@@ -90,11 +90,12 @@ function pause(args: string[]): void {
 
 export const commands = {
   accounts: {
-    summary: "Claude accounts: list | set <id> [--label X] [--enabled yes|no] [--max-concurrent N] | jev [N | on | off] | pause [show | --five-hour N --weekly N]",
+    summary: "Claude accounts: list | set <id> [--label X] [--enabled yes|no] [--max-concurrent N] | basal [N | on | off] | pause [show | --five-hour N --weekly N]",
     run: (args: string[]) => {
       if (args[0] === "list") print();
       else if (args[0] === "set") set(args.slice(1));
-      else if (args[0] === "jev") jev(args.slice(1));
+      // `jev` is the command's name from before basal replaced the hosted model; kept as an alias.
+      else if (args[0] === "basal" || args[0] === "jev") basal(args.slice(1));
       else if (args[0] === "pause") pause(args.slice(1));
       else die(USAGE);
     },

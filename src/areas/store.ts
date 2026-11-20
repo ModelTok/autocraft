@@ -169,7 +169,7 @@ export function itemAreaOf(db: DatabaseSync, repo: string, number: number): Item
 /** The item's area name, or null when it has none. */
 export const areaNameOf = (db: DatabaseSync, repo: string, number: number): string | null => itemAreaOf(db, repo, number)?.area ?? null;
 
-export function setItemArea(db: DatabaseSync, repo: string, number: number, area: string | null, source: "jev" | "haiku" | "operator", confidence: number | null, version: number): void {
+export function setItemArea(db: DatabaseSync, repo: string, number: number, area: string | null, source: "basal" | "haiku" | "operator", confidence: number | null, version: number): void {
   db.prepare(`INSERT INTO item_areas (repo, number, area, source, confidence, list_version, at) VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT (repo, number) DO UPDATE SET area = excluded.area, source = excluded.source, confidence = excluded.confidence, list_version = excluded.list_version, at = excluded.at`)
     .run(repo, number, area, source, confidence, version, now());

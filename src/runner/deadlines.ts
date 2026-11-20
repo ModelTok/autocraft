@@ -16,7 +16,7 @@ const item = (id: ClaudePromptId, lint = false): Call => ({ id, ...(lint && { li
 
 /**
  * Steps whose job makes one call (or a few) per item. The others keep the registry's `maxMin`: the steps with no model call, and the
- * batched Jev and Haiku steps (classify, priority, duplicates), whose calls take seconds and have their own time limit each.
+ * batched basal and Haiku steps (classify, priority, duplicates), whose calls take seconds and have their own time limit each.
  */
 export const STEP_PLANS: Record<string, Plan> = {
   referee: { calls: [item("referee.sonnet")], items: 100 },
