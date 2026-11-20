@@ -85,6 +85,15 @@ function ConfidentialBox({ checked, onChange }: { checked: boolean; onChange: (o
   );
 }
 
+function PrivateBox({ checked, onChange }: { checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <label className="flex h-8 items-center gap-2 text-sm max-md:h-11">
+      <input type="checkbox" checked={checked} onChange={(ev) => onChange(ev.target.checked)} className="size-4" />
+      Private ModelTok code (needs the worker's privateFetch token)
+    </label>
+  );
+}
+
 function EditEnv({ e, onDone }: { e: BuildEnv; onDone: () => void }) {
   const api = useApi();
   const write = useWrite();
@@ -92,13 +101,14 @@ function EditEnv({ e, onDone }: { e: BuildEnv; onDone: () => void }) {
   const [slots, setSlots] = useState(String(e.slots));
   const [enabled, setEnabled] = useState(e.enabled);
   const [confidential, setConfidential] = useState(e.confidential);
+  const [privateCode, setPrivateCode] = useState(e.privateCode);
   const valid = label.trim() !== "" && /^\d{1,2}$/.test(slots) && Number(slots) >= 1 && Number(slots) <= 64;
   return (
     <form
       className="mt-3 flex flex-wrap items-end gap-3 border-t border-line pt-3"
       onSubmit={(ev) => {
         ev.preventDefault();
-        void write.run("save", () => api.envs.update(e.id, { label: label.trim(), enabled, slots: Number(slots), confidential })).then((ok) => ok && onDone());
+        void write.run("save", () => api.envs.update(e.id, { label: label.trim(), enabled, slots: Number(slots), confidential, privateCode })).then((ok) => ok && onDone());
       }}
     >
       <label className="flex flex-col gap-1 text-xs text-ink/60">
@@ -114,6 +124,7 @@ function EditEnv({ e, onDone }: { e: BuildEnv; onDone: () => void }) {
         Enabled
       </label>
       <ConfidentialBox checked={confidential} onChange={setConfidential} />
+      <PrivateBox checked={privateCode} onChange={setPrivateCode} />
       <div className="flex gap-2">
         <Button type="submit" variant="primary" size="sm" disabled={!valid} loading={write.busy === "save"} className="max-md:h-11">
           Save
@@ -142,6 +153,7 @@ function EnvCard({ e, operator }: { e: BuildEnv; operator: boolean }) {
         {e.pausedReason && <Badge tone="warn">Paused</Badge>}
         <Badge>{KIND_LABEL[e.kind]}</Badge>
         {e.confidential && <Badge tone="accent">Confidential</Badge>}
+        {e.privateCode && <Badge tone={e.capabilities?.privateOwner ? "accent" : "warn"}>{e.capabilities?.privateOwner ? "Private code" : "Private code: no token reported"}</Badge>}
         {operator && (
           <button onClick={() => setEditing(!editing)} aria-label={`Edit ${e.label}`} className="ml-auto flex size-7 items-center justify-center text-ink/50 hover:bg-ink/[0.06] hover:text-ink max-md:size-11">
             <PencilSimpleIcon className="text-[14px]" />
@@ -199,6 +211,7 @@ function AddEnv({ onDone }: { onDone: () => void }) {
   const [kind, setKind] = useState<EnvKind>("remote");
   const [slots, setSlots] = useState("2");
   const [confidential, setConfidential] = useState(false);
+  const [privateCode, setPrivateCode] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const valid = /^[a-z][a-z0-9-]{1,30}[a-z0-9]$/.test(id) && label.trim() !== "" && /^\d{1,2}$/.test(slots) && Number(slots) >= 1 && Number(slots) <= 64;
   if (secret) return <KeyOnce secret={secret} onDone={onDone} />;
@@ -207,7 +220,7 @@ function AddEnv({ onDone }: { onDone: () => void }) {
       className="flex flex-wrap items-end gap-3"
       onSubmit={(ev) => {
         ev.preventDefault();
-        void write.run("add", async () => setSecret((await api.envs.create({ id, label: label.trim(), kind, slots: Number(slots), confidential })).key));
+        void write.run("add", async () => setSecret((await api.envs.create({ id, label: label.trim(), kind, slots: Number(slots), confidential, privateCode })).key));
       }}
     >
       <label className="flex flex-col gap-1 text-xs text-ink/60">
@@ -230,6 +243,7 @@ function AddEnv({ onDone }: { onDone: () => void }) {
         <TextInput inputMode="numeric" value={slots} onChange={(ev) => setSlots(ev.target.value)} className="w-20 text-ink" />
       </label>
       <ConfidentialBox checked={confidential} onChange={setConfidential} />
+      <PrivateBox checked={privateCode} onChange={setPrivateCode} />
       <div className="flex gap-2">
         <Button type="submit" variant="primary" size="sm" disabled={!valid} loading={write.busy === "add"} className="max-md:h-11">
           Register

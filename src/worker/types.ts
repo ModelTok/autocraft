@@ -10,6 +10,8 @@ export type Capabilities = {
   toolchains: string[];
   /** The worker holds the warm-snapshot signing key, so it takes no task that runs PR code. */
   warmSigner?: boolean;
+  /** The owner whose private repos the worker can download (config `privateFetch`); the coordinator also needs the environment's operator flag. */
+  privateOwner?: string;
 };
 
 export type Requires = Partial<Pick<Capabilities, "os" | "arch" | "display" | "gpu">> & {
@@ -43,6 +45,8 @@ export type ClaimedTask = {
   patch?: string;
   /** Warm cargo target dir: "use" starts from a copy, "build" stores the target dir when all steps pass. */
   warm?: { key: string; role: "use" | "build" };
+  /** The repo is private: the worker downloads it with its privateFetch token, and refuses the task unless `owner` is its configured owner. */
+  private?: { owner: string };
 };
 
 export type ClaimResponse = { tasks: ClaimedTask[]; cancel?: number[] };

@@ -10,6 +10,6 @@ export type VerifyCandidate = {
 export type RustCheck = (repo: string, sha: string) => boolean | null;
 export const cachedRust: RustCheck = (repo, sha) => cachedCratesOf(repo, sha)?.rust ?? null;
 
-/** Why Verify cannot run for the repo's PRs, or null: it builds only public Rust workspaces. */
+/** Why Verify cannot run for the repo's PRs, or null: it builds only Rust workspaces that are public, or private to the default owner while an environment takes private code. */
 export const PRIVATE_REASON = "the repo is private";
 export const NOT_RUST_REASON = "the repo is not a Rust workspace";

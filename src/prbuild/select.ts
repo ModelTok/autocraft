@@ -6,6 +6,7 @@ import { CURRENT_HEAD_SQL } from "../verify/results.ts";
 import { baseScopeRepos } from "../pilot.ts";
 import { isFastTracked } from "../fasttrack.ts";
 import { cachedRust, type RustCheck } from "../verify/candidates.ts";
+import { buildableRepo } from "../build/private.ts";
 
 export type PrBuildScope = "outside" | "all";
 export const DEFAULT_PER_DAY = 10;
@@ -45,7 +46,8 @@ export function inBuildScope(db: DatabaseSync, repo: string, number: number, sco
 
 /** The PRs to build now, oldest first, within the repo's daily cap. Writes nothing. */
 export function selectPrBuilds(db: DatabaseSync, repo: string, o: { rust?: RustCheck; now?: number } = {}): PrBuildCandidate[] {
-  if (!db.prepare("SELECT 1 FROM repos WHERE name = ? AND visibility = 'public'").get(repo)) return [];
+  // Public repos, and the org's private ones while an environment takes private code (build/private.ts).
+  if (!buildableRepo(db, repo)) return [];
   const rust = o.rust ?? cachedRust;
   const used = (db.prepare("SELECT COUNT(*) AS n FROM main.pr_builds WHERE repo = ? AND created_at > ?").get(repo, new Date((o.now ?? Date.now()) - DAY_MS).toISOString()) as { n: number }).n;
   const room = perDayOf(db) - used;

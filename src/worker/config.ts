@@ -4,6 +4,8 @@ import { existsSync, readFileSync, statfsSync } from "node:fs";
 import { arch, availableParallelism, homedir, platform, totalmem } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import type { Capabilities } from "./types.ts";
+import type { PrivateFetchConfig } from "./private-source.ts";
+import { OWNER, isDefaultOwner } from "../owners.ts";
 
 /**
  * Default toolchain images, pinned by digest (the tag is kept for reading;
@@ -34,6 +36,8 @@ export type WorkerConfig = {
   maxStepSec: number;
   /** Shared snapshot store for warm target dirs (see docs/operations.md). */
   warmStore?: { url: string; readKey: string; writeKey?: string; signKey?: KeyObject; verifyKeys: KeyObject[]; timeoutSec: number };
+  /** Private source downloads of the default owner's repos (private-source.ts); the token is read by loadPrivateSource at start. */
+  privateFetch?: PrivateFetchConfig;
 };
 
 const SAFE_PATH = /^[^,:\s\0]+$/;
@@ -129,8 +133,20 @@ export function parseWorkerConfig(raw: unknown): WorkerConfig {
     if (w.writeKey !== undefined && w.signKeyFile === undefined) throw new Error("config: warmStore.writeKey needs warmStore.signKeyFile");
     warmStore = { url, readKey: str(w, "readKey"), writeKey: w.writeKey as string | undefined, signKey: w.signKeyFile ? loadKey(expand(w.signKeyFile as string), createPrivateKey) : undefined, verifyKeys: (verify as string[]).map((f) => loadKey(expand(f), createPublicKey)), timeoutSec: num(w.timeoutSec, "warmStore.timeoutSec", 600, 5, 86_400) };
   }
+  let privateFetch: PrivateFetchConfig | undefined;
+  if (o.privateFetch !== undefined) {
+    const p = o.privateFetch as Record<string, unknown> | null;
+    if (typeof p !== "object" || p === null || Array.isArray(p) || Object.keys(p).some((k) => k !== "tokenFile" && k !== "owner")) throw new Error("config: privateFetch must be { tokenFile, owner }");
+    const tokenFile = expand(str(p, "tokenFile"));
+    if (!isAbsolute(tokenFile)) throw new Error("config: privateFetch.tokenFile must be an absolute path");
+    const owner = str(p, "owner");
+    // The token is for the org's own repos alone: any other owner is a mistake that would send it elsewhere.
+    if (!OWNER.test(owner) || !isDefaultOwner(owner)) throw new Error("config: privateFetch.owner must be the default owner (AUTOCRAFT_OWNER, ModelTok unless set)");
+    privateFetch = { tokenFile, owner };
+  }
   return {
     warmStore,
+    privateFetch,
     coordinatorUrl,
     keyFile,
     workDir,
@@ -184,5 +200,7 @@ export function detectCapabilities(cfg: WorkerConfig): Capabilities {
     gpu: cfg.gpu,
     toolchains: Object.keys(cfg.images).sort(),
     ...(cfg.warmStore?.signKey ? { warmSigner: true } : {}),
+    // Reported after loadPrivateSource read the token at start; the coordinator also needs the operator's flag.
+    ...(cfg.privateFetch ? { privateOwner: cfg.privateFetch.owner } : {}),
   };
 }

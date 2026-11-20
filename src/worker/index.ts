@@ -2,6 +2,7 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { detectCapabilities, loadWorkerConfig, readKey } from "./config.ts";
 import { WorkerApi } from "./client.ts";
+import { loadPrivateSource } from "./private-source.ts";
 import { serve } from "./serve.ts";
 import { generateSigningKeys, storeServe } from "./store.ts";
 import { connect } from "../db.ts";
@@ -50,6 +51,8 @@ async function workerServe(args: string[]): Promise<void> {
   const cfg = loadWorkerConfig(path);
   mkdirSync(cfg.workDir, { recursive: true, mode: 0o700 });
   const key = readKey(cfg);
+  // Read once, here: a bad token file stops the worker before it says hello with privateOwner.
+  const privateSource = loadPrivateSource(cfg.privateFetch);
   const version = (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version;
   const ac = new AbortController();
   for (const s of ["SIGINT", "SIGTERM"] as const) process.on(s, () => ac.abort());
@@ -59,6 +62,7 @@ async function workerServe(args: string[]): Promise<void> {
       api: new WorkerApi(cfg.coordinatorUrl, key),
       version,
       capabilities: () => detectCapabilities(cfg),
+      privateSource,
       log: (l) => console.log(`${new Date().toISOString()} ${l}`),
     },
     ac.signal,

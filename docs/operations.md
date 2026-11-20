@@ -548,7 +548,7 @@ Every call carries `Authorization: Bearer <worker key>`, which identifies the en
 | Call | Body | Answer |
 |---|---|---|
 | `POST /worker/hello` | `{ version, capabilities, slots }` | `{ envId, label, slots }` (slots capped by the operator's setting) |
-| `POST /worker/claim` | `{ free, pausedReason }` | `{ tasks: [{ id, repo, headSha, baseSha, requires, plan, sourceUrl }], cancel: [ids] }` |
+| `POST /worker/claim` | `{ free, pausedReason }` | `{ tasks: [{ id, repo, headSha, baseSha, requires, plan, sourceUrl, private? }], cancel: [ids] }`; `private: { owner }` marks a private repo's task (see Private code environments) |
 | `POST /worker/tasks/:id/start` | none | `{ cancel }` |
 | `POST /worker/tasks/:id/log` | `{ step, chunk }`, chunk at most 64 KB | `{ truncated }` |
 | `PUT /worker/tasks/:id/artifacts/:name` | raw bytes, at most 50 MB; the name is 1 to 100 of letters, digits, `.`, `_`, `-` | `{ bytes, contentType }` |
@@ -561,8 +561,8 @@ Operators manage environments on the Build environments page (`/envs`) or from a
 
 ```
 autocraft-server envs list
-autocraft-server envs add <id> --label TEXT --kind local-sandbox|remote --slots N [--confidential yes|no] (--out FILE | --print)
-autocraft-server envs set <id> [--label TEXT] [--enabled yes|no] [--slots N] [--confidential yes|no]
+autocraft-server envs add <id> --label TEXT --kind local-sandbox|remote --slots N [--confidential yes|no] [--private yes|no] (--out FILE | --print)
+autocraft-server envs set <id> [--label TEXT] [--enabled yes|no] [--slots N] [--confidential yes|no] [--private yes|no]
 autocraft-server envs rotate-key <id> (--out FILE | --print)
 autocraft-server tasks list [--state S] [--env ID] [--repo NAME] [--limit N]
 autocraft-server tasks show <id>
@@ -573,9 +573,11 @@ autocraft-server tasks enqueue-test --env-requires linux --repo NAME --sha SHA
 
 **Confidential environments.** The build tasks of a security fix (its rounds and its model's checks) and of a scan test hold an undisclosed fix or test. Only an environment an operator marked confidential (the Confidential box on the Build environments page, or `--confidential yes`) takes them; the worker cannot report itself as one. A confidential environment takes no task that builds PR code (PR builds, integration batches, and every task for a PR or issue). A confidential environment is ready from its worker's first call after the flag, or the environment, was turned on; label, slot and key changes do not affect it. Until one is ready, a security fix waits before its model call (the finding's note reads "Waiting for a confidential build environment."; it continues on its own once one is ready), private tasks stay queued with the same text, the `confidential-env` health check warns, and the 4-hour build limit of a round or scan test starts only once one is ready. Run a confidential environment on its own host and user, apart from the workers that build PRs.
 
+**Private code environments.** Workers download source anonymously, so a private repo builds only on an environment that can fetch it. A task of a repo the mirror knows is not public (private or internal) goes only to an environment that an operator flagged for private code (the "Private ModelTok code" box on the Build environments page, or `--private yes`) and whose worker reported at hello that its `privateFetch` token covers the repo's owner (`capabilities.privateOwner`, shown on the page; a flagged environment without it reads "Private code: no token reported"). Neither is enough alone: the worker cannot flag itself, and the flag cannot give a worker a token. Only the default owner's (`AUTOCRAFT_OWNER`) private repos are ever handed out; another owner's private repo is built by no environment. The task carries `private: { owner }`; the worker downloads it with its token and refuses it when the owner is not its own or it has no `privateFetch`. A repo whose visibility is not known yet counts as public: its anonymous download fails for a private repo, so it shows no code. Fix issues, Verify, PR builds and `tasks enqueue-test` take the default owner's private repos only while an enabled flagged environment has reported the token; other owners' repos stay public-only. The other build stages (merge batches, nightly, CI fixes, main fixes, repin, pre-push, security tasks) queue tasks without a visibility check; a private repo's task then waits for such an environment. With the box identity a private repo's branches go to a fork as for a public one. GitHub keeps such a fork private, gives it the upstream repository's access and deletes it when its owner loses that access; the org's Member privileges and the repo's settings must allow forking of private repositories, or the fork step fails. With the GitHub App identity they go to the repository itself. The two flags are independent and both apply: a security fix's or scan test's task of a private repo needs an environment that is confidential and flagged for private code, and a private repo's PR-code task needs one flagged for private code that is not confidential. Run a private-code environment as its own user on a host the org controls.
+
 `tasks mem` prints, per repo and step name, the number of steps with a memory measurement, their median and maximum peak memory in GB and the number killed for running out of memory (default: tasks that ended in the last 30 days). Use it to size build nodes.
 
-`tasks enqueue-test` queues a harmless smoke test for a tracked public repo (`uname -a; nproc; free -g` with no network, then `cargo --version`).
+`tasks enqueue-test` queues a harmless smoke test for a tracked repo the workers can build (public, or the default owner's private repo while a private-code environment is ready) (`uname -a; nproc; free -g` with no network, then `cargo --version`).
 
 ### Claude accounts
 
@@ -635,7 +637,7 @@ Playwright is not a dependency of the repo; the header of `scripts/flowchart-sho
 
 ## Running a worker
 
-A worker runs untrusted build tasks for the coordinator (the runner process). It holds no GitHub token, no Claude login and no database access: it downloads public source tarballs anonymously, runs each plan step in a fresh container, and sends logs, results and artifacts back, all of which the coordinator treats as untrusted data.
+A worker runs untrusted build tasks for the coordinator (the runner process). It holds no Claude login and no database access, and no GitHub token unless it is configured to fetch the org's private repos (`privateFetch`, below): it downloads public source tarballs anonymously, runs each plan step in a fresh container, and sends logs, results and artifacts back, all of which the coordinator treats as untrusted data.
 
 ```
 autocraft-server worker serve [--config FILE]     # default: $AUTOCRAFT_WORKER_CONFIG
@@ -663,6 +665,27 @@ Run the worker as a separate OS user without access to the operator's home, toke
 `"display": true` says the worker can run tasks that render a UI (such as screenshot tasks, which require `display`); without it those tasks stay queued. For such a task the derived image adds software Vulkan and GL drivers (`mesa-vulkan-drivers`, `libvulkan1`, `libgl1-mesa-dri`, `libegl1`) and sets `WGPU_BACKEND=vulkan`; images of other tasks are unchanged. `gpu` is separate and only passes a GPU device through.
 
 `coordinatorUrl` may use plain `http` only for loopback, private-network (10/8, 172.16/12, 192.168/16, 100.64/10, fc00::/7) and cluster-internal hosts (`.svc`, `.cluster.local`, `.internal`); any other host needs `https`. Only `coordinatorUrl`, `keyFile` and `workDir` are required. `workDir` must not contain commas, colons or spaces. Other keys: `userns` (default `keep-id`), `maxSourceMb` (300), `maxStepSec` (14400), `warmDir` (default `<workDir>/../warm`, same path rules as `workDir`) and `warmMaxGb` (60).
+
+### Private repos (privateFetch)
+
+A worker downloads the default owner's (`AUTOCRAFT_OWNER`, ModelTok unless set) private repos only with this config key:
+
+```json
+"privateFetch": { "tokenFile": "/home/sandbox/.config/craft-worker/github-token", "owner": "ModelTok" }
+```
+
+Both keys are required together. `owner` must be the default owner (compared without case); `tokenFile` is an absolute path. The worker reads the token once at start and refuses to start when the file is readable by anyone but its owner (mode 0600), holds anything but one token, or is missing. It then reports `privateOwner` at hello; the environment also needs the operator's private-code flag (see Private code environments).
+
+Create the token as a fine-grained personal access token, nothing broader:
+
+- Resource owner: ModelTok (the org must allow fine-grained tokens; approve the request if it asks).
+- Repository access: "Only select repositories", listing the tracked private repos the worker should build, nothing else.
+- Repository permissions: Contents: Read-only, and Metadata: Read-only (GitHub adds Metadata itself). No other repository permission and no organisation or account permission.
+- Expiration: set one (90 days at most) and rotate it before it ends; a worker with an expired token fails its private tasks with HTTP 401 or 404.
+
+Store it as the sandbox user, readable only by that user: `install -m 600 /dev/stdin ~/.config/craft-worker/github-token`, paste the token, then Ctrl-D. Never put it in the config file, an environment variable or the repository.
+
+The token is used only in the worker process, for a task the coordinator marked private whose owner is exactly the configured one: `GET https://api.github.com/repos/<owner>/<repo>/tarball/<sha>` with `Authorization: Bearer`, and the same API's contents endpoint for the CI files of the task's base commit (`.github/workflows/ci.yml`, `craft-i18n.rev`), without following redirects. GitHub answers the tarball request with a redirect to a short-lived `https://codeload.github.com/` URL; the worker follows that one redirect without the Authorization header and refuses any other target or a second redirect. The archive goes through the same extractor and `maxSourceMb` cap as an anonymous download. Every other task, the org's public repos included, downloads anonymously. The token never enters a container, a step's environment, a log line, an error, an artifact, a task result or a call to the coordinator; errors are scrubbed of it as well, and the codeload URL (it carries GitHub's own short-lived token) is never logged. A private task's warm target dir stays in the worker's own `warmDir`: it is neither uploaded to nor downloaded from the shared `warmStore`, which every worker can read.
 
 The worker records each step's peak memory from the container's cgroup (v2) while the step runs and sends it as `peakMemBytes`; `oomKilled` is true when the kernel killed the step for reaching the memory limit (`limits.memoryGb`). Both are omitted when the cgroup cannot be read.
 

@@ -91,7 +91,7 @@ function randomItem(x: Rnd): ItemFacts {
     closeReview: x.bool(0.1) ? { head: "h1", atHead: x.bool(), asked: x.bool() } : null,
     fix: {
       attempt: x.bool(0.3) ? { state: x.pick(["retry", "testing", "passed", "skipped", "failed"]), textChanged: x.bool(), headDone: x.bool(), baseDone: x.bool() } : null,
-      publicRepo: x.bool(0.9), notRust: x.bool(0.1), openPr: x.bool(0.1) ? { number: 7, closes: x.bool(0.5) } : null, impact: x.pick(["P0", "P2", "P4"]), scopeDecision: null,
+      buildableRepo: x.bool(0.9), notRust: x.bool(0.1), openPr: x.bool(0.1) ? { number: 7, closes: x.bool(0.5) } : null, impact: x.pick(["P0", "P2", "P4"]), scopeDecision: null,
     },
   } as Parameters<typeof itemFacts>[0]);
 }

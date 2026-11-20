@@ -1,4 +1,4 @@
-// Anonymous source download and a tar.gz extractor that cannot write outside
+// Anonymous source download (private-source.ts adds the org's private repos) and a tar.gz extractor that cannot write outside
 // its destination. Own parser instead of `tar`: the rules (no absolute paths,
 // no `..`, links only inside the tree, no devices, no special mode bits) are
 // then the same on every host and testable without a tar binary.
@@ -249,11 +249,14 @@ export async function extractTar(src: AsyncIterable<Buffer>, dest: string, limit
   return files.size;
 }
 
-/** Downloads `url` without credentials (cap on the compressed size) and unpacks it into `dest`. */
-export async function downloadAndExtract(url: string, dest: string, maxBytes: number, limits = DEFAULT_EXTRACT_LIMITS, fetchImpl: typeof fetch = fetch): Promise<number> {
+/**
+ * Downloads `url` without credentials (cap on the compressed size) and unpacks it into `dest`. `redirect` is "error"
+ * for the codeload URL a private download was redirected to (private-source.ts): it follows no second hop.
+ */
+export async function downloadAndExtract(url: string, dest: string, maxBytes: number, limits = DEFAULT_EXTRACT_LIMITS, fetchImpl: typeof fetch = fetch, redirect: "follow" | "error" = "follow"): Promise<number> {
   const u = new URL(url);
   if (u.protocol !== "https:" && u.protocol !== "http:") throw new TarError("source URL must be http(s)");
-  const res = await fetchImpl(u, { redirect: "follow", headers: {}, signal: AbortSignal.timeout(10 * 60_000) });
+  const res = await fetchImpl(u, { redirect, headers: {}, signal: AbortSignal.timeout(10 * 60_000) });
   if (!res.ok || !res.body) throw new TarError(`source download failed: HTTP ${res.status}`);
   const declared = Number(res.headers.get("content-length") ?? 0);
   if (declared > maxBytes) throw new TarError("source tarball too large");

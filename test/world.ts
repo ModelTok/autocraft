@@ -45,7 +45,7 @@ const itemBase = (): ItemFacts => ({
   scope: { open: false, answer: null, covered: false, recommend: null },
   labels: { existing: ["bugfix"], pluginAnswer: false, labeledNote: null },
   answeredClose: [], closeReview: null,
-  fix: { attempt: null, publicRepo: true, notRust: false, openPr: null, impact: "P4", scopeDecision: null },
+  fix: { attempt: null, buildableRepo: true, notRust: false, openPr: null, impact: "P4", scopeDecision: null },
 });
 
 /** The default facts of an open issue with nothing due (backlog priority, so no fix, classified bugfix, labelled, embedded, scanned, prioritized), with the given fields replaced. Object fields are merged one level deep; null replaces the whole object. */

@@ -15,6 +15,7 @@ import { baseScopeRepos } from "../pilot.ts";
 import { fastTask } from "../fasttrack.ts";
 import { featureOn } from "./features.ts";
 import { slugOf } from "../owners.ts";
+import { privateRepoOf, takesPrivate } from "./private.ts";
 
 export const LOST_AFTER_MS = 2 * 60_000;
 /** A task is claimed at most this often: the first time and one requeue after a lost worker. */
@@ -157,7 +158,8 @@ export function satisfies(caps: Capabilities, req: Requires): boolean {
   return true;
 }
 
-export type ClaimedTask = { id: number; repo: string; headSha: string; baseSha: string | null; requires: Requires; plan: TaskStep[]; sourceUrl: string; patch?: string; warm?: Warm };
+/** `private`: the repo is private; the worker downloads it with its privateFetch token and refuses it for any other owner. */
+export type ClaimedTask = { id: number; repo: string; headSha: string; baseSha: string | null; requires: Requires; plan: TaskStep[]; sourceUrl: string; patch?: string; warm?: Warm; private?: { owner: string } };
 export type ClaimResult = { tasks: ClaimedTask[]; cancel: number[] };
 
 /**
@@ -183,7 +185,7 @@ export function claim(db: DatabaseSync, envId: string, free: number, nowMs: numb
   db.exec("BEGIN IMMEDIATE");
   try {
     const env = db.prepare("SELECT * FROM build_envs WHERE id = ?").get(envId) as
-      { enabled: number; kind: string; slots: number; reported_slots: number | null; capabilities: string | null; paused_reason: string | null; confidential: number } | undefined;
+      { enabled: number; kind: string; slots: number; reported_slots: number | null; capabilities: string | null; paused_reason: string | null; confidential: number; private_code: number } | undefined;
     const caps = env?.capabilities ? json<Capabilities | null>(env.capabilities, null) : null;
     const out: ClaimedTask[] = [];
     if (env && env.enabled === 1 && caps && !env.paused_reason && !draining(db, env.kind) && Number.isInteger(free) && free > 0) {
@@ -202,6 +204,10 @@ export function claim(db: DatabaseSync, envId: string, free: number, nowMs: numb
           if (caps.warmSigner && (runsPrCode(t) || !!t.patch)) continue;
           // A security finding's private tasks go only to environments an operator marked confidential, which take no PR code.
           if (env.confidential === 1 ? runsPrCode(t) : PRIVATE_STEPS.includes(t.step)) continue;
+          // A private repo's task goes only to an environment an operator flagged for private code whose worker reported a
+          // token for the repo's owner, the default one; never to any other (build/private.ts). Independent of the rule above.
+          const priv = privateRepoOf(db, t.repo);
+          if (priv && !takesPrivate(env, caps, priv.owner)) continue;
           // The CI gate of a PR build comes from its base commit.
           if (t.step === "pr-build" && t.base_sha === null) continue;
           if (t.step === "pr-build" && !featureOn(db, "pr-builds", t.repo)) continue;
@@ -215,6 +221,7 @@ export function claim(db: DatabaseSync, envId: string, free: number, nowMs: numb
             sourceUrl: `https://codeload.github.com/${slugOf(t.repo)}/tar.gz/${t.head_sha}`,
             ...(t.patch ? { patch: t.patch } : {}),
             ...(t.warm_key && (t.warm_role === "use" || t.warm_role === "build") ? { warm: { key: t.warm_key, role: t.warm_role } } : {}),
+            ...(priv ? { private: { owner: priv.owner } } : {}),
           });
         }
       }

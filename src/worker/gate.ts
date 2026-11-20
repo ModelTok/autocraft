@@ -32,7 +32,7 @@ export function gateEnvAllowed(repo: string, name: string): boolean {
   return prefix.length >= 3 && !TOOL_PREFIX.test(prefix) && name.startsWith(`${prefix}_`) && /^[A-Z0-9_]+$/.test(name);
 }
 export const MAX_PACKAGES = 100;
-const MAX_YAML_BYTES = 256 * 1024;
+export const MAX_YAML_BYTES = 256 * 1024;
 
 type Entry = { value: string; body: number };
 
@@ -177,14 +177,20 @@ async function getText(url: string, fetchImpl: typeof fetch): Promise<string | n
   return text;
 }
 
+/** Reads a file of the task's repo at a commit: null when there is none. A private task's reader is PrivateSource.fileText. */
+export type RepoFiles = (sha: string, path: string) => Promise<string | null>;
+
+/** The repo's files from raw.githubusercontent.com, anonymously (public repos). */
+const rawFiles = (repo: string, fetchImpl: typeof fetch): RepoFiles => (sha, path) => getText(`${RAW}/${slugOf(repo)}/${sha}/${path}`, fetchImpl);
+
 /**
  * The gate environment of `repo` at `sha` (the task's base commit), or null when the repo has no
  * `.github/workflows/ci.yml` or it does not call the suite's gate. A network or HTTP error throws,
  * so a task never runs in a stock environment by accident.
  */
-export async function resolveGate(repo: string, sha: string, fetchImpl: typeof fetch = fetch): Promise<GateEnv | null> {
+export async function resolveGate(repo: string, sha: string, fetchImpl: typeof fetch = fetch, files: RepoFiles = rawFiles(repo, fetchImpl)): Promise<GateEnv | null> {
   if (!/^[A-Za-z0-9._-]{1,100}$/.test(repo) || !SHA.test(sha)) return null;
-  const ci = await getText(`${RAW}/${slugOf(repo)}/${sha}/.github/workflows/ci.yml`, fetchImpl);
+  const ci = await files(sha, ".github/workflows/ci.yml");
   const call = ci === null ? null : parseGateCall(ci);
   if (!call) return null;
   const gate = await getText(`${RAW}/${DEFAULT_OWNER}/craft-common-actions/${call.ref}/.github/workflows/gate.yml`, fetchImpl);
@@ -193,9 +199,9 @@ export async function resolveGate(repo: string, sha: string, fetchImpl: typeof f
 }
 
 /** craft-i18n.rev at `sha` (the task's base commit): the commit of craft-i18n the task gets, or null when the repo has no such file or it is not one commit id. */
-export async function resolveI18nRev(repo: string, sha: string, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+export async function resolveI18nRev(repo: string, sha: string, fetchImpl: typeof fetch = fetch, files: RepoFiles = rawFiles(repo, fetchImpl)): Promise<string | null> {
   if (!/^[A-Za-z0-9._-]{1,100}$/.test(repo) || !SHA.test(sha)) return null;
-  const text = await getText(`${RAW}/${slugOf(repo)}/${sha}/craft-i18n.rev`, fetchImpl);
+  const text = await files(sha, "craft-i18n.rev");
   const rev = text === null ? "" : text.replace(/\s+/g, "");
   return SHA.test(rev) ? rev : null;
 }

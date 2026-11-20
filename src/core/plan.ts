@@ -384,7 +384,8 @@ export type ItemFacts = {
     /** Its fix attempt. `textChanged`: the issue's title or body changed since the attempt (read only for a skipped attempt).
      *  `headDone`: the head build task is in a terminal state; `baseDone`: there is no base task or it is terminal. */
     attempt: { state: string; textChanged: boolean; headDone: boolean; baseDone: boolean } | null;
-    publicRepo: boolean;
+    /** The repo is public, or private to the default owner while a build environment takes its private code (build/private.ts). */
+    buildableRepo: boolean;
     /** The step found the repo has no Rust workspace at its root. */
     notRust: boolean;
     /** The open PR that holds the issue: one that closes or addresses it (`closes`), else a person's PR that mentions it by number; null when there is none. */

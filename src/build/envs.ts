@@ -5,6 +5,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { BuildEnv, Capabilities, EnvCreate, EnvInput, EnvKind } from "../../web/src/api/types.ts";
 import { audit } from "../dash/audit.ts";
+import { OWNER } from "../owners.ts";
 
 export class BuildError extends Error {
   status: number;
@@ -22,7 +23,7 @@ export const KINDS: EnvKind[] = ["local-sandbox", "remote"];
 const KEY_PREFIX = "cwk";
 
 type Row = {
-  id: string; label: string; kind: EnvKind; enabled: number; slots: number; key_hash: string; capabilities: string | null; confidential: number;
+  id: string; label: string; kind: EnvKind; enabled: number; slots: number; key_hash: string; capabilities: string | null; confidential: number; private_code: number;
   reported_slots: number | null; version: string | null; paused_reason: string | null; last_seen_at: string | null;
 };
 
@@ -66,7 +67,7 @@ function toEnv(r: Row, running: number, nowMs: number): BuildEnv {
   return {
     id: r.id, label: r.label, kind: r.kind, enabled: r.enabled === 1, online, lastSeenAt: r.last_seen_at,
     slots: slotsOf(r), running, capabilities: parseCaps(r.capabilities), version: r.version,
-    pausedReason: r.enabled === 1 && online ? r.paused_reason : null, confidential: r.confidential === 1,
+    pausedReason: r.enabled === 1 && online ? r.paused_reason : null, confidential: r.confidential === 1, privateCode: r.private_code === 1,
   };
 }
 
@@ -105,7 +106,7 @@ function object(input: unknown): Record<string, unknown> {
 /** Registers an environment. The key is returned here and never again. */
 export function createEnv(db: DatabaseSync, input: unknown, by: string): { env: BuildEnv; key: string } {
   const o = object(input);
-  const bad = Object.keys(o).find((k) => !["id", "label", "kind", "slots", "confidential"].includes(k));
+  const bad = Object.keys(o).find((k) => !["id", "label", "kind", "slots", "confidential", "privateCode"].includes(k));
   if (bad) throw new BuildError(400, `${bad} cannot be set`);
   const id = o.id;
   if (typeof id !== "string" || !ENV_ID_RE.test(id)) throw new BuildError(400, "id must be 3 to 32 lowercase letters, digits or hyphens, starting with a letter");
@@ -113,22 +114,23 @@ export function createEnv(db: DatabaseSync, input: unknown, by: string): { env: 
   if (!KINDS.includes(o.kind as EnvKind)) throw new BuildError(400, `kind must be ${KINDS.join(" or ")}`);
   const slots = checkSlots(o.slots);
   const confidential = o.confidential === undefined ? false : checkFlag(o.confidential, "confidential");
+  const privateCode = o.privateCode === undefined ? false : checkFlag(o.privateCode, "privateCode");
   const key = newKey(id);
   const at = new Date().toISOString();
   try {
-    db.prepare("INSERT INTO build_envs (id, label, kind, slots, confidential, confidential_since, key_hash, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(id, label, o.kind as EnvKind, slots, confidential ? 1 : 0, confidential ? at : null, hashKey(key), at, by, at);
+    db.prepare("INSERT INTO build_envs (id, label, kind, slots, confidential, confidential_since, private_code, key_hash, created_at, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(id, label, o.kind as EnvKind, slots, confidential ? 1 : 0, confidential ? at : null, privateCode ? 1 : 0, hashKey(key), at, by, at);
   } catch (e) {
     if (/UNIQUE|constraint/i.test((e as Error).message)) throw new BuildError(409, `environment ${id} exists`);
     throw e;
   }
-  audit(db, by, "env-create", `env:${id}`, { label, kind: o.kind, slots, ...(confidential && { confidential }) });
+  audit(db, by, "env-create", `env:${id}`, { label, kind: o.kind, slots, ...(confidential && { confidential }), ...(privateCode && { privateCode }) });
   return { env: getEnv(db, id)!, key };
 }
 
 export function updateEnv(db: DatabaseSync, id: unknown, input: unknown, by: string): BuildEnv {
   const o = object(input);
-  const bad = Object.keys(o).find((k) => !["label", "enabled", "slots", "confidential"].includes(k));
+  const bad = Object.keys(o).find((k) => !["label", "enabled", "slots", "confidential", "privateCode"].includes(k));
   if (bad) throw new BuildError(400, `${bad} cannot be set`);
   const before = typeof id === "string" ? (db.prepare("SELECT * FROM build_envs WHERE id = ?").get(id) as Row | undefined) : undefined;
   if (!before) throw new BuildError(404, "no such environment");
@@ -137,11 +139,12 @@ export function updateEnv(db: DatabaseSync, id: unknown, input: unknown, by: str
     enabled: before.enabled === 1,
     slots: o.slots !== undefined ? checkSlots(o.slots) : before.slots,
     confidential: o.confidential !== undefined ? checkFlag(o.confidential, "confidential") : before.confidential === 1,
+    privateCode: o.privateCode !== undefined ? checkFlag(o.privateCode, "privateCode") : before.private_code === 1,
   };
   if (o.enabled !== undefined) next.enabled = checkFlag(o.enabled, "enabled");
   const at = new Date().toISOString();
-  db.prepare("UPDATE build_envs SET label = ?, enabled = ?, slots = ?, confidential = ?, updated_by = ?, updated_at = ? WHERE id = ?")
-    .run(next.label, next.enabled ? 1 : 0, next.slots, next.confidential ? 1 : 0, by, at, before.id);
+  db.prepare("UPDATE build_envs SET label = ?, enabled = ?, slots = ?, confidential = ?, private_code = ?, updated_by = ?, updated_at = ? WHERE id = ?")
+    .run(next.label, next.enabled ? 1 : 0, next.slots, next.confidential ? 1 : 0, next.privateCode ? 1 : 0, by, at, before.id);
   // The private tasks' build limit starts at the worker's first call after the flag, or the environment, is turned on.
   if (!next.confidential) db.prepare("UPDATE build_envs SET confidential_since = NULL, confidential_online_at = NULL WHERE id = ?").run(before.id);
   else if (before.confidential !== 1 || (next.enabled && before.enabled !== 1)) db.prepare("UPDATE build_envs SET confidential_since = ?, confidential_online_at = NULL WHERE id = ?").run(at, before.id);
@@ -150,6 +153,7 @@ export function updateEnv(db: DatabaseSync, id: unknown, input: unknown, by: str
     ...(next.enabled !== (before.enabled === 1) && { enabled: next.enabled }),
     ...(next.slots !== before.slots && { slots: next.slots, was: before.slots }),
     ...(next.confidential !== (before.confidential === 1) && { confidential: next.confidential }),
+    ...(next.privateCode !== (before.private_code === 1) && { privateCode: next.privateCode }),
   });
   return getEnv(db, before.id)!;
 }
@@ -183,6 +187,8 @@ export function parseCapabilities(v: unknown): Capabilities {
     os: o.os as Capabilities["os"], arch: o.arch as Capabilities["arch"], cpus: int("cpus", 4096), memGb: int("memGb", 65536), diskGb: int("diskGb", 10_000_000),
     display: o.display, gpu: o.gpu, toolchains: [...new Set(tc as string[])].sort(),
     ...(o.warmSigner === true ? { warmSigner: true } : {}),
+    // What the worker can download; it takes private tasks only while an operator also flagged the environment (build/private.ts).
+    ...(typeof o.privateOwner === "string" && OWNER.test(o.privateOwner) ? { privateOwner: o.privateOwner } : {}),
   };
 }
 

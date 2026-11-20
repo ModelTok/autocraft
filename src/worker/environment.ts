@@ -7,7 +7,7 @@ import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WorkerConfig } from "./config.ts";
-import { isCommitId, resolveGate, resolveI18nRev } from "./gate.ts";
+import { isCommitId, resolveGate, resolveI18nRev, type RepoFiles } from "./gate.ts";
 import { downloadAndExtract } from "./tarball.ts";
 import { slugOf } from "../owners.ts";
 
@@ -109,7 +109,8 @@ export async function ensureCheckout(cfg: WorkerConfig, repo: "craft-fonts" | "c
 /** Software Vulkan/GL drivers for tasks that render a UI (requires.display): the derived image adds them, other images keep their tags. */
 export const DISPLAY_PACKAGES = ["mesa-vulkan-drivers", "libvulkan1", "libgl1-mesa-dri", "libegl1"];
 
-export type PrepareOptions = { fetchImpl?: typeof fetch; log: (s: string) => void; note?: (s: string) => void };
+/** `files` reads the task's repo (a private task's through the worker's token); without it, anonymously. */
+export type PrepareOptions = { fetchImpl?: typeof fetch; log: (s: string) => void; note?: (s: string) => void; files?: RepoFiles };
 
 /**
  * The environment of a task: the task's base commit (a default-branch commit the runner names, never
@@ -122,7 +123,7 @@ export async function prepareEnvironment(cfg: WorkerConfig, task: { repo: string
   const display = task.display === true;
   const stock: PreparedEnv = { image: toolImage, env: {}, mounts: [], info: { image: toolImage, baseImage, packages: [], craftFontsRef: null, craftI18nRev: null } };
   const base = task.baseSha;
-  const gate = base ? await resolveGate(task.repo, base, o.fetchImpl) : null;
+  const gate = base ? await resolveGate(task.repo, base, o.fetchImpl, o.files) : null;
   if (!base || !gate) {
     const why = base ? "no CI gate for this repo at the base commit" : "no base commit for this task";
     if (!display) {
@@ -146,7 +147,7 @@ export async function prepareEnvironment(cfg: WorkerConfig, task: { repo: string
     if (gate.requireFonts) env.CRAFT_FONTS_REQUIRED = "1";
   }
   // The commit comes from the base commit, so a PR cannot make the host download a commit of its choosing.
-  const rev = await resolveI18nRev(task.repo, base, o.fetchImpl);
+  const rev = await resolveI18nRev(task.repo, base, o.fetchImpl, o.files);
   if (rev) {
     mounts.push({ source: await ensureCheckout(cfg, "craft-i18n", rev, o.fetchImpl), target: "/craft-i18n" });
     env.CRAFT_I18N_DIR = "/craft-i18n";

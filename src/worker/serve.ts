@@ -7,6 +7,7 @@ import { cleanWarm } from "./warm.ts";
 import { executeTask, removeStaleWorkDirs } from "./executor.ts";
 import { LogSink } from "./logsink.ts";
 import type { Capabilities, ClaimedTask } from "./types.ts";
+import type { PrivateSource } from "./private-source.ts";
 
 export const POLL_MS = 5000;
 export const HEARTBEAT_MS = 15_000;
@@ -28,6 +29,8 @@ export type ServeDeps = {
   pollMs?: number;
   heartbeatMs?: number;
   fetchImpl?: typeof fetch;
+  /** The org's private source downloads (config privateFetch), read once at start. */
+  privateSource?: PrivateSource;
 };
 
 const realSleep = (ms: number, signal: AbortSignal) =>
@@ -146,16 +149,17 @@ async function runTask(d: ServeDeps, task: ClaimedTask, ac: AbortController, run
     const r = await executeTask(d.cfg, task, {
       log: (step, chunk) => sink.write(step, chunk),
       artifact: (name, body, ct) => api.upload(task.id, name, body, ct).then(() => {}),
-    }, ac.signal, { fetchImpl: d.fetchImpl, note: log });
+    }, ac.signal, { fetchImpl: d.fetchImpl, note: log, privateSource: d.privateSource });
     if (r.cancelled) {
       log(`task ${task.id} cancelled`);
       return;
     }
     finishArgs = [r.results, r.summary, r.environment];
   } catch (e) {
-    log(`task ${task.id} crashed (${(e as Error).message})`);
+    const msg = d.privateSource?.scrub((e as Error).message) ?? (e as Error).message;
+    log(`task ${task.id} crashed (${msg})`);
     if (ac.signal.aborted) return;
-    finishArgs = [[], `worker error: ${(e as Error).message}`.slice(0, 300), undefined];
+    finishArgs = [[], `worker error: ${msg}`.slice(0, 300), undefined];
   } finally {
     clearInterval(hb);
     await sink.close();

@@ -10,6 +10,8 @@ import { removeContainer, runContainer, type RunOutcome } from "./container.ts";
 import { applyPatch } from "./patch.ts";
 import { discardDir, removeTree, STUCK_PREFIX } from "./rmtree.ts";
 import { downloadAndExtract } from "./tarball.ts";
+import { privateFieldProblem, type PrivateSource } from "./private-source.ts";
+import { MAX_YAML_BYTES } from "./gate.ts";
 import { copyWarm, storeWarm, taskFieldProblem } from "./warm.ts";
 import { downloadWarm, uploadWarm } from "./warm-sync.ts";
 import { LIMITS, type ClaimedTask, type StepResult } from "./types.ts";
@@ -101,16 +103,28 @@ export function collectArtifacts(out: string, globs: string[], taken: Set<string
   return found;
 }
 
-export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: TaskSink, signal: AbortSignal, o: { fetchImpl?: typeof fetch; note?: (s: string) => void; crates?: CrateVerifier } = {}): Promise<ExecResult> {
+/**
+ * Runs `task`. `privateSource` (config `privateFetch`) downloads a task the coordinator marked private, and only when
+ * the task's owner is its own; a private task is refused otherwise, and every other task downloads anonymously.
+ */
+export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: TaskSink, signal: AbortSignal, o: { fetchImpl?: typeof fetch; note?: (s: string) => void; crates?: CrateVerifier; privateSource?: PrivateSource } = {}): Promise<ExecResult> {
   const note = o.note ?? (() => {});
   const crates = o.crates ?? (defaultVerifier ??= new CrateVerifier());
   const dir = taskDir(cfg, task.id);
   const results: StepResult[] = [];
   const names: string[] = [];
-  const emit = (step: string, s: string) => sink.log(step, s).catch(() => {});
+  // Lines the worker writes never carry the token (no container has it); scrubbed anyway.
+  const scrub = (s: string) => o.privateSource?.scrub(s) ?? s;
+  const emit = (step: string, s: string) => sink.log(step, scrub(s)).catch(() => {});
   try {
-    const bad = taskFieldProblem(task);
+    const bad = taskFieldProblem(task) ?? privateFieldProblem(task.private);
     if (bad) return { results, summary: `malformed task: ${bad}`, cancelled: false };
+    const priv = task.private;
+    const source = priv && o.privateSource?.covers(priv.owner) ? o.privateSource : undefined;
+    if (priv && !source) {
+      const why = o.privateSource ? `this worker fetches private code only of ${o.privateSource.owner}` : "this worker has no privateFetch";
+      return { results, summary: `refused: ${task.repo} is a private repo of ${priv.owner} and ${why}`, cancelled: false };
+    }
     const old = discardDir(dir);
     if (old) note(old);
     const paths = { src: join(dir, "src"), target: join(dir, "target"), cache: join(dir, "cache") };
@@ -120,13 +134,17 @@ export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: Ta
     const image = toolchain ? cfg.images[toolchain] : undefined;
     if (!image) return { results, summary: `no image for toolchains ${wanted.join(", ")}`, cancelled: false };
 
-    await emit("source", `fetching source for ${task.repo}@${task.headSha.slice(0, 12)}\n`);
+    await emit("source", `fetching ${priv ? "private " : ""}source for ${task.repo}@${task.headSha.slice(0, 12)}\n`);
     try {
-      const files = await downloadAndExtract(task.sourceUrl, paths.src, cfg.maxSourceMb * 1024 * 1024, undefined, o.fetchImpl);
+      const maxBytes = cfg.maxSourceMb * 1024 * 1024;
+      const files = priv && source
+        ? await source.downloadTarball(priv.owner, task.repo, task.headSha, paths.src, maxBytes, undefined, o.fetchImpl)
+        : await downloadAndExtract(task.sourceUrl, paths.src, maxBytes, undefined, o.fetchImpl);
       await emit("source", `unpacked ${files} files\n`);
     } catch (e) {
-      await emit("source", `source failed: ${(e as Error).message}\n`);
-      return { results, summary: `source failed: ${(e as Error).message}`.slice(0, 300), cancelled: false };
+      const msg = scrub((e as Error).message);
+      await emit("source", `source failed: ${msg}\n`);
+      return { results, summary: `source failed: ${msg}`.slice(0, 300), cancelled: false };
     }
     if (task.patch !== undefined) {
       const err = await applyPatch(task.patch, paths.src, dir);
@@ -135,16 +153,20 @@ export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: Ta
     }
     let prepared: PreparedEnv;
     try {
-      prepared = await prepareEnvironment(cfg, { ...task, display: task.requires.display === true }, toolchain!, image, paths.src, { fetchImpl: o.fetchImpl, log: (s) => void emit("environment", s), note });
+      // A private repo's CI files come through the same token, from the same owner's repo.
+      const files = priv && source ? (sha: string, path: string) => source.fileText(priv.owner, task.repo, sha, path, MAX_YAML_BYTES, o.fetchImpl) : undefined;
+      prepared = await prepareEnvironment(cfg, { ...task, display: task.requires.display === true }, toolchain!, image, paths.src, { fetchImpl: o.fetchImpl, log: (s) => void emit("environment", s), note, files });
     } catch (e) {
-      await emit("environment", `environment failed: ${(e as Error).message}\n`);
-      return { results, summary: `environment failed: ${(e as Error).message}`.slice(0, 300), cancelled: false };
+      const msg = scrub((e as Error).message);
+      await emit("environment", `environment failed: ${msg}\n`);
+      return { results, summary: `environment failed: ${msg}`.slice(0, 300), cancelled: false };
     }
     const environment = prepared.info;
     if (task.warm?.role === "use") {
       try {
         // In the background: a slow store never delays the build; the next task gets the new snapshot.
-        if (cfg.warmStore) void downloadWarm(cfg, task.warm.key, (m) => note(m));
+        // A private repo's build output stays on this worker: every worker can read the shared store.
+        if (cfg.warmStore && !priv) void downloadWarm(cfg, task.warm.key, (m) => note(m));
         const hit = await copyWarm(cfg, task.warm.key, paths.target);
         await emit("source", hit ? "warm target dir copied\n" : "no warm target dir, starting cold\n");
       } catch (e) {
@@ -211,7 +233,7 @@ export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: Ta
       try {
         await storeWarm(cfg, task.warm.key, task.headSha, paths.target);
         await emit("source", "warm target dir stored\n");
-        if (cfg.warmStore?.writeKey) await uploadWarm(cfg, task.warm.key, task.headSha, (m) => note(m));
+        if (cfg.warmStore?.writeKey && !priv) await uploadWarm(cfg, task.warm.key, task.headSha, (m) => note(m));
       } catch (e) {
         note(`warm store failed: ${(e as Error).message}`);
       }
