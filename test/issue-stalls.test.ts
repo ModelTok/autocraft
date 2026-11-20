@@ -6,11 +6,11 @@ import { decideItem } from "../src/core/decide-item.ts";
 import { issuesWithOpenPr } from "../src/fixissue/candidates.ts";
 import { itemFacts } from "./world.ts";
 
-const needsDecision = { classification: { flags: ["needs decision"] }, labels: { existing: ["bugfix", "needs decision"] } };
+const needsDecision = { classification: { flags: ["needs decision"] }, labels: { existing: ["bug", "needs-owner"] } };
 const attempt = (state: string) => ({ state, textChanged: false, headDone: false, baseDone: true });
 
 test("a labelled issue with the needs-decision flag and no scope decision is asked", () => {
-  const p = decideItem(itemFacts({ ...needsDecision, labels: { existing: ["bugfix", "needs decision"], labeledNote: "added: bugfix" } }));
+  const p = decideItem(itemFacts({ ...needsDecision, labels: { existing: ["bug", "needs-owner"], labeledNote: "added: bug" } }));
   assert.equal(p.state, "scope-due");
   assert.deepEqual(p.actions.map((a) => a.kind), ["decide"]);
 });

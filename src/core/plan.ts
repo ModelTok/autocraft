@@ -368,8 +368,6 @@ export type ItemFacts = {
     quietFix?: boolean;
     /** Labels on GitHub as mirrored. */
     existing: string[];
-    /** An operator answered the scope decision with "plugin". */
-    pluginAnswer: boolean;
     /** The note of the item's latest "labeled" stage row ("added: a, b"). */
     labeledNote: string | null;
   };

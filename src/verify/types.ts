@@ -21,7 +21,7 @@ export type VerifyPlanInput = {
   ref: string; title: string; body: string;
   /** File name of the regression test for this PR, saved under tests/ of the chosen crate. */
   test_file_name: string;
-  /** The settled type label; regression is allowed only for bugfix. */
+  /** The settled type label; regression is allowed only for bug. */
   label: string | null;
   /** The repo has upstream CI, which already runs the tests: the plan is `ci-enough` or `regression`, never `tests`. */
   ci: boolean;
@@ -34,7 +34,7 @@ export type VerifyPlanInput = {
 export const SAMPLE_VERIFY_PLAN: VerifyPlanInput[] = [{
   ref: "photocraft#1287", title: "Fix crash when opening a 16-bit PNG with an alpha channel",
   body: "Opening a 16-bit RGBA PNG panicked in the decoder because the row stride was computed for 8-bit samples.\n\nFixes #1279",
-  test_file_name: "autocraft_regression_1287.rs", label: "bugfix", ci: true,
+  test_file_name: "autocraft_regression_1287.rs", label: "bug", ci: true,
   review: { verdict: "take", reason: "Correct stride for 16-bit samples; small and focused.", risks: ["No test for 16-bit grayscale."], fixes: [] },
   crates: [{ name: "codecs", dir: "crates/codecs" }, { name: "photocraft-app", dir: "crates/app" }],
   files: ["crates/codecs/src/png.rs"], tests_omitted: ["crates/codecs/tests/png16.rs"],

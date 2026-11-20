@@ -62,7 +62,7 @@ before(async () => {
   {
     const now = new Date().toISOString();
     db.prepare("INSERT INTO items (repo, number, kind, state, title, body, author, created_at, updated_at, head_oid) VALUES ('photocraft', 11, 'pr', 'OPEN', 'Check layer length', 'b', 'pipeline-bot', ?, ?, 'q1')").run(now, now);
-    db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, want, reason) VALUES ('photocraft', 11, 'haiku', 'r', ?, 'bugfix', 'yes', 'closes a traversal hole')").run(now);
+    db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, want, reason) VALUES ('photocraft', 11, 'haiku', 'r', ?, 'bug', 'yes', 'closes a traversal hole')").run(now);
     db.prepare("INSERT INTO security_scans (id, repo, state, started_by, started_at) VALUES (900, 'photocraft', 'done', 'boss', ?)").run(now);
     db.prepare(`INSERT INTO security_findings (repo, number, scan_id, area, title, severity, urgent, state, refs, reach, impact, fingerprint, fix_pr, created_at, updated_at)
       VALUES ('photocraft', 900, 900, 'a', 't', 'high', 0, 'landing', '[]', 'r', 'i', 'fp900', 11, ?, ?)`).run(now, now);

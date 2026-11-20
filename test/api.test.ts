@@ -46,7 +46,7 @@ before(async () => {
   ins.run("untracked-repo", 6, "pr", "OPEN", "Add wave filter elsewhere", "f", "frank", now, now, null);
   db.prepare("UPDATE items SET additions = 40, deletions = 3, changed_files = 7 WHERE repo = 'photocraft' AND number = 1").run();
   db.prepare("INSERT INTO comments (repo, number, id, kind, author, created_at, body) VALUES ('photocraft', 1, 'c1', 'comment', 'alice', ?, 'looks good')").run(now);
-  db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, want, reason) VALUES ('photocraft', 1, 'haiku', 'r1', ?, 'small extra', 'yes', 'adds a filter')").run(now);
+  db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, want, reason) VALUES ('photocraft', 1, 'haiku', 'r1', ?, 'enhancement', 'yes', 'adds a filter')").run(now);
   db.exec("INSERT OR REPLACE INTO repos (name, visibility) VALUES ('photocraft', 'public'), ('filmcraft', 'public')");
   ask(db, [P1, P2, F3, P4].map((id) => {
     const [repo, rest] = id.split("#");
@@ -168,7 +168,7 @@ describe("api", () => {
     assert.deepEqual(it.comments.map((c) => c.body), ["looks good"]);
     assert.deepEqual(it.decisionIds, [P1]);
     assert.deepEqual(it.related.map((r) => [r.number, r.relation]), [[5, "fixes"]]);
-    assert.equal(it.classifications[0]!.typeLabel, "small extra");
+    assert.equal(it.classifications[0]!.typeLabel, "enhancement");
     assert.equal((await boss.req("GET", "/api/items/untracked-repo/6")).status, 404);
     const byRef = await boss.get<SearchHit[]>("/api/search?q=photocraft%231");
     assert.deepEqual(byRef.map((h) => h.number), [1]);

@@ -12,7 +12,7 @@ import type { Req } from "../src/dash/types.ts";
 import { OPERATOR, world } from "./world-db.ts";
 
 test("pressing Fix up first, then merge again after a press that applied the label and failed runs the rest", async () => {
-  const w = world().repo().pr(5, { label: "plugin candidate" });
+  const w = world().repo().pr(5, { label: "gtm" });
   try {
     const db = w.db;
     setLabelApproval(db, OPERATOR, "app", true);
@@ -20,7 +20,7 @@ test("pressing Fix up first, then merge again after a press that applied the lab
     const d = getDecision(db, "app#5:scope")!;
     const row = writeChoices(db, {
       decisionId: d.id, repo: "app", number: 5, turnId: null, stamp: decisionStamp(db, d), seen: { head: "sha5", lastComment: null }, source: "prepare",
-      drafts: { "fixup-merge": { params: { instructions: "Rename a to b." }, extras: [{ id: "label:small extra", kind: "label", on: true, label: "small extra" }] } }, added: [], pick: { core: "fixup-merge", reason: "Small." },
+      drafts: { "fixup-merge": { params: { instructions: "Rename a to b." }, extras: [{ id: "label:enhancement", kind: "label", on: true, label: "enhancement" }] } }, added: [], pick: { core: "fixup-merge", reason: "Small." },
     });
     const labelWrites: string[] = [];
     const querier = { query: async (q: string) => {
@@ -33,12 +33,12 @@ test("pressing Fix up first, then merge again after a press that applied the lab
     let broken = true;
     const press = (): Req => ({
       method: "POST", path: "", params: { id: row.id }, query: new URLSearchParams(), form: new URLSearchParams(), csrf: "", nonce: "",
-      json: { core: "fixup-merge", params: { instructions: "Rename a to b." }, extras: [{ id: "label:small extra" }] },
+      json: { core: "fixup-merge", params: { instructions: "Rename a to b." }, extras: [{ id: "label:enhancement" }] },
       user: { login: OPERATOR, role: "operator", canWrite: async () => !(broken && labelWrites.length > 0), canRead: async () => true },
     } as unknown as Req);
     const failed = await doChoice(db, press(), { querier: querier as never, exec: (async () => ({ code: 0, stdout: "", stderr: "" })) as never });
     assert.equal(failed.state, "failed");
-    assert.match(failed.error ?? "", /Already done: Add the label "small extra"/);
+    assert.match(failed.error ?? "", /Already done: Add the label "enhancement"/);
     assert.equal(labelWrites.length, 1);
     assert.equal(getDecision(db, "app#5:scope")!.answer, null);
 
@@ -46,7 +46,7 @@ test("pressing Fix up first, then merge again after a press that applied the lab
     const again = await doChoice(db, press(), { querier: querier as never, exec: (async () => ({ code: 0, stdout: "", stderr: "" })) as never });
     assert.equal(again.state, "done", again.error ?? "");
     assert.equal(labelWrites.length, 1, "the label step that already ran is skipped");
-    assert.equal(getDecision(db, "app#5:scope")!.answer, "small-extra");
+    assert.equal(getDecision(db, "app#5:scope")!.answer, "take");
     assert.equal(w.rows("SELECT id FROM operator_fixups WHERE number = 5").length, 1);
   } finally { w.close(); }
 });

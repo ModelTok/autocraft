@@ -1,7 +1,7 @@
 // The head commit of a PR as best known, the scope answers per item.
 import { settledBySql } from "../settlers.ts";
 import type { DatabaseSync } from "node:sqlite";
-import { KEEP_IN_CORE, REVIEW_LABELS, sizeOf, type Size } from "../core/rules.ts";
+import { KEEP_IN_CORE, LEGACY_SCOPE_ANSWERS, REVIEW_LABELS, scopeAnswerOf, sizeOf, type Size } from "../core/rules.ts";
 export { REVIEW_LABELS, sizeOf, type Size };
 
 
@@ -29,15 +29,16 @@ function scopeRows(db: DatabaseSync, extra: string): Map<string, string> {
     WHERE kind = 'scope' AND answer IS NOT NULL AND NOT (answer = 'withdrawn' AND answered_by = 'pipeline') ${extra} ORDER BY answered_at DESC`).all() as
     { repo: string | null; number: number | null; items: string | null; answer: string; exceptions: string | null }[];
   for (const r of rows) {
+    // A key from before the label set changed reads as its current one (LEGACY_SCOPE_ANSWERS).
     if (r.number !== null) {
       const k = `${r.repo}#${r.number}`;
-      if (!out.has(k)) out.set(k, r.answer);
+      if (!out.has(k)) out.set(k, scopeAnswerOf(r.answer));
       continue;
     }
     const ex = new Map(parseRefs(r.exceptions).map((e) => [`${e.repo}#${e.number}`, e.answer]));
     for (const i of parseRefs(r.items)) {
       const k = `${i.repo}#${i.number}`;
-      if (!out.has(k)) out.set(k, ex.get(k) ?? r.answer);
+      if (!out.has(k)) out.set(k, scopeAnswerOf(ex.get(k) ?? r.answer));
     }
   }
   return out;
@@ -65,8 +66,10 @@ export function settledScope(db: DatabaseSync, repo: string, number: number): { 
   const ref = `${repo}#${number}`;
   const answer = scopeAnswers(db).get(ref);
   if (!answer || !KEEP_IN_CORE.includes(answer)) return null;
+  // The stored key may be a legacy one that reads as `answer`.
+  const keys = [answer, ...Object.keys(LEGACY_SCOPE_ANSWERS).filter((k) => LEGACY_SCOPE_ANSWERS[k] === answer)];
   const rows = db.prepare(`SELECT answered_by, answer_note, repo, number, items FROM decisions
-    WHERE kind = 'scope' AND answer = ? AND answered_by IS NOT NULL AND answered_by <> 'pipeline' AND NOT (${MAINTAINER_ANSWER} AND NOT ${settledBySql("decisions")}) ORDER BY answered_at DESC`).all(answer) as
+    WHERE kind = 'scope' AND answer IN (${keys.map(() => "?").join(", ")}) AND answered_by IS NOT NULL AND answered_by <> 'pipeline' AND NOT (${MAINTAINER_ANSWER} AND NOT ${settledBySql("decisions")}) ORDER BY answered_at DESC`).all(...keys) as
     { answered_by: string; answer_note: string | null; repo: string | null; number: number | null; items: string | null }[];
   const r = rows.find((x) => (x.number !== null ? x.repo === repo && x.number === number : parseRefs(x.items).some((i) => i.repo === repo && i.number === number)));
   if (!r) return null;

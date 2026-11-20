@@ -8,49 +8,30 @@ import type { Candidate } from "./select.ts";
  * Answer keys of a scope decision. The step that applies answers reads these
  * keys (never free text):
  * - take: in scope for core; keep open, PRs go to review.
- * - small-extra: keep in core as a small extra (label "small extra").
- * - plugin: keep open, label "plugin candidate"; not for core.
  * - close: out of scope; close with a short reason.
  * - need-info: ask how it should behave (docs, roadmap or upstream) before deciding.
+ * Answers stored with the keys small-extra and plugin, which the question offered
+ * before the label set changed, still load: core/rules.ts LEGACY_SCOPE_ANSWERS
+ * reads small-extra as take and plugin as close.
  */
 export const SCOPE_OPTIONS = {
   take: { key: "take", label: "Wanted in core", hint: "In the project's scope (docs, roadmap or upstream). Keep open; PRs go to review." },
-  "small-extra": { key: "small-extra", label: "Small extra", hint: "Outside what the project promises but tiny; keep it in core as a small extra." },
-  plugin: { key: "plugin", label: "Plug-in candidate", hint: "Not for core. Keep open and label it plugin candidate." },
   close: { key: "close", label: "Out of scope", hint: "Not wanted. Close with a short reason." },
   "need-info": { key: "need-info", label: "Check the scope", hint: "Ask how it should behave (docs, roadmap or upstream) before deciding." },
 } as const;
 export type OptionKey = keyof typeof SCOPE_OPTIONS;
-
-/** The option each type label points to. */
-const OPTION_OF_LABEL: Record<string, OptionKey> = {
-  "missing feature": "take", "small extra": "small-extra", "plugin candidate": "plugin",
-  bugfix: "take", performance: "take", infra: "take",
-};
 
 type Shape = { question: string; options: OptionKey[] };
 
 /** Question and options by the settled label, or by the two labels in a disagreement. The decision asks because the item needs a maintainer's call, so no option is recommended here (see prepare.ts). */
 export function shapeOf(c: Candidate): Shape {
   const s = c.settled;
-  if (c.reason === "scope-disagreement") {
-    const pair = new Set([s.basalLabel, s.haikuLabel]);
-    if (pair.has("small extra") && pair.has("plugin candidate"))
-      return { question: "Keep this in core as a small extra, or treat it as a plug-in?", options: ["small-extra", "plugin", "take", "need-info", "close"] };
-    const other = OPTION_OF_LABEL[pair.has("small extra") ? "small extra" : "plugin candidate"]!;
-    return { question: "Is this in the project's scope, and do we want it in core?", options: ["take", other, "need-info", "close"] };
-  }
+  const options: OptionKey[] = ["take", "need-info", "close"];
+  if (c.reason === "scope-disagreement") return { question: "Is this in the project's scope, and do we want it in core?", options };
   switch (s.label) {
-    case "missing feature":
-      return { question: "Is this wanted in core?", options: ["take", "plugin", "need-info", "close"] };
-    case "small extra":
-      return { question: "Keep this small extra in core?", options: ["small-extra", "plugin", "need-info", "close"] };
-    case "plugin candidate":
-      return { question: "Keep this in core, or treat it as a plug-in?", options: ["take", "plugin", "need-info", "close"] };
-    case "bugfix":
-      return { question: "Is this change in behaviour wanted?", options: ["take", "need-info", "close"] };
-    default:
-      return { question: "Is this wanted?", options: ["take", "need-info", "close"] };
+    case "new feature": case "enhancement": return { question: "Is this wanted in core?", options };
+    case "bug": return { question: "Is this change in behaviour wanted?", options };
+    default: return { question: "Is this wanted?", options };
   }
 }
 

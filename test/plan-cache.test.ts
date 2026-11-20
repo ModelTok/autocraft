@@ -95,7 +95,7 @@ describe("the cached next step of a PR outside the pipeline's scope", () => {
     const db = connect(join(dir, "scope.db"));
     db.prepare("INSERT INTO tracked_repos (name, pipeline) VALUES ('off', 0)").run();
     const pr = db.prepare(`INSERT INTO items (repo, number, kind, state, title, body, is_draft, head_oid, created_at, updated_at) VALUES ('off', ?, 'pr', 'OPEN', 't', 'b', 0, ?, '${T0}', '${T0}')`);
-    const basal = db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('off', ?, 'basal', 'r1', '${T0}', 'bugfix', '[]', '{"top":0.95}')`);
+    const basal = db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('off', ?, 'basal', 'r1', '${T0}', 'bug', '[]', '{"top":0.95}')`);
     const review = db.prepare(`INSERT INTO opus_reviews (repo, number, head_oid, run_id, at, model, verdict, reason, sure, mode) VALUES ('off', ?, ?, 'rv', '${T0}', 'sonnet', ?, 'why', 1, 'full')`);
     for (const [n, verdict] of [[1, "hold"], [2, "take-fix"], [3, "take"]] as const) { pr.run(n, `h${n}`); basal.run(n); review.run(n, `h${n}`, verdict); }
     pr.run(4, "h4"); basal.run(4);

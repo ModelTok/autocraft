@@ -117,7 +117,7 @@ describe("decision choices", () => {
   test("merging a turn's block replaces the listed cores whole, keeps the rest and caps the added cores", () => {
     const db = fresh();
     const base = { turnId: 5, stamp: "s", seen: { head: null, lastComment: null }, pick: { core: coreKey.option("merge"), reason: "r" } };
-    mergeChoices(db, "app#2:merge", { ...base, cores: { "o:merge": { extras: [{ kind: "comment", on: true, text: "A" }] }, "o:hold": { extras: [{ kind: "label", on: false, label: "bugfix" }] } } });
+    mergeChoices(db, "app#2:merge", { ...base, cores: { "o:merge": { extras: [{ kind: "comment", on: true, text: "A" }] }, "o:hold": { extras: [{ kind: "label", on: false, label: "bug" }] } } });
     const { row, notes } = mergeChoices(db, "app#2:merge", {
       ...base, cores: { "o:merge": { extras: [{ kind: "comment", on: false, text: "B" }] } },
       add: [coreKey.close("completed"), coreKey.close("not_planned"), coreKey.review, coreKey.fixup].map((key) => ({ key, draft: { extras: [] } })),
@@ -207,7 +207,7 @@ describe("decision choices", () => {
   });
 
   test("a scope question on a PR the classifier did not label for review: Fix up, then merge keeps the PR in core first and queues the fix-up", async () => {
-    const w = world().repo().pr(5, { label: "plugin candidate" });
+    const w = world().repo().pr(5, { label: "gtm" });
     try {
       const db = w.db;
       ask(db, [{ id: "app#5:scope", kind: "scope", repo: "app", number: 5, question: "Scope?", options: Object.values(SCOPE_OPTIONS).map((o) => ({ key: o.key, label: o.label })) }]);
@@ -221,8 +221,8 @@ describe("decision choices", () => {
         const p = v.card.params as { settle: { kind: string; option?: string }; steps: { kind: string; merge?: boolean }[] };
         return { v, kind: p.settle.kind, option: p.settle.option, steps: p.steps.map((x) => x.kind).join() };
       };
-      // The "small extra" label extra makes the answer small-extra; the label step needs a live item, so only the plain run goes through doCard.
-      assert.deepEqual({ ...settleOf([{ id: "label:small extra", kind: "label", label: "small extra" }]), v: 0 }, { v: 0, kind: "answer", option: "small-extra", steps: "label,fixup" });
+      // A label extra does not change the keep answer, which is take; the label step needs a live item, so only the plain run goes through doCard.
+      assert.deepEqual({ ...settleOf([{ id: "label:enhancement", kind: "label", label: "enhancement" }]), v: 0 }, { v: 0, kind: "answer", option: "take", steps: "label,fixup" });
       const plain = settleOf([]);
       assert.deepEqual([plain.kind, plain.option, plain.steps], ["answer", "take", "fixup"]);
       const id = Number(db.prepare("INSERT INTO conversation_cards (turn_id, repo, number, kind, params, text, description) VALUES (0, 'app', 5, 'resolution', ?, NULL, ?)")

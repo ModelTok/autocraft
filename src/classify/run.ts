@@ -21,6 +21,7 @@ import { itemTools } from "../itemtools/index.ts";
 import { startBridge, CHECK_SERVER, type Bridge } from "../checktool/bridge.ts";
 import type { CheckTool } from "../checktool/index.ts";
 import { CHECK_MAX_WALL_MS } from "../core/rules.ts";
+import { repoScopes } from "../repo-scope.ts";
 import { agentsFile, mcpFile } from "../sandbox/agent-files.ts";
 import { agentsDefinition, MCP_PATH } from "../sandbox/agents.ts";
 import { levelBand } from "../rank/level.ts";
@@ -58,10 +59,12 @@ export function loadRefs(file: string): { repo: string; number: number }[] {
 export function loadItems(db: DatabaseSync, refs: { repo: string; number: number }[]): Item[] {
   const q = db.prepare(`SELECT repo, number, kind, title, body, additions + deletions AS lines_changed,
     changed_files AS files_changed, author_association FROM items WHERE repo = ? AND number = ?`);
+  const scopes = repoScopes(db);
   return refs.map((r) => {
     const row = q.get(r.repo, r.number) as Item | undefined;
     if (!row) throw new Error(`${refOf(r)} is not in the database`);
-    return row;
+    const project = scopes.get(r.repo);
+    return project ? { ...row, project } : row;
   });
 }
 

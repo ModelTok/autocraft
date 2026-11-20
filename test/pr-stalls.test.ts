@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { decidePr } from "../src/core/decide.ts";
+import { NO_REVIEW_WAIT } from "../src/core/rules.ts";
 import { NOW, prFacts } from "./world.ts";
 
 const kinds = (f: Parameters<typeof prFacts>[0]) => decidePr(prFacts(f)).actions.filter((a) => a.kind !== "unassign").map((a) => `${a.kind}${a.params?.hold ? ":hold" : ""}${a.params?.withdraw ? ":withdraw" : ""}${typeof a.params?.bucket === "string" ? `:${a.params.bucket}` : ""}`);
@@ -83,9 +84,10 @@ test("a Hold question settled without a pending action is never a silent wait", 
 });
 
 test("a PR whose label gets no review names what it waits on", () => {
-  const p = decidePr(prFacts({ review: null, label: "documentation" }));
+  const p = decidePr(prFacts({ review: null, label: "gtm" }));
   assert.equal(p.state, "label-not-reviewed");
   assert.equal(p.waitKind, "person");
+  assert.equal(p.wait, NO_REVIEW_WAIT);
 });
 
 test("a merge refused for a reason other than CI or mergeable asks Merge?; a state refusal waits for the change", () => {

@@ -44,7 +44,7 @@ const rows: Row[] = [
   { name: "an open Merge? question counts against the rule", facts: { decision: { openQuestion: true } }, expect: { state: "needs-decision", reasons: ["a Merge? question is still open"] } },
   { name: "verification unavailable puts it outside the rule", facts: { verification: { state: "unavailable", summary: "the repo is private" } }, expect: { state: "needs-decision", reasons: ["not verified: the repo is private"], actions: ["ask-merge"] } },
   { name: "no CI in the repo puts it outside the rule", facts: { ci: "none", repoFacts: { noCi: true } }, expect: { state: "needs-decision", reasons: ["the repo has no CI checks"] } },
-  { name: "several reasons keep the queue's order", facts: { ...SIZE_L, label: "infra", tier: "not", review: { verdict: "take-fix" } }, expect: { state: "needs-fix-up", reasons: ["review asks for fixes", "size L", "author not on the whitelist"] } },
+  { name: "several reasons keep the queue's order", facts: { ...SIZE_L, label: "chore", tier: "not", review: { verdict: "take-fix" } }, expect: { state: "needs-fix-up", reasons: ["review asks for fixes", "size L", "author not on the whitelist"] } },
 
   // ---- unsure heads and operator answers
   { name: "unsure head does not merge by rule", facts: { review: { unsure: true } }, expect: { state: "needs-decision", path: null, actions: ["ask-merge"], reasons: [UNSURE_REASON] } },
@@ -127,11 +127,12 @@ const rows: Row[] = [
   { name: "review made stale by the discussion", facts: { review: { stale: true, staleActionable: true } }, expect: { state: "review-stale", actions: ["review"] } },
   { name: "stale review at the daily re-review cap waits", facts: { review: { stale: true, staleActionable: false } }, expect: { state: "review-stale", actions: [] } },
   { name: "a stale take is never verified or merged", facts: { review: { stale: true, staleActionable: true }, verification: null }, expect: { state: "review-stale", actions: ["review"] } },
-  { name: "label that gets no code review", facts: { review: null, label: "plugin candidate" }, expect: { state: "label-not-reviewed", actions: [] } },
+  { name: "label that gets no code review", facts: { review: null, label: "gtm" }, expect: { state: "label-not-reviewed", actions: [] } },
+  { name: "a task PR gets no code review either", facts: { review: null, label: "task" }, expect: { state: "label-not-reviewed", actions: [] } },
   { name: "unclassified PR", facts: { review: null, label: null }, expect: { state: "label-not-reviewed", actions: [] } },
   { name: "needs-decision flag waits for a scope answer", facts: { review: null, needsDecisionFlag: true }, expect: { state: "scope", actions: [] } },
   { name: "scope answer take lets it be reviewed", facts: { review: null, needsDecisionFlag: true, scopeAnswer: "take" }, expect: { state: "not-reviewed", actions: ["review"] } },
-  { name: "scope answer plugin keeps it out", facts: { review: null, scopeAnswer: "plugin" }, expect: { state: "scope", actions: [] } },
+  { name: "scope answer close keeps it out", facts: { review: null, scopeAnswer: "close" }, expect: { state: "scope", actions: [] } },
   { name: "draft without a review", facts: { review: null, draft: true }, expect: { state: "draft", actions: [] } },
   { name: "draft with a take review stays in the queue", facts: { draft: true, verification: null }, expect: { state: "waiting-verify", actions: [] } },
   { name: "Opus said hold", facts: { review: { verdict: "hold" } }, expect: { state: "opus-hold", actions: ["ask-merge"] } },

@@ -84,7 +84,7 @@ describe("cards", () => {
       { kind: "comment", text: "an old kind" },
       R([], { kind: "answer", option: "nope" }),
       R([{ kind: "label", label: "my own label" }], { kind: "backlog" }),
-      R([{ kind: "label", label: "Plugin Candidate" }], { kind: "answer", option: "take" }),
+      R([{ kind: "label", label: "Enhancement" }], { kind: "answer", option: "take" }),
       R([{ kind: "duplicate", of: 1 }], null),
       R([{ kind: "duplicate", of: 3 }], null),
       R([{ kind: "duplicate", of: 99 }], null),
@@ -94,7 +94,7 @@ describe("cards", () => {
       R([{ kind: "comment" }], { kind: "backlog" }, { text: "Thanks @bob, see the pack." }),
       R([{ kind: "comment" }], { kind: "answer", option: "take" }, { text: "Same option again." }),
       R([{ kind: "comment" }], { kind: "backlog" }, { text: "" }),
-      R([{ kind: "label", label: "bugfix" }], null),
+      R([{ kind: "label", label: "bug" }], null),
       R([{ kind: "comment" }], null, { text: "Which version?" }),
       R([{ kind: "comment" }], null, { text: "Second question?" }),
     ])}\n\`\`\``;
@@ -104,12 +104,12 @@ describe("cards", () => {
       '[["label"],"answer"]', '[["duplicate"],"handled"]', '[["comment"],"backlog"]', '[["comment"],null]',
     ]);
     assert.equal(p.notes.length, 13);
-    assert.equal(p.cards[0]!.description, 'On app#1: Add the label "plugin candidate"; Answers the scope question with "Wanted"');
+    assert.equal(p.cards[0]!.description, 'On app#1: Add the label "enhancement"; Answers the scope question with "Wanted"');
     assert.equal(p.cards[2]!.text, "Thanks bob, see the pack.");
     assert.equal(parseReply(db, "app", 1, "```actions\n[]\n```"), null, "no text, no reply");
     assert.equal(parseReply(db, "app", 1, "Hi\n```actions\nnot json\n```")!.notes.length, 1);
     // No open decision: a settle is refused and steps alone are fine.
-    const none = parseReply(db, "app", 3, `Hi\n\`\`\`actions\n${JSON.stringify([R([{ kind: "label", label: "bugfix" }], null), R([], { kind: "backlog" })])}\n\`\`\``)!;
+    const none = parseReply(db, "app", 3, `Hi\n\`\`\`actions\n${JSON.stringify([R([{ kind: "label", label: "bug" }], null), R([], { kind: "backlog" })])}\n\`\`\``)!;
     assert.equal(none.cards.length, 1);
     assert.equal(none.notes.length, 1);
   });
@@ -118,7 +118,7 @@ describe("cards", () => {
     const db = fresh();
     const R = (steps: unknown[], settle: unknown, extra: object = {}) => ({ kind: "resolution", steps, settle, ...extra });
     const reply = `Review found an unrelated defect.\n\`\`\`actions\n${JSON.stringify([
-      R([{ kind: "label", label: "bugfix" }], null),
+      R([{ kind: "label", label: "bug" }], null),
       R([{ kind: "open_issue", repo: "app", title: "Follow up", body: "details" }], null),
       R([{ kind: "comment" }], null, { text: "Which version?" }),
     ])}\n\`\`\``;
@@ -206,7 +206,7 @@ describe("Do it", () => {
       sent.push(q.includes("addComment") ? "comment" : q.includes("addLabelsToLabelable") ? "label" : q.includes("issueOrPullRequest") ? "read" : "other");
       if (q.includes("issueOrPullRequest")) return { repository: { issueOrPullRequest: { __typename: "Issue", id: "I_1", state: "OPEN" } } };
       if (q.includes("addComment")) return { addComment: { commentEdge: { node: { url: "https://x.test/c" } } } };
-      if (q.includes("repository(")) return { repository: { id: "R_1", l0: { id: "L_1", name: "bugfix" }, l1: null } };
+      if (q.includes("repository(")) return { repository: { id: "R_1", l0: { id: "L_1", name: "bug" }, l1: null } };
       if (failLabel) throw new Error("label add failed");
       return { m0: { clientMutationId: null } };
     } };
@@ -248,7 +248,7 @@ describe("Do it", () => {
     const ok = fresh();
     setLabelApproval(ok, "op", "app", true);
     const g = github(false);
-    const id = resolution(ok, [{ kind: "comment" }, { kind: "label", label: "bugfix" }], { kind: "answer", option: "take" }, "Thanks.");
+    const id = resolution(ok, [{ kind: "comment" }, { kind: "label", label: "bug" }], { kind: "answer", option: "take" }, "Thanks.");
     const { card } = await doCard(ok, id, "op", { querier: g.querier as never });
     assert.equal(card.state, "done", card.error ?? "");
     assert.deepEqual(g.sent.filter((x) => x === "comment" || x === "label"), ["comment", "label"]);
@@ -258,7 +258,7 @@ describe("Do it", () => {
     const bad = fresh();
     setLabelApproval(bad, "op", "app", true);
     const b = github(true);
-    const failed = (await doCard(bad, resolution(bad, [{ kind: "comment" }, { kind: "label", label: "bugfix" }], { kind: "answer", option: "take" }, "Thanks."), "op", { querier: b.querier as never })).card;
+    const failed = (await doCard(bad, resolution(bad, [{ kind: "comment" }, { kind: "label", label: "bug" }], { kind: "answer", option: "take" }, "Thanks."), "op", { querier: b.querier as never })).card;
     assert.equal(failed.state, "failed");
     assert.match(failed.error ?? "", /Already done: Post the comment below/);
     assert.equal(bad.prepare("SELECT answer FROM decisions WHERE id = 'app#1:scope'").get()!.answer, null);
@@ -277,7 +277,7 @@ describe("Do it", () => {
     const db = fresh();
     setLabelApproval(db, "op", "app", true);
     const g = github(false);
-    const a = await propose(db, 1, [{ kind: "comment" }, { kind: "label", label: "bugfix" }], { kind: "answer", option: "take" }, "Thanks.");
+    const a = await propose(db, 1, [{ kind: "comment" }, { kind: "label", label: "bug" }], { kind: "answer", option: "take" }, "Thanks.");
     const done = (await doCard(db, a, "op", { querier: g.querier as never, skip: [0], note: "Because of the pack" })).card;
     assert.equal(done.state, "done", done.error ?? "");
     assert.deepEqual(g.sent.filter((x) => x === "comment" || x === "label"), ["label"]);
@@ -295,7 +295,7 @@ describe("Do it", () => {
     assert.equal(db.prepare("SELECT state FROM conversation_cards WHERE id = ?").get(ask)!.state, "replaced");
 
     // After a push a card that does not rest on the code still runs; one with a drafted comment is refused.
-    const light = await propose(db, 2, [{ kind: "label", label: "bugfix" }], null, null);
+    const light = await propose(db, 2, [{ kind: "label", label: "bug" }], null, null);
     db.prepare("UPDATE items SET head_oid = 'sha3' WHERE number = 2").run();
     assert.equal((await doCard(db, light, "op", { querier: g.querier as never })).card.state, "done");
     const pr = await propose(db, 2, [{ kind: "comment" }], null, "Thanks.");

@@ -174,8 +174,6 @@ export const STAGES: StageDef[] = [
       { id: "not-asked", label: "Not asked yet", waitsOn: "model", tone: "neutral", hint: "Needs a decision; the decide step writes the question and summary" },
       { id: "open", label: "Waiting for an answer", waitsOn: "person", tone: "accent", gate: true },
       { id: "take", label: "Wanted in core", waitsOn: "nothing", tone: "ok", hint: "Answered take: PRs go to review" },
-      { id: "small-extra", label: "Small extra", waitsOn: "nothing", tone: "ok", hint: "Answered small extra: kept in core, PRs go to review" },
-      { id: "plugin", label: "Plug-in candidate", waitsOn: "nothing", tone: "neutral", hint: "Answered plugin: kept open, labelled plugin candidate" },
       { id: "close", label: "Out of scope", waitsOn: "nothing", tone: "neutral", hint: "Answered close: to be closed with a short reason" },
       { id: "need-info", label: "Check the scope", waitsOn: "nothing", tone: "warn", hint: "Answered need info: asked again once the expected behaviour is known" },
       { id: "backlog", label: "Backlog", waitsOn: "nothing", tone: "neutral", hint: "Answered backlog: held undecided, no later step takes it up" },
@@ -254,13 +252,13 @@ export const STAGES: StageDef[] = [
   },
   {
     id: "fix", title: "Fix", order: 8, runStage: 7, docSection: "Fix", mode: "steps",
-    description: "Writes a patch for a bugfix issue where the fix is clear, tests it in the sandbox and opens a PR.",
+    description: "Writes a patch for a bug issue where the fix is clear, tests it in the sandbox and opens a PR.",
     steps: [{ name: "fixissue", maxMin: 50, label: "Fix", limit: null, seeded: 10 }, { name: "fixissue-collect", maxMin: 10 }],
     lanes: [{ name: "fixissue", steps: ["fixissue"], order: 16 }, { name: "fixissue-collect", steps: ["fixissue-collect"], order: 17 }],
-    reads: ["Open bugfix issues", "Repo checkout at the base commit"],
+    reads: ["Open bug issues", "Repo checkout at the base commit"],
     sets: ["Fix attempts", "Pull requests"],
     states: [
-      { id: "candidates", label: "Candidates", waitsOn: "model", tone: "neutral", hint: "Open bugfix issues without an attempt; Sonnet triages the highest work score first" },
+      { id: "candidates", label: "Candidates", waitsOn: "model", tone: "neutral", hint: "Open bug issues without an attempt; Sonnet triages the highest work score first" },
       { id: "retry", label: "Patch due", waitsOn: "model", tone: "neutral", hint: "Triage found a clear fix; Sonnet writes the patch, or the next round" },
       { id: "testing", label: "In sandbox", waitsOn: "sandbox", tone: "neutral", hint: "The patched head and the base commit are built and tested" },
       { id: "passed", label: "Passed, PR next", waitsOn: "runner", tone: "ok", hint: "The next collect pushes the branch and opens the PR" },
@@ -327,7 +325,7 @@ export const STAGES: StageDef[] = [
   },
   {
     id: "verify", title: "Verify", order: 10, runStage: 6, docSection: "Verify", mode: "steps",
-    description: "Records upstream CI as the verification of taken PRs in repos that have it. A repo without CI, and a bugfix that changes a test file, get a model-planned build in a build environment; a model summarises failures. With the Screenshots feature on, a UI pull request is also rendered at the base and at the head, and a model compares the images; a clear regression holds the merge.",
+    description: "Records upstream CI as the verification of taken PRs in repos that have it. A repo without CI, and a bug PR that changes a test file, get a model-planned build in a build environment; a model summarises failures. With the Screenshots feature on, a UI pull request is also rendered at the base and at the head, and a model compares the images; a clear regression holds the merge.",
     steps: [{ name: "verify", maxMin: 10, label: "Verify", limit: null, seeded: 30 }, { name: "verify-collect", maxMin: 10 }, { name: "nightly", maxMin: 10, label: "Nightly checks" }, { name: "pr-build", maxMin: 10 }],
     lanes: [{ name: "verify", steps: ["checks", "verify"], order: 14 }, { name: "verify-collect", steps: ["verify-collect"], order: 15 }, { name: "nightly", steps: ["nightly"], order: 29 }, { name: "pr-build", steps: ["pr-build"], order: 30 }],
     reads: ["Taken PRs", "CI results"],
@@ -341,7 +339,7 @@ export const STAGES: StageDef[] = [
       { id: "failed", label: "Failed", waitsOn: "person", tone: "bad", hint: "Tests failed; the PR is on hold" },
       { id: "error", label: "Error", waitsOn: "person", tone: "bad", hint: "The plan was invalid or a task errored; retried once" },
     ],
-    models: [{ model: "sonnet", use: "Plans a regression test (bugfixes that change a test file) or, in a repo without CI, the build and tests" }, { model: "haiku", use: "Failure summaries" }, { model: "sonnet", use: "Plans screenshots" }, { model: "opus", use: "Compares before and after" }],
+    models: [{ model: "sonnet", use: "Plans a regression test (bug PRs that change a test file) or, in a repo without CI, the build and tests" }, { model: "haiku", use: "Failure summaries" }, { model: "sonnet", use: "Plans screenshots" }, { model: "opus", use: "Compares before and after" }],
     promptIds: ["verify.plan", "verify.screenshot", "verify.compare", "verify.summary"], promptStage: "Verify",
     waits: [
       { name: "Sandbox build", why: "External", howLong: "Until the task ends; a build-environment error queues it again once per head", showsAs: "Verification state `planned` or `running`", kind: "external" },

@@ -10,7 +10,7 @@ const REASONS = [
   "CI config change; runs the same jobs faster.",
   "Correct, but the error message should name the file.",
 ];
-const LABELS: TypeLabel[] = ["bugfix", "infra", "missing feature", "performance"];
+const LABELS: TypeLabel[] = ["bug", "chore", "new feature", "performance"];
 
 function verifyFor(state: QueueState, i: number): QueueRow["verify"] {
   switch (state) {
@@ -49,12 +49,12 @@ const ROWS: QueueRow[] = (() => {
       const [author, tier] = AUTHORS[k % AUTHORS.length]!;
       const ruleTier = tier === "whitelisted" || tier === "override-allow";
       const rulePath = state === "ready" || state === "waiting-premerge" || ((state === "waiting-ci" || state === "refused") && i % 2 === 0);
-      const label = rulePath ? (i % 2 ? "infra" : "bugfix") : LABELS[k % LABELS.length]!;
+      const label = rulePath ? (i % 2 ? "chore" : "bug") : LABELS[k % LABELS.length]!;
       const size = rulePath ? (i % 2 ? "M" : "S") : (["S", "M", "L"] as const)[k % 3];
       const outsideRule = rulePath ? [] : [
         ...(state === "needs-fix-up" ? ["review asks for fixes"] : []),
         ...(size === "L" ? ["size L"] : []),
-        ...(label !== "bugfix" && label !== "infra" ? [`label ${label}`] : []),
+        ...(label !== "bug" && label !== "chore" ? [`label ${label}`] : []),
         ...(ruleTier ? [] : ["author not on the whitelist"]),
       ];
       if (!rulePath && !outsideRule.length) outsideRule.push("author not on the whitelist");

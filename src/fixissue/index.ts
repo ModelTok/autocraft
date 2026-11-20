@@ -1,4 +1,4 @@
-// Stage 7, Fix issues: the issue path of the pipeline. For an open bugfix issue with a clear fix, Sonnet triages
+// Stage 7, Fix issues: the issue path of the pipeline. For an open bug issue with a clear fix, Sonnet triages
 // it, then writes a unified diff (the fix and one regression test) that our code validates. Build tasks in the
 // sandbox must show the test failing on main and everything passing with the fix. A passing fix is committed with
 // the pipeline account's identity, pushed to its fork and opened as a PR, which then goes through Review, Verify
@@ -814,7 +814,7 @@ function parseArgs(args: string[]): { repo: string; limit?: number; apply: boole
 
 export const commands = {
   fixissue: {
-    summary: "fixissue --repo R [--limit N] [--apply]: triage open bugfix issues, write a fix and a regression test, queue the sandbox tasks (dry run unless --apply)",
+    summary: "fixissue --repo R [--limit N] [--apply]: triage open bug issues, write a fix and a regression test, queue the sandbox tasks (dry run unless --apply)",
     async run(args: string[]): Promise<void> {
       const f = parseArgs(args);
       await runFixIssue(connect(), { repo: f.repo, limit: f.limit, dryRun: !f.apply });

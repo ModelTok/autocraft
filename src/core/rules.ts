@@ -1,7 +1,7 @@
 // Constants and pure helpers of the merge rule, shared by the old modules (which re-export them) and by decide.ts. No imports.
 
 /** Type labels whose PRs may merge without asking. */
-export const RULE_LABELS = ["bugfix", "infra"];
+export const RULE_LABELS = ["bug", "chore", "documentation"];
 /** Sizes that may merge without asking. */
 export const RULE_SIZES = ["S", "M"];
 /** Tiers that count as on the whitelist. */
@@ -40,18 +40,28 @@ export function sizeOf(linesChanged: number): Size {
   return linesChanged <= 50 ? "S" : linesChanged <= 300 ? "M" : "L";
 }
 
-/** Type labels whose PRs get a code review; plugin candidates do not. */
-export const REVIEW_LABELS = ["bugfix", "performance", "missing feature", "small extra", "infra"];
-/** Scope answers that keep a PR in core (the keys of SCOPE_OPTIONS.take and ["small-extra"]). */
-export const KEEP_IN_CORE: string[] = ["take", "small-extra"];
+/** Type labels whose PRs get a code review; gtm and task PRs change no code worth reviewing and do not. */
+export const REVIEW_LABELS = ["bug", "performance", "new feature", "enhancement", "chore", "documentation"];
+/** The wait of a PR whose label gets no code review (gtm, task): a maintainer merges or closes it; nobody is asked, as for a parked item (liveness.ts). */
+export const NO_REVIEW_WAIT = "a maintainer to merge or close it: its label gets no code review";
+/** Scope answers that keep a PR in core (the key of SCOPE_OPTIONS.take). */
+export const KEEP_IN_CORE: string[] = ["take"];
+
+/**
+ * Scope answer keys stored before the label set changed (2026-11) and what they read as now. The scope question no longer
+ * offers them: small-extra kept the item in core, so it reads as take; plugin kept it out of core, so it reads as close
+ * (out of scope). A legacy plugin answer is not carried out as a close on GitHub, as the Act stage reads the stored key.
+ */
+export const LEGACY_SCOPE_ANSWERS: Readonly<Record<string, string>> = { "small-extra": "take", plugin: "close" };
+/** A stored scope answer as the pipeline reads it (LEGACY_SCOPE_ANSWERS). */
+export const scopeAnswerOf = (answer: string): string => LEGACY_SCOPE_ANSWERS[answer] ?? answer;
 
 /**
  * A PR's type label once a person answered its scope question: the answer settles a label the classifiers left open
  * (a disagreement between two scope labels has no referee) or chose against it. Other answers leave the label as it is.
  */
 export function labelWithScopeAnswer(label: string | null, answer: string | null): string | null {
-  if (answer === "small-extra") return "small extra";
-  if (answer === "take") return label && REVIEW_LABELS.includes(label) ? label : "missing feature";
+  if (answer !== null && scopeAnswerOf(answer) === "take") return label && REVIEW_LABELS.includes(label) ? label : "new feature";
   return label;
 }
 
