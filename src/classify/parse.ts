@@ -7,6 +7,8 @@ export type Item = {
   title: string; body: string;
   lines_changed: number | null; files_changed: number | null;
   author_association: string | null;
+  /** The repo's one-line scope as the maintainers set it (`repos scope`, src/repo-scope.ts); absent when none is set. */
+  project?: string;
   /** Only the Decide summary sends these. */
   labels?: string[];
   comments?: { author: string | null; body: string }[];
@@ -30,7 +32,7 @@ export function parseRef(line: string): { repo: string; number: number } | null 
 
 export function itemInput(i: Item): Record<string, unknown> {
   const o: Record<string, unknown> = {
-    ref: refOf(i), kind: i.kind === "pr" ? "pull request" : "issue",
+    ref: refOf(i), ...(i.project ? { project: i.project } : {}), kind: i.kind === "pr" ? "pull request" : "issue",
     title: i.title, body: (i.body ?? "").slice(0, BODY_LIMIT),
     author_association: i.author_association,
   };

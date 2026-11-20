@@ -50,19 +50,17 @@ export const SAMPLE_PREPARE: PrepareInput[] = [{
   facts: ["photocraft issue, opened 3 days ago, 0 comments", "author: someone, new contributor"],
   options: [
     { key: "take", label: "Wanted in core", hint: "In the project's scope (docs, roadmap or upstream). Keep open; PRs go to review." },
-    { key: "plugin", label: "Plug-in candidate", hint: "Not for core. Keep open and label it plugin candidate." },
     { key: "need-info", label: "Check the scope", hint: "Ask how it should behave (docs, roadmap or upstream) before deciding." },
     { key: "close", label: "Out of scope", hint: "Not wanted. Close with a short reason." },
   ],
   cores: [
     { key: "o:take", label: "Wanted in core", extras: ["comment", "label", "unlabel", "assign", "open_issue"] },
-    { key: "o:plugin", label: "Plug-in candidate", extras: ["comment", "label", "unlabel", "assign", "open_issue"] },
     { key: "o:need-info", label: "Check the scope", extras: ["comment", "label", "unlabel", "assign"] },
     { key: "o:close", label: "Out of scope", extras: ["label", "unlabel", "assign", "open_issue"] },
     { key: "backlog", label: "Later", extras: [] },
   ],
   stopped: {
-    context: "The classifiers settled on missing feature and flagged it as needing a maintainer's call.",
-    classifications: [{ classifier: "basal", type_label: "missing feature", want: "unclear", reason: "Asks for a feature the roadmap may cover." }],
+    context: "The classifiers settled on new feature and flagged it as needing a maintainer's call.",
+    classifications: [{ classifier: "basal", type_label: "new feature", want: "unclear", reason: "Asks for a feature the roadmap may cover." }],
   },
 }];

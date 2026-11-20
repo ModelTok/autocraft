@@ -29,7 +29,7 @@ function fake(calls: Call[]): Runner {
   return async (cmd, args, input) => {
     calls.push({ cmd, args, input });
     const refs = [...input.matchAll(/"ref": "([^"]+)"/g)].map((m) => m[1]);
-    const reply = refs.map((ref) => ({ ref, type_label: "bugfix", security: false, needs_decision: false, reason: "r", why: "w" }));
+    const reply = refs.map((ref) => ({ ref, type_label: "bug", security: false, needs_decision: false, reason: "r", why: "w" }));
     return { code: 0, stdout: JSON.stringify({ type: "result", result: JSON.stringify(reply), usage: {} }), stderr: "" };
   };
 }
@@ -38,7 +38,7 @@ function fake(calls: Call[]): Runner {
 function fakeBasal(calls: Call[]): BasalRunner {
   return async (body) => {
     calls.push({ cmd: "basal", args: [], input: body });
-    const answers = { type: { type: "choice", choice: "bugfix", confidence: 0.9, probabilities: { bugfix: 0.9 } }, security: { type: "noul", noul: 0.1 }, needs_decision: { type: "noul", noul: 0.2 } };
+    const answers = { type: { type: "choice", choice: "bug", confidence: 0.9, probabilities: { bug: 0.9 } }, security: { type: "noul", noul: 0.1 }, needs_decision: { type: "noul", noul: 0.2 } };
     return { code: 0, stdout: JSON.stringify({ model: "basal-2.0-4.5B", answers, usage: { input_tokens: 10, output_tokens: 0 } }), stderr: "", status: 200 };
   };
 }
@@ -51,7 +51,7 @@ describe("prompt registry", () => {
     try {
       await runHaiku(db, "t", SAMPLE_ITEMS);
       await runBasal(db, "t", SAMPLE_ITEMS);
-      const row = (i: (typeof SAMPLE_ITEMS)[number]): Row => ({ ...i, classifier: "basal", type_label: "bugfix", flags: [], reason: "", top: null });
+      const row = (i: (typeof SAMPLE_ITEMS)[number]): Row => ({ ...i, classifier: "basal", type_label: "bug", flags: [], reason: "", top: null });
       await runReferee(db, "t", SAMPLE_ITEMS.map((i): Pair => ({ r: row(i), basal: row(i), haiku: row(i) })));
     } finally {
       restore();

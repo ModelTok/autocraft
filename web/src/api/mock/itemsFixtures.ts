@@ -3,7 +3,7 @@ import type { ItemFilter, ItemList, ItemListRow, Settled, SettledStatus, Stage, 
 import { mockSlot } from "./queueSlotMock";
 import { AUTHORS, NOW, REPOS, rng, titleFor } from "./fixtures";
 
-const LABELS: TypeLabel[] = ["bugfix", "performance", "missing feature", "small extra", "plugin candidate", "infra"];
+const LABELS: TypeLabel[] = ["bug", "enhancement", "new feature", "performance", "chore", "documentation", "gtm", "task"];
 const STATUSES: SettledStatus[] = ["settled", "waiting", "disagree", "unclassified"];
 const COMMENTS = ["Same here on the latest build, with a large document", "This also breaks copy and paste between windows", "Could we keep the old default behind a setting?", "Tested on Linux and Windows, works for me"];
 const H = 3600_000;

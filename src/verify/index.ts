@@ -1,5 +1,5 @@
 // Stage 6, Verify: a PR in a repo with upstream CI is verified by that CI (the merge queue waits for it to be
-// green), so it is recorded `ci-enough` without a model call; only a bugfix whose diff touches a test file
+// green), so it is recorded `ci-enough` without a model call; only a bug PR whose diff touches a test file
 // gets a Sonnet plan (no tools), limited to a regression test. A repo without CI keeps the full planner, and
 // our code turns a valid choice into build tasks. Pass or fail comes from the
 // tasks' exit codes, never from a model. Reads GitHub; never writes to it.
@@ -147,8 +147,8 @@ export async function runVerify(db: DatabaseSync, params: VerifyParams, log: (li
       // Screenshots of a UI change: its own table and tasks; the verification rows below are saved exactly as without it.
       await maybeScreenshot(db, c, deps, log, runId).catch((e: unknown) => log(`  ${refOf(c)}: screenshots: ${(e as Error).message}`));
       if (ci) {
-        // Only a bugfix that adds or changes a test file may get a regression test; everything else is covered by CI.
-        if (c.label !== "bugfix") { byCi(); return; }
+        // Only a bug PR that adds or changes a test file may get a regression test; everything else is covered by CI.
+        if (c.label !== "bug") { byCi(); return; }
         const pre = await cachedDiff(repo, c.number, c.head_oid, deps.fetchDiff);
         // Without a readable diff there is no test file to find, so CI is the verification.
         if (!pre.ok || !codeDiff(pre.text).testsOmitted.length) { byCi(); return; }

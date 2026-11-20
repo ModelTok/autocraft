@@ -75,7 +75,7 @@ export const isDisputed = (d: Pick<DecisionRow, "exec_state" | "answer" | "appli
 
 /**
  * The answered decision on the item whose GitHub write the pipeline has not made yet and still will: someone chose, GitHub does not show it yet.
- * Backlog only holds, an option without a write (take, small-extra, need-info) leaves nothing to race, and an answer whose answerer no longer
+ * Backlog only holds, an option without a write (take, need-info, the legacy small-extra and plugin) leaves nothing to race, and an answer whose answerer no longer
  * settles is not carried out.
  */
 export function pendingAnswerOn(db: DatabaseSync, repo: string, number: number): DecisionRow | null {

@@ -26,7 +26,7 @@ test("the first release's database migrates in place and keeps its rows", () => 
   assert.ok(cols(db, "tracked_repos").includes("pipeline"));
   for (const t of ["decisions", "opus_reviews", "verifications", "build_tasks", "jobs"]) assert.ok(cols(db, t).length > 0, `${t} exists`);
   assert.equal((db.prepare("SELECT title FROM items WHERE repo = 'app' AND number = 1").get() as { title: string }).title, "Fix the crash");
-  assert.equal((db.prepare("SELECT type_label FROM classifications WHERE number = 1").get() as { type_label: string }).type_label, "bugfix");
+  assert.equal((db.prepare("SELECT type_label FROM classifications WHERE number = 1").get() as { type_label: string }).type_label, "bug", "the old bugfix label is migrated to bug");
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM comments").get() as { n: number }).n, 1);
   const stamp = db.prepare("SELECT value FROM settings WHERE key = 'schema_stamp'").get();
   assert.ok(stamp, "the migration is stamped");

@@ -60,12 +60,12 @@ export type Settled = {
   referee: Referee | null;
 };
 
-/** Basal's needs_decision probability a settled bugfix needs before its "needs decision" flag counts. */
+/** Basal's needs_decision probability a settled bug needs before its "needs decision" flag counts. */
 export const BUGFIX_NEEDS_DECISION = 0.7;
 
-/** Basal raises needs_decision too freely on plain bugs: on a settled bugfix the flag counts only when basal is firm. */
+/** Basal raises needs_decision too freely on plain bugs: on a settled bug the flag counts only when basal is firm. */
 function firmFlags(s: Settled, nd: number | null | undefined): Settled {
-  if (s.label !== "bugfix" || !s.flags.includes("needs decision") || (nd ?? 0) >= BUGFIX_NEEDS_DECISION) return s;
+  if (s.label !== "bug" || !s.flags.includes("needs decision") || (nd ?? 0) >= BUGFIX_NEEDS_DECISION) return s;
   return { ...s, flags: s.flags.filter((f) => f !== "needs decision") };
 }
 

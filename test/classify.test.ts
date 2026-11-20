@@ -8,9 +8,9 @@ const refs = ["a#1", "a#2", "a#3"];
 describe("haiku reply", () => {
   test("accepts fenced JSON and reports items that are missing or invalid", () => {
     const reply = "```json\n" + JSON.stringify([
-      { ref: "a#1", type_label: "bugfix", security: true, needs_decision: false, reason: "fixes a crash" },
+      { ref: "a#1", type_label: "bug", security: true, needs_decision: false, reason: "fixes a crash" },
       { ref: "a#2", type_label: "feature", security: false, needs_decision: false, reason: "bad label" },
-      { ref: "zzz#9", type_label: "infra", security: false, needs_decision: false, reason: "not asked" },
+      { ref: "zzz#9", type_label: "chore", security: false, needs_decision: false, reason: "not asked" },
     ]) + "\n```";
     const { verdicts, missing } = parseHaikuReply(reply, refs);
     assert.deepEqual(verdicts.map((v) => v.ref), ["a#1"]);
@@ -25,7 +25,7 @@ describe("haiku reply", () => {
 
 describe("basal", () => {
   const answers = {
-    type: { choice: "performance", confidence: 0.8, probabilities: { performance: 0.8, bugfix: 0.2 } },
+    type: { choice: "performance", confidence: 0.8, probabilities: { performance: 0.8, bug: 0.2 } },
     security: { noul: 0.95 }, needs_decision: { noul: 0.1 },
   };
   test("maps an answer to a classification row with probabilities kept", () => {

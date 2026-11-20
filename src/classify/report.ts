@@ -22,12 +22,13 @@ export function loadRows(db: DatabaseSync, runId: string): Row[] {
   }));
 }
 
-/** Reference labels from a `pr,labels added` CSV: the first of the six type labels on each line. */
+/** Reference labels from a `pr,labels added` CSV: the first of the eight type labels on each line. */
 export function loadReference(file: string, repo: string): Map<string, string> {
   const m = new Map<string, string>();
   for (const line of readFileSync(file, "utf8").split("\n").slice(1)) {
     const [pr, labels] = line.trim().split(/,(.*)/s);
-    const label = (labels ?? "").split("+").map((s) => s.trim()).find((l) => (LABELS as readonly string[]).includes(l));
+    // A PR's GitHub label for bug is "bugfix" (labels/set.ts githubTypeLabel).
+    const label = (labels ?? "").split("+").map((s) => s.trim()).map((l) => (l === "bugfix" ? "bug" : l)).find((l) => (LABELS as readonly string[]).includes(l));
     if (pr && label) m.set(`${repo}#${pr}`, label);
   }
   return m;
@@ -41,7 +42,7 @@ const table = (head: string[], rows: (string | number)[][]) =>
 function confusion(title: string, pairs: [string, string][], rowName: string, colName: string): string {
   const cell = new Map<string, number>();
   for (const [a, b] of pairs) cell.set(`${a}|${b}`, (cell.get(`${a}|${b}`) ?? 0) + 1);
-  const short = (l: string) => l.replace("missing feature", "missing").replace("plugin candidate", "plugin");
+  const short = (l: string) => l.replace("new feature", "new").replace("documentation", "docs").replace("enhancement", "enh.").replace("performance", "perf.");
   return `**${title}** (rows: ${rowName}, columns: ${colName})\n\n` + table([" ", ...LABELS.map(short)],
     LABELS.map((a) => [short(a), ...LABELS.map((b) => cell.get(`${a}|${b}`) ?? 0)]));
 }

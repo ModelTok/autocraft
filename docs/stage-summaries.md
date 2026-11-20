@@ -84,9 +84,9 @@
 
 ## Fix
 
-**What.** Writes a patch for a bugfix issue with a clear fix, tests it in the sandbox and opens a pull request.
+**What.** Writes a patch for a bug issue with a clear fix, tests it in the sandbox and opens a pull request.
 
-**When.** For open bugfix issues in public Rust repos with fix approval.
+**When.** For open bug issues in public Rust repos with fix approval.
 
 **Model.** Sonnet judges whether the fix is clear; a model writes the patch.
 

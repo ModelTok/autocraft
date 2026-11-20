@@ -24,10 +24,8 @@ export interface Core extends ChoiceCore {
   allowed: ExtraKind[];
   /** An option that closes with a reason (the `reason` param). */
   closing: boolean;
-  /** A fix-up core on a scope decision: it records a keep answer (small-extra or take) before the fix-up. */
+  /** A fix-up core on a scope decision: it records the keep answer (take) before the fix-up. */
   keepsInCore: boolean;
-  /** The item already carries the "small extra" label. */
-  hasSmallExtra: boolean;
 }
 
 /** One extra as the user sends it: the id of an offered extra and the user's own texts. */
@@ -81,8 +79,8 @@ function optionWrites(kind: Kind, key: string): ActionTag[] {
 
 /**
  * What AutoCraft itself does after an answer, as one short fixed phrase per core (the dashboard shows it beside the GitHub writes).
- * Each phrase follows the pipeline: scope take / small-extra stay in core (PRs go to review, an issue may get a fix attempt: src/decisions-used.ts),
- * plugin makes the Label stage add the plugin candidate label, need-info and Hold only keep the item out of later stages, a merge answer
+ * Each phrase follows the pipeline: scope take stays in core (PRs go to review, an issue may get a fix attempt: src/decisions-used.ts),
+ * need-info and Hold only keep the item out of later stages, a merge answer
  * goes through verify, CI and the merge queue (src/core/decide.ts), and every answer that closes or moves the item ends the work on it here.
  */
 export function autocraftLine(p: ParsedCoreKey, kind: string, itemKind: string): string {
@@ -101,8 +99,9 @@ export function autocraftLine(p: ParsedCoreKey, kind: string, itemKind: string):
     case "hold": return kind === "merge" ? "holds the merge until someone answers again" : "keeps it open and waits";
     case "close": return "records the answer and stops working on it";
     case "keep": return kind === "duplicate" ? "keeps this one and works on it as before" : "keeps it open and does not ask again at this head";
+    // small-extra and plugin are offered only by scope decisions asked before the label set changed (core/rules.ts LEGACY_SCOPE_ANSWERS).
     case "take": case "small-extra": return itemKind === "pr" ? "keeps working: review, fix-up, merge" : "keeps working: may try a fix";
-    case "plugin": return "adds the plugin candidate label later";
+    case "plugin": return "records it as out of core and stops working on it; the item stays open";
     case "need-info": return "keeps it out of later stages until asked again";
     case "wait": return "keeps it open and leaves it to the author; asks again after a new commit or review";
     case "accept": return "closes the duplicates and keeps the original";
@@ -112,17 +111,12 @@ export function autocraftLine(p: ParsedCoreKey, kind: string, itemKind: string):
   return "records the answer";
 }
 
-const labelsOf = (db: DatabaseSync, repo: string, n: number): string[] => {
-  try { return JSON.parse((db.prepare("SELECT labels FROM items WHERE repo = ? AND number = ?").get(repo, n) as { labels: string | null } | undefined)?.labels ?? "[]") as string[]; } catch { return []; }
-};
-
 const mk = (db: DatabaseSync, d: DecisionRow, key: CoreKey, label: string, o: { writes: ActionTag[]; base: ExtraKind[]; applicable: Set<string>; closing?: boolean }): Core => {
   const parsed = parseCoreKey(key)!;
   const allowed = o.base.filter((k) => o.applicable.has(k));
   return {
     key, label, writes: o.writes, autocraft: autocraftLine(parsed, d.kind, itemOf(db, d.repo!, d.number!)?.kind ?? "issue"), extras: [], drafted: false, parsed, decision: d.id, allowed, closing: !!o.closing,
     keepsInCore: d.kind === "scope" && (parsed.type === "fixup-merge" || parsed.type === "fixup"),
-    hasSmallExtra: labelsOf(db, d.repo!, d.number!).some((l) => String(l).toLowerCase() === "small extra"),
     ...(o.closing && { params: { reason: "" } }),
   };
 };
@@ -220,12 +214,11 @@ export function applyDrafts(db: DatabaseSync, d: DecisionRow, cores: Core[], row
 }
 
 /**
- * On a scope decision a fix-up core also keeps the PR in core: the answer is small-extra when the card adds the "small extra" label
- * or the PR already has it, else take. It is recorded before the fix-up runs, so the fix-up's plan check and the review see the PR in core.
+ * On a scope decision a fix-up core also keeps the PR in core: the answer is take. It is recorded before the fix-up runs, so the
+ * fix-up's plan check and the review see the PR in core.
  */
-function keepAnswer(core: Core, steps: Record<string, unknown>[]): Record<string, unknown> | null {
-  if (!core.keepsInCore) return null;
-  return { kind: "answer", option: steps.some((s) => s.kind === "label" && s.label === "small extra") || core.hasSmallExtra ? "small-extra" : "take" };
+function keepAnswer(core: Core): Record<string, unknown> | null {
+  return core.keepsInCore ? { kind: "answer", option: "take" } : null;
 }
 
 /**
@@ -253,8 +246,8 @@ export function compose(core: Core, extras: ComposeExtra[], params: { reason?: s
   switch (p.type) {
     case "option": settle = { kind: "answer", option: p.option, ...(core.closing && params.reason?.trim() && { reason: params.reason }) }; break;
     case "backlog": settle = { kind: "backlog" }; break;
-    case "fixup-merge": steps.push({ kind: "fixup", instructions: params.instructions ?? "", merge: true }); settle = keepAnswer(core, steps); break;
-    case "fixup": steps.push({ kind: "fixup", instructions: params.instructions ?? "", merge: false }); settle = keepAnswer(core, steps); break;
+    case "fixup-merge": steps.push({ kind: "fixup", instructions: params.instructions ?? "", merge: true }); settle = keepAnswer(core); break;
+    case "fixup": steps.push({ kind: "fixup", instructions: params.instructions ?? "", merge: false }); settle = keepAnswer(core); break;
     case "review": steps.push({ kind: "review" }); break;
     case "close": steps.push({ kind: "close", reason: p.reason }); break;
     case "duplicate": steps.push({ kind: "duplicate", of: p.of }); break;

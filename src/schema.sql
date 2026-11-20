@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS classifications (
   classifier TEXT NOT NULL,           -- 'haiku' | 'basal' | 'sonnet' | 'owner'
   run_id TEXT NOT NULL,
   at TEXT NOT NULL,
-  type_label TEXT,                    -- bugfix | performance | missing feature | small extra | plugin candidate | infra
+  type_label TEXT,                    -- bug | enhancement | new feature | performance | chore | documentation | gtm | task (classify/rules.ts LABELS)
   want TEXT,                          -- yes | no | unclear
   reference TEXT,                     -- claimed reference-app behaviour, or NULL
   flags TEXT,                         -- JSON array

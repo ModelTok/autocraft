@@ -486,7 +486,7 @@ function closeSettle(db: DatabaseSync, repo: string, d: DecisionRow, st: Settlin
  * close or duplicate step, which comes last; with an open decision the card settles it (a lone comment step may leave it open: the
  * "ask" card); a close, duplicate, transfer, review or fixup step settles it as handled; an answer whose option already writes to GitHub
  * takes no close, duplicate, transfer, reopen, reviewer, review or fixup step, and a comment only when the answer merges (an issue, label or assignee step is fine);
- * the one exception is a scope answer that keeps the PR in core (take, small-extra) with a fixup step: the answer is recorded before the fix-up runs, so the review and the merge see the PR in core;
+ * the one exception is a scope answer that keeps the PR in core (take) with a fixup step: the answer is recorded before the fix-up runs, so the review and the merge see the PR in core;
  * without an open decision there is no settlement. At most one step of each kind except label and unlabel; close, duplicate and
  * transfer end the item (at most one, last); reopen comes first and only on a closed item; a fixup that merges needs an open merge or scope decision on a PR.
  */

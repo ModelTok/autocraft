@@ -482,7 +482,7 @@ export const STEPS: StepDef[] = [
     name: "fixissue",
     priority: 1,
     title: "Fix issues",
-    description: "The issue path of the pipeline. For open bugfix issues with a clear fix, Sonnet triages the issue, then writes a fix and a regression test as a diff that is checked and queued as build tasks: the test must fail on main and everything must pass with the fix. Rounds that fail are tried again, three at most.",
+    description: "The issue path of the pipeline. For open bug issues with a clear fix, Sonnet triages the issue, then writes a fix and a regression test as a diff that is checked and queued as build tasks: the test must fail on main and everything must pass with the fix. Rounds that fail are tried again, three at most.",
     stage: runStage("fixissue"),
     requires: "operator",
     models: ["sonnet", "haiku"],

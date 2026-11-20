@@ -12,7 +12,7 @@ Finds items that report the same bug or request as another item. It compares eac
 
 ## Classify
 
-Gives each item one type (bugfix, performance, missing feature, small extra, plugin candidate or infra) and two flags: security and needs decision. Basal answers first. Haiku gives a second opinion when basal is unsure. If they disagree on a scope label, a person decides.
+Gives each item one type (bug, enhancement, new feature, performance, chore, documentation, gtm or task) and two flags: security and needs decision (the GitHub label needs-owner). Basal answers first. Haiku gives a second opinion when basal is unsure. If they disagree on a scope label, a person decides.
 
 ## Priority
 
@@ -32,7 +32,7 @@ Opus reads every wanted pull request at its current head, with read access to th
 
 ## Fix
 
-Writes a patch for a bugfix issue when the fix is clear, tests it in a sandbox and opens a pull request. Unclear issues are held with the reason. It needs the repo's fix approval.
+Writes a patch for a bug issue when the fix is clear, tests it in a sandbox and opens a pull request. Unclear issues are held with the reason. It needs the repo's fix approval.
 
 ## Fix-up
 
@@ -62,7 +62,7 @@ Each item can have a conversation with Opus next to its decision. Everyone with 
 
 Most work runs without anyone. These questions wait on the Needs you page:
 
-- **Scope:** is this item in scope, a small extra or a plug-in?
+- **Scope:** is this item in scope and wanted in core?
 - **Merge?** for a pull request outside the merge rules.
 - **Close this PR?** when the review says to close it.
 - **Duplicate?** for items that look like the same report.

@@ -36,8 +36,8 @@ function randomPr(x: Rnd): PrFacts {
   const f = prFacts({
     ghState: x.pick(["OPEN", "OPEN", "OPEN", "MERGED", "CLOSED"] as const),
     head, draft: x.bool(0.1), tier: x.pick(["whitelisted", "whitelisted", "not", "allow", "deny"] as const),
-    size: x.pick(["S", "S", "M", "L"] as const), label: x.pick(["bugfix", "bugfix", "infra", "performance", "plugin candidate", null]),
-    needsDecisionFlag: x.bool(0.1), scopeAnswer: x.pick([null, null, null, "take", "small-extra", "close"]),
+    size: x.pick(["S", "S", "M", "L"] as const), label: x.pick(["bug", "bug", "chore", "performance", "gtm", null]),
+    needsDecisionFlag: x.bool(0.1), scopeAnswer: x.pick([null, null, null, "take", "need-info", "close"]),
     inScope: x.bool(0.9), integration: x.bool(0.05), batchPr: x.bool(0.05), heldBacklog: x.bool(0.05), heldDuplicate: x.bool(0.05), mergeHeld: x.bool(0.1),
     authorIsPipeline: x.bool(0.1), pipelineOn: x.bool(0.9),
     repoFacts: { mergeApproved: x.bool(0.9), pushApproved: x.bool(0.8), commentApproved: x.bool(0.8), ciApproved: x.bool(0.8), noCi: x.bool(0.15), mainRed: x.bool(0.1) },
@@ -80,13 +80,13 @@ function randomItem(x: Rnd): ItemFacts {
     held: x.pick([null, null, null, "backlog", "duplicate"] as const), pipelineOn: x.bool(0.85), run: x.pick(["run1", "run1", null]),
     repoFacts: { labelsApproved: x.bool(0.8), commentApproved: x.bool(0.8), fixIssueApproved: x.bool(0.8) },
     classification: {
-      status: x.pick(["settled", "settled", "waiting", "disagree", "unclassified"] as const), label: x.pick(["bugfix", "bugfix", "plugin candidate", null]),
-      flags: x.pick([[], [], ["needs decision"], ["security"]]), basalLabel: x.pick(["bugfix", "small extra", "plugin candidate"]), haikuLabel: x.pick([null, "bugfix", "small extra"]),
+      status: x.pick(["settled", "settled", "waiting", "disagree", "unclassified"] as const), label: x.pick(["bug", "bug", "new feature", null]),
+      flags: x.pick([[], [], ["needs decision"], ["security"]]), basalLabel: x.pick(["bug", "enhancement", "new feature"]), haikuLabel: x.pick([null, "bug", "enhancement"]),
     },
     embeddedHash: x.pick(["e1", "e1", null]), priorityHash: x.pick(["e1", "e1", null]), scannedHash: x.pick(["e1", "e1", null]),
     pairsToCheck: x.int(2), inGroupToAsk: x.bool(0.1), dupeAnswers: x.bool(0.1) ? ["d1"] : [],
     scope: { open: x.bool(0.1), covered: x.bool(0.2), answer: null, recommend: x.bool(0.1) ? { failures: x.int(3), failedAt: null } : null },
-    labels: { existing: x.pick([["bugfix"], []]), pluginAnswer: x.bool(0.1), labeledNote: null },
+    labels: { existing: x.pick([["bug"], []]), labeledNote: null },
     answeredClose: x.bool(0.2) ? [{ decisionId: "d", kind: x.pick(["scope", "close", "duplicate", "merge"] as const), security: x.bool(0.2), action: x.pick([null, null, "failed", "done"]) }] : [],
     closeReview: x.bool(0.1) ? { head: "h1", atHead: x.bool(), asked: x.bool() } : null,
     fix: {

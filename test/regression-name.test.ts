@@ -11,7 +11,7 @@ import { tasksFor } from "../src/verify/tasks.ts";
 test("a regression test is named after its item, in the patch and in the cargo target", () => {
   const crates = [{ name: "x", dir: "crates/x" }];
   const reply = JSON.stringify([{ ref: "app#14", kind: "regression", reason: "r", crate: "x", test_file: "#[test]\nfn t() {}\n" }]);
-  const p = parsePlanReply(reply, "app#14", crates, "bugfix");
+  const p = parsePlanReply(reply, "app#14", crates, "bug");
   assert.ok(p.ok && p.plan.kind === "regression");
   if (!p.ok || p.plan.kind !== "regression") return;
   assert.equal(p.plan.patch, patchFor("crates/x", "autocraft_regression_14", "#[test]\nfn t() {}\n"));

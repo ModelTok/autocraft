@@ -18,7 +18,7 @@ import { Block, ErrorLine, Page, Pager, selectCls, TextInput, useUrlState } from
 import { useNow } from "../../lib/useNow";
 
 const PAGE = 50;
-const LABELS: TypeLabel[] = ["bugfix", "performance", "missing feature", "small extra", "plugin candidate", "infra"];
+const LABELS: TypeLabel[] = ["bug", "enhancement", "new feature", "performance", "chore", "documentation", "gtm", "task"];
 const STATUS: Record<SettledStatus, [string, Tone]> = {
   settled: ["Settled", "ok"],
   waiting: ["Waiting for a second opinion", "warn"],
