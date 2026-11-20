@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { syncAccounts } from "../src/agents/accounts.ts";
-import { setRunner } from "../src/classify/run.ts";
+import { setJevRunner, setRunner } from "../src/classify/run.ts";
 import { loadPlanSet, type PlanSet } from "../src/core/plan-set.ts";
 import { connect } from "../src/db.ts";
 import { diffCacheDir } from "../src/review/diff.ts";
@@ -242,7 +242,7 @@ export function world() {
     },
 
     // ---- models ----
-    /** Installs a model runner: it gets each prompt's text and returns the reply text, or undefined for "no reply". One enabled Claude account is set up. */
+    /** Installs a model runner: it gets each prompt's text (a Jev request body too) and returns the reply text, or undefined for "no reply". One enabled Claude account is set up. */
     models(reply: (input: string) => string | undefined) {
       const dir = tmpdir("box");
       mkdirSync(join(dir, "usage"));
@@ -251,12 +251,14 @@ export function world() {
       process.env.AUTOCRAFT_USAGE_DIR = join(dir, "usage");
       syncAccounts(db);
       db.prepare("UPDATE claude_accounts SET enabled = 1 WHERE id = 't'").run();
-      restore.push(setRunner(async (_cmd, _args, input) => {
+      const answer = (input: string) => {
         const text = reply(input);
         return text === undefined
           ? { code: 1, stdout: "", stderr: "no reply" }
           : { code: 0, stdout: JSON.stringify({ type: "result", result: text, usage: { input_tokens: 100, output_tokens: 10 } }), stderr: "" };
-      }));
+      };
+      restore.push(setRunner(async (_cmd, _args, input) => answer(input)));
+      restore.push(setJevRunner(async (body) => answer(body)));
       return w;
     },
 

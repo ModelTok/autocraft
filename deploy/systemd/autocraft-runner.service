@@ -17,7 +17,7 @@ RestartSec=10
 # SIGTERM stops the jobs (10 s each to end); the rest is killed after the stop timeout.
 KillMode=mixed
 TimeoutStopSec=30
-# Lighter than the dashboard: jobs run git, gh, claude (in bubblewrap) and jev.
+# Lighter than the dashboard: jobs run git, gh and claude (in bubblewrap), and post Jev requests to basal-serve.
 # No NoNewPrivileges=: bwrap needs its AppArmor profile transition to create user namespaces.
 PrivateTmp=true
 ProtectSystem=full

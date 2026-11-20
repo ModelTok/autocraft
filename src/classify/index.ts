@@ -119,7 +119,7 @@ function costSection(db: DatabaseSync, runId: string, pairs: Pair[]): string {
     return [r.model, r.agents, r.items, r.input, r.output, r.cache_read, r.cache_write, r.cost === null ? "-" : r.cost.toFixed(2),
       `${wall.toFixed(0)} s`, `${r.busy.toFixed(0)} s`, `${(r.input * per).toFixed(0)} / ${(r.output * per).toFixed(0)} / ${r.cost === null ? "-" : (r.cost * per).toFixed(2)}`];
   });
-  return `Items in the comparison: ${n}. Jev usage is the \`usage\` object it returns (input_tokens, output_tokens); its cost is the input tokens at TypeSafe's published price (output tokens are free). Wall time is first start to last end of that model's calls (calls run in parallel: Jev 8, Haiku 4, Sonnet 3).\n\n` +
+  return `Items in the comparison: ${n}. Jev usage is the \`usage\` object it returns (input_tokens, output_tokens); a self-hosted basal-serve charges nothing per token, so its cost is 0 (rows from the hosted Jev used before basal are priced at TypeSafe's published price for input tokens). Wall time is first start to last end of that model's calls (calls run in parallel: Jev 8, Haiku 4, Sonnet 3).\n\n` +
     `| ${head.join(" | ")} |\n|${head.map(() => "---").join("|")}|\n${body.map((r) => `| ${r.join(" | ")} |`).join("\n")}`;
 }
 

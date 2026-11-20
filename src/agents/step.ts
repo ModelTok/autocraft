@@ -7,7 +7,7 @@ import { NoTakerError, poolRoom, repoBatches } from "./call.ts";
 import { jevAvailable } from "./jev.ts";
 import { jevParallel } from "./accounts.ts";
 import { add, askClaude, askJev, pool, saveUsage, type AskOptions, type LintedReply, type Usage } from "../classify/run.ts";
-import { CLAUDE_PROMPTS, JEV_PROMPTS, JEV_USD_PER_INPUT_TOKEN, renderJev, type ClaudePromptId, type JevPromptId } from "../prompts/index.ts";
+import { CLAUDE_PROMPTS, JEV_PROMPTS, BASAL_USD_PER_INPUT_TOKEN, renderJev, type ClaudePromptId, type JevPromptId } from "../prompts/index.ts";
 import type { DupePair } from "../dupes/pair.ts";
 import type { Item } from "../classify/parse.ts";
 import type { Lint, LintProblem } from "../replylint.ts";
@@ -20,7 +20,7 @@ export type ParseCtx = {
   /** Claude: what the lint still found after the fix turn (absent without lint); true when a fix turn ran. */
   problems?: LintProblem[];
   fixTurn?: boolean;
-  /** Jev: the exit code of `jev ask`. */
+  /** Jev: 0 for an answer from basal-serve, 1 for an HTTP error, -1 when it could not be reached, null for no answer in time. */
   code?: number | null;
 };
 
@@ -154,7 +154,7 @@ export async function runModelStep<I, V, C = void>(db: DatabaseSync, step: Claud
     const total = sizeOf(step, input);
     const items = u.items ? u.items(ok, total, rest === undefined ? 0 : sizeOf(step, rest)) : total - (rest === undefined ? 0 : sizeOf(step, rest));
     const model = u.model ?? reg.models[0]!;
-    const saved = step.provider === "jev" ? { ...usage, cost: usage.input * JEV_USD_PER_INPUT_TOKEN } : usage;
+    const saved = step.provider === "jev" ? { ...usage, cost: usage.input * BASAL_USD_PER_INPUT_TOKEN } : usage;
     if (u.keepEarlier) db.prepare("UPDATE main.token_usage SET agent = agent || '@' || COALESCE(started_at, '') WHERE run_id = ? AND agent = ?").run(u.run, u.agent);
     saveUsage(db, u.run, u.agent, u.stage, model, items, saved, start, new Date().toISOString());
   }

@@ -7,9 +7,9 @@ import { describe, test } from "node:test";
 import { runReferee } from "../src/classify/referee.ts";
 import type { Pair, Row } from "../src/classify/report.ts";
 import { useTestAccount } from "./accounts-fixture.ts";
-import { runHaiku, runJev, setRunner, type Runner } from "../src/classify/run.ts";
+import { runHaiku, runJev, setJevRunner, setRunner, type JevRunner, type Runner } from "../src/classify/run.ts";
 import { connect } from "../src/db.ts";
-import { JEV_ARGS, claudeArgs, claudeParts, renderClaude, renderJev, untrustedJson } from "../src/prompts/index.ts";
+import { claudeArgs, claudeParts, renderClaude, renderJev, untrustedJson } from "../src/prompts/index.ts";
 import { SAMPLE_ITEMS } from "../src/prompts/samples.ts";
 import { SAMPLE_VERIFY_PLAN } from "../src/verify/types.ts";
 import { SCRATCH } from "./scratch.ts";
@@ -28,13 +28,18 @@ type Call = { cmd: string; args: string[]; input: string };
 function fake(calls: Call[]): Runner {
   return async (cmd, args, input) => {
     calls.push({ cmd, args, input });
-    if (cmd === "jev") {
-      const answers = { type: { choice: "bugfix", confidence: 0.9, probabilities: { bugfix: 0.9 } }, security: { noul: 0.1 }, needs_decision: { noul: 0.2 } };
-      return { code: 0, stdout: JSON.stringify({ answers, usage: { input_tokens: 10, output_tokens: 2 } }), stderr: "" };
-    }
     const refs = [...input.matchAll(/"ref": "([^"]+)"/g)].map((m) => m[1]);
     const reply = refs.map((ref) => ({ ref, type_label: "bugfix", security: false, needs_decision: false, reason: "r", why: "w" }));
     return { code: 0, stdout: JSON.stringify({ type: "result", result: JSON.stringify(reply), usage: {} }), stderr: "" };
+  };
+}
+
+/** Records each Jev request body as a call to basal-serve and answers it with a valid label. */
+function fakeBasal(calls: Call[]): JevRunner {
+  return async (body) => {
+    calls.push({ cmd: "basal", args: [], input: body });
+    const answers = { type: { type: "choice", choice: "bugfix", confidence: 0.9, probabilities: { bugfix: 0.9 } }, security: { type: "noul", noul: 0.1 }, needs_decision: { type: "noul", noul: 0.2 } };
+    return { code: 0, stdout: JSON.stringify({ model: "basal-2.0-4.5B", answers, usage: { input_tokens: 10, output_tokens: 0 } }), stderr: "", status: 200 };
   };
 }
 
@@ -42,6 +47,7 @@ describe("prompt registry", () => {
   test("Haiku, Jev and the referee send what their entries render", async () => {
     const calls: Call[] = [];
     const restore = setRunner(fake(calls));
+    const restoreJev = setJevRunner(fakeBasal(calls));
     try {
       await runHaiku(db, "t", SAMPLE_ITEMS);
       await runJev(db, "t", SAMPLE_ITEMS);
@@ -49,10 +55,11 @@ describe("prompt registry", () => {
       await runReferee(db, "t", SAMPLE_ITEMS.map((i): Pair => ({ r: row(i), jev: row(i), haiku: row(i) })));
     } finally {
       restore();
+      restoreJev();
     }
     const want: Call[] = [
       { cmd: "claude", args: claudeArgs("classify.haiku", "haiku", false, undefined, claudeParts("classify.haiku", SAMPLE_ITEMS, false).system), input: claudeParts("classify.haiku", SAMPLE_ITEMS, false).stdin },
-      ...SAMPLE_ITEMS.map((i) => ({ cmd: "jev", args: JEV_ARGS, input: renderJev("classify.jev", i) })),
+      ...SAMPLE_ITEMS.map((i) => ({ cmd: "basal", args: [], input: renderJev("classify.jev", i) })),
       { cmd: "claude", args: claudeArgs("referee.sonnet", "sonnet", false, undefined, claudeParts("referee.sonnet", SAMPLE_ITEMS, false).system), input: claudeParts("referee.sonnet", SAMPLE_ITEMS, false).stdin },
     ];
     assert.deepEqual(calls, want);

@@ -261,9 +261,9 @@ Untrusted pull request builds never run on the VPS: it has no worker. A worker r
 
 It shows as: the warning `Build worker <label> has not reported for N min` (a `fail` check `worker:<id>`) once the worker has been silent for 5 minutes; `N build tasks have waited over 10 minutes for a worker` (`build-queue`, `fail` when no enabled environment is up) on the dashboard's warnings menu and in `GET /healthz/checks` (503); and the Build environments page, where the environment is offline. A worker that returns claims the queue in priority order; tasks it held when it went silent are requeued once.
 
-### `jev`
+### Jev (basal-serve)
 
-The image has no `jev`. The runner notices (`jevInstalled`), records the outage `not installed` (shown on the Accounts page) and tests the PATH again on each pass. Meanwhile Haiku does Jev's work: the classify, priority and duplicate-pair steps, the semantic reference check of replies and the Discord signal check decide with Haiku alone (`src/agents/jev.ts`, `src/reference-lint.ts:127`, `src/discord/signals.ts:159`). That costs Claude account usage that Jev calls would not, and decisions lose Jev's first pass; a derived image that puts `jev` on the PATH restores it. Nothing fails.
+The image does not run basal-serve, the server of Jev's basal model. Set `AUTOCRAFT_BASAL_URL` (and `AUTOCRAFT_BASAL_KEY_FILE` for a server with `--api-keys`) to one the containers can reach. While none answers, the runner records the outage `server unreachable` (shown on the Accounts page) and tries again five minutes after the last failure. Meanwhile Haiku does Jev's work: the classify, priority and duplicate-pair steps, the semantic reference check of replies and the Discord signal check decide with Haiku alone (`src/agents/jev.ts`, `src/reference-lint.ts:127`, `src/discord/signals.ts:159`). That costs Claude account usage that Jev calls would not, and decisions lose Jev's first pass; a reachable basal-serve restores it. Nothing fails.
 
 ### Off-box backup copy
 

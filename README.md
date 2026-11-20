@@ -1,6 +1,6 @@
 # AutoCraft
 
-AutoCraft is a model harness for maintaining GitHub repositories with a large backlog. It mirrors every issue and PR into a local database and runs a pipeline of model steps over them. Jev classifiers and Claude Haiku, Sonnet and Opus classify, prioritise, find duplicates, ask maintainers for decisions, review, write fixes, verify and merge.
+AutoCraft is a model harness for maintaining GitHub repositories with a large backlog. It mirrors every issue and PR into a local database and runs a pipeline of model steps over them. Jev classifiers (basal models on a self-hosted basal-serve) and Claude Haiku, Sonnet and Opus classify, prioritise, find duplicates, ask maintainers for decisions, review, write fixes, verify and merge.
 
 The models' tools are a fixed set of GitHub actions (comments, labels, branches, PRs, merges), all behind one write module and `safe-merge`-style checks. Actions run automatically where the rules say they are safe. Otherwise a model proposes and a person accepts. Each issue and PR has its own conversation between Opus and a maintainer, with action cards the maintainer can run. The pipeline is built around maintainers' judgement, which is the limited resource, not around token cost.
 
@@ -55,7 +55,7 @@ See [Trust boundary](docs/pipeline.md#trust-boundary).
 | `git` | Clones, diffs and pushes |
 | `claude` (Claude Code CLI) | All Claude calls |
 | `bwrap` (bubblewrap, `/usr/bin/bwrap`) | Sandbox for tool-using calls. Without it, those calls run without tools; `AUTOCRAFT_NO_SANDBOX=1` forces that |
-| `jev` (optional) | CLI for TypeSafe's Jev model, used by the classify, priority and duplicate steps (`jev --compact ask`). Without it, switched off (`autocraft-server accounts jev off`), or when its account is out of credit or its key is rejected, Haiku does Jev's work through the Claude accounts (more Claude usage) |
+| basal-serve (optional) | Serves Jev, the typed-decision model of the classify, priority and duplicate steps: [basal](https://github.com/rkinas/basal) (Apache-2.0, models on Hugging Face under `Remek/`), a Python server for an NVIDIA GPU, Apple Silicon or the CPU, for example `basal-serve --model Remek/basal-2.0-4.5B --mode fast --template-prefix off --host 127.0.0.1 --port 8000` (install steps in basal's README). AutoCraft posts each request to `AUTOCRAFT_BASAL_URL` (default `http://127.0.0.1:8000`) and, for a server started with `--api-keys`, sends the key held in the file `AUTOCRAFT_BASAL_KEY_FILE` names. With no server reachable, switched off (`autocraft-server accounts jev off`), or when the server refuses the key, Haiku does Jev's work through the Claude accounts (more Claude usage) |
 | Podman and a second OS user | Build environments for Verify and Fix (optional) |
 | `sqlite3`, `curl` | `deploy/backup.sh` and `deploy/hook.sh` |
 

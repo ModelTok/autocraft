@@ -13,6 +13,7 @@ import { pool } from "../classify/run.ts";
 import { runTiered } from "../agents/step.ts";
 import { AREAS } from "../agents/steps.ts";
 import { pilotSql } from "../pilot.ts";
+import { JEV_MODEL } from "../prompts/index.ts";
 import { cachedDiff, ghDiff, splitDiff } from "../review/diff.ts";
 import { settles } from "./parse.ts";
 import { currentList, setItemArea } from "./store.ts";
@@ -104,7 +105,7 @@ async function assignRepo(db: DatabaseSync, repo: string, due: Due[], p: AssignP
     const t = await runTiered(db, AREAS, chunk, {
       ctx: { repo, areas: list.areas },
       cancelled: p.cancelled,
-      jevUsage: (x) => ({ run: p.usageRun, agent: `areas-jev-${refOf(x)}`, stage: "areas", model: "jev-latest", items: () => 1, keepEarlier: true }),
+      jevUsage: (x) => ({ run: p.usageRun, agent: `areas-jev-${refOf(x)}`, stage: "areas", model: JEV_MODEL, items: () => 1, keepEarlier: true }),
       haikuUsage: (_batch, n) => ({ run: p.usageRun, agent: `areas-haiku-${repo}-${String(n).padStart(3, "0")}`, stage: "areas", keepEarlier: true }),
     });
     p.onSent?.(chunk.length - t.skipped.size);

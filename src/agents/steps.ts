@@ -77,7 +77,7 @@ export const AREAS: TieredStep<AreaItem, AreaAnswer, string | null, AreasCtx, Ar
   jev: {
     provider: "jev", id: "areas.jev",
     request: (x, c) => ({ item: x, body: renderAreaJev(x, c.areas) }),
-    // An answer from a failed `jev ask` is not used.
+    // An answer from a failed basal request is not used.
     parse: (answers, _x, ctx, c) => single(ctx.code === 0 ? jevAreaChoice(answers, c.areas) : null),
   },
   haiku: {

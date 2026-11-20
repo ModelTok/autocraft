@@ -1,4 +1,4 @@
-// Runs the classifiers: Jev (one `jev ask` per item) and Haiku (batches through `claude -p`).
+// Runs the classifiers: Jev (one basal-serve request per item, src/agents/basal.ts) and Haiku (batches through `claude -p`).
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
@@ -7,7 +7,8 @@ import type { DatabaseSync } from "node:sqlite";
 import type { ItemRef } from "../../web/src/api/types.ts";
 import { createHash } from "node:crypto";
 import { jevParallel } from "../agents/accounts.ts";
-import { jevAvailable, jevEnv, jevFailure, markJevUnavailable, markJevWorking } from "../agents/jev.ts";
+import { jevAvailable, jevFailure, markJevUnavailable, markJevWorking } from "../agents/jev.ts";
+import { basalAsk, type BasalReply } from "../agents/basal.ts";
 import { accountConfigDir, itemRepos, NoTakerError, poolRoom, repoBatches, startClaudeRun, type PoolRoom, startJevRun, tryStartFollowUp, isHalt, type Started } from "../agents/call.ts";
 import { touchStore, type KeptSession, type SessionAsk } from "../prepush/resume.ts";
 import { finishRun, packText, setRunProgress } from "../agents/runs.ts";
@@ -36,7 +37,7 @@ import { sessionStore } from "../sandbox/session-store.ts";
 import { defaultWorkspace } from "../sandbox/workspace.ts";
 import { runModelStep } from "../agents/step.ts";
 import { CLASSIFY_HAIKU, CLASSIFY_JEV } from "../agents/steps.ts";
-import { CLAUDE_PROMPTS, JEV_ARGS, JEV_USD_PER_INPUT_TOKEN, JEV_PROMPTS, claudeArgs, claudeParts, claudePromptOf, jevPromptOf, joinParts, renderClaude, renderJev, type ClaudeInput, type ClaudePromptId, type JevPromptId } from "../prompts/index.ts";
+import { CLAUDE_PROMPTS, BASAL_USD_PER_INPUT_TOKEN, JEV_PROMPTS, claudeArgs, claudeParts, claudePromptOf, jevPromptOf, joinParts, renderClaude, renderJev, type ClaudeInput, type ClaudePromptId, type JevPromptId } from "../prompts/index.ts";
 import { stripMarks } from "../prompts/harness.ts";
 import type { DupePair } from "../dupes/pair.ts";
 import { flagsOf, jevVerdict, parseHaikuReply, parseRef, refOf, type Item, type JevAnswers, type Verdict } from "./parse.ts";
@@ -248,6 +249,17 @@ let runner: Runner = exec;
 export function setRunner(r: Runner): () => void {
   runner = r;
   return () => { runner = exec; };
+}
+
+/** Sends one Jev request body to the model server within a time limit. */
+export type JevRunner = (body: string, timeoutMs: number) => Promise<BasalReply>;
+const basal: JevRunner = (body, timeoutMs) => basalAsk(body, timeoutMs);
+let jevRunner: JevRunner = basal;
+
+/** Tests swap the basal-serve client for a fake; returns a function that restores the real one. */
+export function setJevRunner(r: JevRunner): () => void {
+  jevRunner = r;
+  return () => { jevRunner = basal; };
 }
 
 const versions = new Map<string, string>();
@@ -772,23 +784,23 @@ async function askRemote<K extends ClaudePromptId>(id: K, model: string, input: 
   }
 }
 
-/** Sends a registered Jev request (src/prompts) for one item to `jev ask`; the same rule as `askClaude`. Recorded as an agent run without an account. */
-export async function askJev(id: JevPromptId, item: Item | DupePair | { ref: string }, db: DatabaseSync, body: string = renderJev(id, item as Item | DupePair), perCallUsage = true): Promise<Proc> {
+/** Sends a registered Jev request (src/prompts) for one item to basal-serve; the same rule as `askClaude`. Recorded as an agent run without an account. */
+export async function askJev(id: JevPromptId, item: Item | DupePair | { ref: string }, db: DatabaseSync, body: string = renderJev(id, item as Item | DupePair), perCallUsage = true): Promise<BasalReply> {
   const runId = startJevRun(db, { promptId: id, promptVersion: promptVersion(id), provider: "jev", model: "jev", items: refsOf([item]), prompt: body });
   const start = now();
   try {
-    const r = await runner("jev", JEV_ARGS, body, undefined, JEV_PROMPTS[id].limits.timeoutSeconds * 1000, jevEnv(), undefined, true);
+    const r = await jevRunner(body, JEV_PROMPTS[id].limits.timeoutSeconds * 1000);
     let tokens: { input: number; output: number; cacheRead: number; cacheWrite: number } | undefined;
     try {
       const j = JSON.parse(r.stdout) as { usage?: { input_tokens?: number; output_tokens?: number } };
       if (j.usage) tokens = { input: j.usage.input_tokens ?? 0, output: j.usage.output_tokens ?? 0, cacheRead: 0, cacheWrite: 0 };
     } catch { /* the caller reports an unreadable answer */ }
     // A step that sums its retries into one row (usage option of runModelStep) saves nothing here.
-    if (tokens && perCallUsage) saveUsage(db, String(runId), "jev", id.split(".")[0]!, JEV_PROMPTS[id].models[0]!, 1, { ...tokens, cost: tokens.input * JEV_USD_PER_INPUT_TOKEN }, start, now());
+    if (tokens && perCallUsage) saveUsage(db, String(runId), "jev", id.split(".")[0]!, JEV_PROMPTS[id].models[0]!, 1, { ...tokens, cost: tokens.input * BASAL_USD_PER_INPUT_TOKEN }, start, now());
     const outage = jevFailure(r);
     if (outage) markJevUnavailable(db, outage.kind, outage.reason);
     else if (r.code === 0) markJevWorking(db, Date.parse(start));
-    if (r.code === 0 && tokens) finishRun(db, runId, { state: "done", tokens, costUsd: tokens.input * JEV_USD_PER_INPUT_TOKEN, summary: "answered", output: r.stdout });
+    if (r.code === 0 && tokens) finishRun(db, runId, { state: "done", tokens, costUsd: tokens.input * BASAL_USD_PER_INPUT_TOKEN, summary: "answered", output: r.stdout });
     else finishRun(db, runId, { state: "failed", error: scrubError(`${exitClass(r.code)} ${r.stderr}`), summary: r.code === 0 ? "unreadable answer" : exitClass(r.code), output: r.stdout });
     return r;
   } catch (e) {
