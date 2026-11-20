@@ -3,8 +3,8 @@
 import { flagBand, type FlagBand } from "../classify/parse.ts";
 import { wholeReplyJson } from "../core/reply-json.ts";
 
-/** Jev's yes-probability from which a draft counts as junk; below JEV_FLAG_NO (0.3) it is real, and Haiku decides in between. */
-export const JUNK_JEV_YES = 0.8;
+/** Basal's yes-probability from which a draft counts as junk; below BASAL_FLAG_NO (0.3) it is real, and Haiku decides in between. */
+export const JUNK_BASAL_YES = 0.8;
 export const JUNK_TEXT_CHARS = 3000;
 export const JUNK_TITLE_CHARS = 200;
 
@@ -16,13 +16,13 @@ export const SAMPLE_JUNK: JunkAsk[] = [{ title: "Export to WebP ignores the qual
 
 const clean = (a: JunkAsk): JunkAsk => ({ title: a.title.slice(0, JUNK_TITLE_CHARS), body: a.body.slice(0, JUNK_TEXT_CHARS) });
 
-/** The data of one call, as one JSON string: Jev's request state and the Haiku prompt's data block. */
+/** The data of one call, as one JSON string: Basal's request state and the Haiku prompt's data block. */
 export const junkState = (a: JunkAsk): string => JSON.stringify(clean(a), null, 1).replace(/</g, "\\u003c");
 
-export const junkBand = (p: number): FlagBand => flagBand(p, JUNK_JEV_YES);
+export const junkBand = (p: number): FlagBand => flagBand(p, JUNK_BASAL_YES);
 
-/** Jev's answer: the yes-probability, or null when the answer has no number from 0 to 1. */
-export function jevJunk(answers: unknown): number | null {
+/** Basal's answer: the yes-probability, or null when the answer has no number from 0 to 1. */
+export function basalJunk(answers: unknown): number | null {
   const p = (answers as { junk?: { noul?: unknown } } | undefined)?.junk?.noul;
   return typeof p === "number" && p >= 0 && p <= 1 ? p : null;
 }

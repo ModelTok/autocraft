@@ -9,7 +9,7 @@ import { pool, runHaiku } from "../src/classify/run.ts";
 import type { Item } from "../src/classify/parse.ts";
 import { runTiered } from "../src/agents/step.ts";
 import { PRIORITY } from "../src/agents/steps.ts";
-import { setJevEnabled } from "../src/agents/jev.ts";
+import { setBasalEnabled } from "../src/agents/basal-availability.ts";
 import { createToken } from "../src/dash/mcp/tokens.ts";
 import { connect } from "../src/db.ts";
 import { parseStatus, storeStatus } from "../src/remote/helpers.ts";
@@ -36,7 +36,7 @@ test("a pool skips a unit nobody may take and runs the later ones", async () => 
   // Work no Task Runner may take is neither counted as sent nor stored as answered.
   const photo = [{ repo: "photocraft", number: 7, kind: "issue", title: "t", body: "" }] as unknown as Item[];
   assert.equal(await runHaiku(db, "run-1", photo), 0, "no item of a skipped batch counts as sent");
-  setJevEnabled(db, false, "test");
+  setBasalEnabled(db, false, "test");
   const t = await runTiered(db, PRIORITY, photo);
   assert.deepEqual([...t.skipped], ["photocraft#7"]);
   assert.equal(t.alone.size + t.haiku.size, 0, "a skipped item is not one Haiku decided alone");

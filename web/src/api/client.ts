@@ -50,7 +50,7 @@ import type {
   AgentRunPage,
   ClaudeAccount,
   UsagePause,
-  JevStatus,
+  BasalStatus,
   Rates,
   AnswerInput,
   AuditFilter,
@@ -420,9 +420,9 @@ export interface Api {
   accounts: {
     list(): Promise<ClaudeAccount[]>;
     pause(): Promise<UsagePause>;
-    jev(): Promise<JevStatus>;
-    /** Operators: switches Jev on or off. */
-    setJev(input: { enabled: boolean }): Promise<JevStatus>;
+    basal(): Promise<BasalStatus>;
+    /** Operators: switches basal on or off. */
+    setBasal(input: { enabled: boolean }): Promise<BasalStatus>;
     /** Operators. */
     setPause(input: UsagePause): Promise<UsagePause>;
     update(id: string, input: AccountInput): Promise<ClaudeAccount>;

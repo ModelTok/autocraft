@@ -31,7 +31,7 @@ export type StageDef = {
   sets: string[];
   /** The branches of the flow node. A hint that interpolates a count is built in code and left out here. */
   states: { id: string; label: string; waitsOn: Wait; tone: Tone; hint?: string; gate?: boolean; link?: StateLink }[];
-  models: { model: "jev" | "haiku" | "sonnet" | "opus" | "local"; use: string; remark?: string }[];
+  models: { model: "basal" | "haiku" | "sonnet" | "opus" | "local"; use: string; remark?: string }[];
   promptIds: string[];
   /** The `stage` label of the stage's prompts: equal, or followed by " (...)". */
   promptStage: string;
@@ -82,18 +82,18 @@ export const STAGES: StageDef[] = [
     reads: ["Item vectors", "Duplicate decisions already answered"],
     sets: ["Duplicate pair verdicts", "Duplicate decisions"],
     states: [
-      { id: "checking", label: "In a pair being checked", waitsOn: "model", tone: "neutral", hint: "Jev and Haiku have not judged the pair yet" },
+      { id: "checking", label: "In a pair being checked", waitsOn: "model", tone: "neutral", hint: "Basal and Haiku have not judged the pair yet" },
       { id: "waiting", label: "Waiting for an answer", waitsOn: "person", tone: "accent", hint: "A person decides whether it duplicates another item", gate: true },
       { id: "held", label: "Held out", waitsOn: "runner", tone: "warn", hint: "Answered close: held out of later steps until Act closes it" },
       { id: "closed", label: "Closed as duplicate", waitsOn: "nothing", tone: "neutral", link: "anyState" },
     ],
     models: [
-      { model: "jev", use: "Judges each candidate pair first" },
-      { model: "haiku", use: "Settles pairs Jev is unsure of" },
+      { model: "basal", use: "Judges each candidate pair first" },
+      { model: "haiku", use: "Settles pairs basal is unsure of" },
       { model: "opus", use: "Compares each group of pull requests" },
       { model: "sonnet", use: "Compares each group of issues" },
     ],
-    promptIds: ["dupes.jev", "dupes.haiku", "dupes.compare-prs.opus", "dupes.compare-issues.sonnet"], promptStage: "Duplicates",
+    promptIds: ["dupes.basal", "dupes.haiku", "dupes.compare-prs.opus", "dupes.compare-issues.sonnet"], promptStage: "Duplicates",
     waits: [
       { name: "Duplicate set changed on GitHub", why: "Wait for the sync to bring the set", howLong: "10 minutes", showsAs: "Duplicates stage", kind: "external" },
       { name: "Rule fallback of a duplicate group", why: "The model call failed; retried up to 3 times", howLong: "15 minutes", showsAs: "Duplicates stage", kind: "backoff" },
@@ -102,39 +102,39 @@ export const STAGES: StageDef[] = [
     person: "Duplicate? decision",
     swimlane: [
       { id: "dups", lane: "auto", row: 3, lines: ["Duplicates", "nearest neighbours"] },
-      { id: "dupcheck", lane: "models", row: 4, lines: ["Duplicate check", "Jev first, Haiku settles"] },
+      { id: "dupcheck", lane: "models", row: 4, lines: ["Duplicate check", "Basal first, Haiku settles"] },
       { id: "dupdec", lane: "operator", row: 5, lines: ["Duplicate?", "close / not / keep both"] },
     ],
     edges: [{ to: "classify", branch: null, label: "not held out" }],
   },
   {
     id: "classify", title: "Classify", order: 3, runStage: 2, docSection: "Classify", mode: "steps",
-    description: "Gives each open item one type label and two flags (security, needs decision). Jev goes first, Haiku gives a second opinion, and a referee settles disagreements outside the scope labels.",
+    description: "Gives each open item one type label and two flags (security, needs decision). Basal goes first, Haiku gives a second opinion, and a referee settles disagreements outside the scope labels.",
     steps: [{ name: "classify-new", maxMin: 20, label: "Classify", limit: null, seeded: 2000 }, { name: "classify-all", maxMin: 120 }, { name: "referee", maxMin: 10, label: "Referee", limit: 500 }, { name: "areas-propose", maxMin: 30 }, { name: "areas-suggest", maxMin: 30 }, { name: "areas-rescan", maxMin: 30 }],
     lanes: [{ name: "classify", steps: ["classify-new"], order: 0 }, { name: "referee", steps: ["referee"], order: 18 }],
     reads: ["Item text", "Area list"],
     sets: ["Type label and flags per item", "Area list"],
     states: [
-      { id: "settled", label: "Settled", waitsOn: "nothing", tone: "ok", hint: "Jev at 90 % or more, or Haiku agreeing with Jev" },
-      { id: "waiting", label: "Waiting for a second opinion", waitsOn: "model", tone: "warn", hint: "Jev is unsure; Haiku hasn't answered yet" },
-      { id: "referee", label: "Waiting for the referee", waitsOn: "model", tone: "warn", hint: "Jev and Haiku chose different labels; Sonnet settles it, Opus when Sonnet is unsure, unless it is a scope call" },
-      { id: "disagree", label: "Scope disagreement", waitsOn: "person", tone: "bad", hint: "Jev and Haiku chose two different scope labels; Decide asks a person" },
-      { id: "unclassified", label: "Not classified yet", waitsOn: "model", tone: "neutral", hint: "No Jev or Haiku verdict in the current run" },
+      { id: "settled", label: "Settled", waitsOn: "nothing", tone: "ok", hint: "Basal at 90 % or more, or Haiku agreeing with basal" },
+      { id: "waiting", label: "Waiting for a second opinion", waitsOn: "model", tone: "warn", hint: "Basal is unsure; Haiku hasn't answered yet" },
+      { id: "referee", label: "Waiting for the referee", waitsOn: "model", tone: "warn", hint: "Basal and Haiku chose different labels; Sonnet settles it, Opus when Sonnet is unsure, unless it is a scope call" },
+      { id: "disagree", label: "Scope disagreement", waitsOn: "person", tone: "bad", hint: "Basal and Haiku chose two different scope labels; Decide asks a person" },
+      { id: "unclassified", label: "Not classified yet", waitsOn: "model", tone: "neutral", hint: "No basal or Haiku verdict in the current run" },
     ],
     models: [
-      { model: "jev", use: "Classifies every item first", remark: "Reports how sure it is; at 90 % or more it matched maintainers' labels 98 % of the time" },
-      { model: "haiku", use: "Second opinion where Jev is unsure", remark: "Does every item while Jev is unavailable" },
+      { model: "basal", use: "Classifies every item first", remark: "Reports how sure it is; at 90 % or more it matched maintainers' labels 98 % of the time" },
+      { model: "haiku", use: "Second opinion where basal is unsure", remark: "Does every item while basal is unavailable" },
       { model: "sonnet", use: "Referee for label disagreements; area suggestions", remark: "Opus takes over when Sonnet is unsure" },
       { model: "opus", use: "Referee when Sonnet is unsure; proposes area lists", remark: "When Opus is unsure too, its label stands and Decide asks a scope question" },
     ],
-    promptIds: ["classify.jev", "classify.haiku", "referee.sonnet", "areas.jev", "areas.haiku", "areas.propose", "areas.suggest"], promptStage: "Classify",
+    promptIds: ["classify.basal", "classify.haiku", "referee.sonnet", "areas.basal", "areas.haiku", "areas.propose", "areas.suggest"], promptStage: "Classify",
     waits: [
       { name: "Failed Opus referee", why: "An Opus referee call that keeps failing must not re-run every pass", howLong: "1 hour between tries, at most 3; then Decide asks a scope question", showsAs: "Plan wait \"the label referee\"", kind: "backoff" },
     ],
     writes: [],
     person: "Scope disagreements and labels the referees were unsure of (through Decide)",
     swimlane: [
-      { id: "classify", lane: "models", row: 6, lines: ["Classify", "Jev, Haiku backup"] },
+      { id: "classify", lane: "models", row: 6, lines: ["Classify", "Basal, Haiku backup"] },
       { id: "referee", lane: "models", row: 7, lines: ["Sonnet referee", "settles type disagreements"] },
     ],
     edges: [{ to: "priority", branch: null, label: "open items" }, { to: "decide", branch: null, label: "needs a decision" }],
@@ -148,18 +148,18 @@ export const STAGES: StageDef[] = [
     sets: ["Priority level", "Work rank"],
     states: [
       { id: "scored", label: "Scored", waitsOn: "nothing", tone: "ok", hint: "Impact and reach give the work score" },
-      { id: "unsure", label: "Waiting for a second opinion", waitsOn: "model", tone: "warn", hint: "Jev is unsure; Haiku hasn't answered yet" },
+      { id: "unsure", label: "Waiting for a second opinion", waitsOn: "model", tone: "warn", hint: "Basal is unsure; Haiku hasn't answered yet" },
       { id: "todo", label: "Not scored yet", waitsOn: "model", tone: "neutral", hint: "No score at the item's current text" },
     ],
-    models: [{ model: "jev", use: "Picks the level" }, { model: "haiku", use: "Decides where Jev is unsure" }],
-    promptIds: ["priority.jev", "priority.haiku"], promptStage: "Priority",
+    models: [{ model: "basal", use: "Picks the level" }, { model: "haiku", use: "Decides where basal is unsure" }],
+    promptIds: ["priority.basal", "priority.haiku"], promptStage: "Priority",
     waits: [
       { name: "Work rank recompute", why: "Its input moves in bursts while a sync writes; nothing waits on it", howLong: "at most once a minute", showsAs: "none", kind: "backoff" },
     ],
     writes: [],
     person: null,
     swimlane: [
-      { id: "priority", lane: "models", row: 8, lines: ["Priority", "Jev, level P0 to P4"] },
+      { id: "priority", lane: "models", row: 8, lines: ["Priority", "Basal, level P0 to P4"] },
     ],
     edges: [{ to: "decide", branch: null, label: "scored" }],
   },
@@ -234,7 +234,7 @@ export const STAGES: StageDef[] = [
       { id: "close", label: "Close", waitsOn: "nothing", tone: "bad", hint: "Wrong, not wanted, already done or superseded" },
     ],
     models: [{ model: "opus", use: "Reviews every wanted PR", remark: "The review gives a verdict, a complete fix list and how sure Opus is" }],
-    promptIds: ["review.opus", "lint.reference.jev", "lint.reference.haiku"], promptStage: "Review",
+    promptIds: ["review.opus", "lint.reference.basal", "lint.reference.haiku"], promptStage: "Review",
     waits: [
       { name: "Checks before Review and Verify", why: "CI data younger than 5 minutes is reused", howLong: "5 minutes", showsAs: "Job list", kind: "backoff" },
       { name: "Blocked by another item", why: "A hold review named an open item as its reason (for example the PR is stacked on another open PR); the PR is not reviewed again, on new commits or discussion, until that item is merged, closed or decided", howLong: "Until the blocker is merged, closed or decided; a maintainer's comment or Review again lifts it", showsAs: "Plan wait: the blocker's reference", kind: "external" },
@@ -495,7 +495,7 @@ export const GLOBAL_WAITS: { name: string; why: string; howLong: string; showsAs
   { name: "Failed job", why: "Retry a real failure without hammering", howLong: "1, 2, 4, 8, 16, then 30 minutes; ends on a release, and after a single failure also on a changed input", showsAs: "\"failed N times in a row; retry at HH:MM UTC\"", kind: "backoff" },
   { name: "Job past its deadline", why: "The runner stopped a job for running past its step's deadline; running the same paid work again at once would stop it again", howLong: "At least 1 hour (longer after more failures in a row); no timer runs, the planner reads the failure", showsAs: "\"failed N times in a row; retry at HH:MM UTC\"", kind: "backoff" },
   { name: "Daily limit", why: "Cost control. For Act, which card presses share with its closes, a press that finds no room is queued and carried out in order (item priority level, then time of the press) when room returns", howLong: "Until 00:00 UTC, or until an operator raises the limit", showsAs: "\"daily limit of N items reached; resumes at 00:00 UTC\"", kind: "backoff" },
-  { name: "Jev unavailable", why: "Jev is switched off (`autocraft-server accounts jev off`), its basal-serve cannot be reached (not running, a wrong `AUTOCRAFT_BASAL_URL`, an unreadable `AUTOCRAFT_BASAL_KEY_FILE`), or the server refuses the request (status 401 or 403: a missing or rejected key, or a host name it does not allow). Haiku does Jev's classify, priority and duplicate work through the Claude accounts. Off: no retry until it is switched on. Unreachable: the first pass five minutes after the last failure tries Jev again. Refused: the first pass an hour after the last failure; no timer runs. Other Jev errors (timeouts, server errors, a model still warming up (503), bad answers) are retried as before", howLong: "5 minutes when unreachable, 1 hour after a refused key", showsAs: "Accounts page and run logs", kind: "external" },
+  { name: "Basal unavailable", why: "Basal is switched off (`autocraft-server accounts basal off`), its basal-serve cannot be reached (not running, a wrong `AUTOCRAFT_BASAL_URL`, an unreadable `AUTOCRAFT_BASAL_KEY_FILE`), or the server refuses the request (status 401 or 403: a missing or rejected key, or a host name it does not allow). Haiku does basal's classify, priority and duplicate work through the Claude accounts. Off: no retry until it is switched on. Unreachable: the first pass five minutes after the last failure tries basal again. Refused: the first pass an hour after the last failure; no timer runs. Other basal errors (timeouts, server errors, a model still warming up (503), bad answers) are retried as before", howLong: "5 minutes when unreachable, 1 hour after a refused key", showsAs: "Accounts page and run logs", kind: "external" },
   { name: "Circuit breaker", why: "A push stage (fix-up, CI fix, fix issue) stops when 2 of its last 10 pushes turned a required check red; the merge path stops when main CI turns red because of a merge of ours or a post-merge review finds a defect in it", howLong: "Until an operator resumes the stage (`autocraft-server pipeline resume <stage>` or the Resume button on the Pipeline page); no timer", showsAs: "\"tripped: ...\" as the stage's pause reason", kind: "external" },
   { name: "Claude account slots", why: "Each Claude account runs a limited number of calls at once (set by operators on the Accounts page); calls beyond that wait in a queue, security first, then the path to merge, then triage", howLong: "Until a running call ends or an operator raises an account's slots", showsAs: "\"waiting for a Claude account\" in the job log", kind: "external" },
   { name: "Confidential build environment", why: "A private security fix starts its model call only once a confidential build environment is ready (its worker reported after it was marked), so its checks and builds can run; no job holds the wait", howLong: "Until an operator marks an environment confidential and its worker reports", showsAs: "\"Waiting for a confidential build environment.\" as the finding's note; the confidential-env health check", kind: "external" },

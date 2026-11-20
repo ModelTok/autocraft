@@ -63,6 +63,6 @@ export const SAMPLE_PREPARE: PrepareInput[] = [{
   ],
   stopped: {
     context: "The classifiers settled on missing feature and flagged it as needing a maintainer's call.",
-    classifications: [{ classifier: "jev", type_label: "missing feature", want: "unclear", reason: "Asks for a feature the reference app may have." }],
+    classifications: [{ classifier: "basal", type_label: "missing feature", want: "unclear", reason: "Asks for a feature the reference app may have." }],
   },
 }];

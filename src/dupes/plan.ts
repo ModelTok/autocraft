@@ -9,11 +9,11 @@ import type { DatabaseSync } from "node:sqlite";
 import { pickCanonical } from "./canonical.ts";
 import { inPilot } from "../pilot.ts";
 
-type Edge = { repo: string; a: number; b: number; similarity: number; jev_p: number | null; haiku: string | null };
+type Edge = { repo: string; a: number; b: number; similarity: number; basal_p: number | null; haiku: string | null };
 
 /** Duplicate pairs whose items still have the checked text. */
 export function duplicateEdges(db: DatabaseSync, repo?: string): Edge[] {
-  return db.prepare(`SELECT p.repo, p.a, p.b, p.similarity, p.jev_p, p.haiku FROM duplicate_pairs p
+  return db.prepare(`SELECT p.repo, p.a, p.b, p.similarity, p.basal_p, p.haiku FROM duplicate_pairs p
     JOIN items ia ON ia.repo = p.repo AND ia.number = p.a AND ia.embed_hash = p.a_hash
     JOIN items ib ON ib.repo = p.repo AND ib.number = p.b AND ib.embed_hash = p.b_hash
     WHERE p.verdict = 'duplicate' AND p.by_operator = 0 ${repo ? "AND p.repo = ?" : ""} ORDER BY p.repo, p.a, p.b`).all(...(repo ? [repo] : [])) as Edge[];

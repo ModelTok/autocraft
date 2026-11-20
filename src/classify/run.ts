@@ -1,4 +1,4 @@
-// Runs the classifiers: Jev (one basal-serve request per item, src/agents/basal.ts) and Haiku (batches through `claude -p`).
+// Runs the classifiers: Basal (one basal-serve request per item, src/agents/basal.ts) and Haiku (batches through `claude -p`).
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
@@ -6,10 +6,10 @@ import { basename, join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import type { ItemRef } from "../../web/src/api/types.ts";
 import { createHash } from "node:crypto";
-import { jevParallel } from "../agents/accounts.ts";
-import { jevAvailable, jevFailure, markJevUnavailable, markJevWorking } from "../agents/jev.ts";
+import { basalParallel } from "../agents/accounts.ts";
+import { basalAvailable, basalFailure, markBasalUnavailable, markBasalWorking } from "../agents/basal-availability.ts";
 import { basalAsk, type BasalReply } from "../agents/basal.ts";
-import { accountConfigDir, itemRepos, NoTakerError, poolRoom, repoBatches, startClaudeRun, type PoolRoom, startJevRun, tryStartFollowUp, isHalt, type Started } from "../agents/call.ts";
+import { accountConfigDir, itemRepos, NoTakerError, poolRoom, repoBatches, startClaudeRun, type PoolRoom, startBasalRun, tryStartFollowUp, isHalt, type Started } from "../agents/call.ts";
 import { touchStore, type KeptSession, type SessionAsk } from "../prepush/resume.ts";
 import { finishRun, packText, setRunProgress } from "../agents/runs.ts";
 import { clockLine, saveTools, type ToolClock } from "../agents/tools.ts";
@@ -36,11 +36,11 @@ import { holdCheckouts } from "../sandbox/checkout.ts";
 import { sessionStore } from "../sandbox/session-store.ts";
 import { defaultWorkspace } from "../sandbox/workspace.ts";
 import { runModelStep } from "../agents/step.ts";
-import { CLASSIFY_HAIKU, CLASSIFY_JEV } from "../agents/steps.ts";
-import { CLAUDE_PROMPTS, BASAL_USD_PER_INPUT_TOKEN, JEV_PROMPTS, claudeArgs, claudeParts, claudePromptOf, jevPromptOf, joinParts, renderClaude, renderJev, type ClaudeInput, type ClaudePromptId, type JevPromptId } from "../prompts/index.ts";
+import { CLASSIFY_HAIKU, CLASSIFY_BASAL } from "../agents/steps.ts";
+import { CLAUDE_PROMPTS, BASAL_USD_PER_INPUT_TOKEN, BASAL_PROMPTS, claudeArgs, claudeParts, claudePromptOf, basalPromptOf, joinParts, renderClaude, renderBasal, type ClaudeInput, type ClaudePromptId, type BasalPromptId } from "../prompts/index.ts";
 import { stripMarks } from "../prompts/harness.ts";
 import type { DupePair } from "../dupes/pair.ts";
-import { flagsOf, jevVerdict, parseHaikuReply, parseRef, refOf, type Item, type JevAnswers, type Verdict } from "./parse.ts";
+import { flagsOf, basalVerdict, parseHaikuReply, parseRef, refOf, type Item, type BasalAnswers, type Verdict } from "./parse.ts";
 import { envVar } from "../env.ts";
 import { wholeReplyJson } from "../core/reply-json.ts";
 
@@ -251,23 +251,23 @@ export function setRunner(r: Runner): () => void {
   return () => { runner = exec; };
 }
 
-/** Sends one Jev request body to the model server within a time limit. */
-export type JevRunner = (body: string, timeoutMs: number) => Promise<BasalReply>;
-const basal: JevRunner = (body, timeoutMs) => basalAsk(body, timeoutMs);
-let jevRunner: JevRunner = basal;
+/** Sends one basal request body to the model server within a time limit. */
+export type BasalRunner = (body: string, timeoutMs: number) => Promise<BasalReply>;
+const basalHttp: BasalRunner = (body, timeoutMs) => basalAsk(body, timeoutMs);
+let basalRunner: BasalRunner = basalHttp;
 
 /** Tests swap the basal-serve client for a fake; returns a function that restores the real one. */
-export function setJevRunner(r: JevRunner): () => void {
-  jevRunner = r;
-  return () => { jevRunner = basal; };
+export function setBasalRunner(r: BasalRunner): () => void {
+  basalRunner = r;
+  return () => { basalRunner = basalHttp; };
 }
 
 const versions = new Map<string, string>();
 /** A short hash of the registered prompt text, so runs show which wording they used. */
-function promptVersion(id: ClaudePromptId | JevPromptId): string {
+function promptVersion(id: ClaudePromptId | BasalPromptId): string {
   let v = versions.get(id);
   if (!v) {
-    const p = id in CLAUDE_PROMPTS ? claudePromptOf(id as ClaudePromptId).template : JSON.stringify(jevPromptOf(id as JevPromptId).request);
+    const p = id in CLAUDE_PROMPTS ? claudePromptOf(id as ClaudePromptId).template : JSON.stringify(basalPromptOf(id as BasalPromptId).request);
     v = createHash("sha256").update(p).digest("hex").slice(0, 10);
     versions.set(id, v);
   }
@@ -784,22 +784,22 @@ async function askRemote<K extends ClaudePromptId>(id: K, model: string, input: 
   }
 }
 
-/** Sends a registered Jev request (src/prompts) for one item to basal-serve; the same rule as `askClaude`. Recorded as an agent run without an account. */
-export async function askJev(id: JevPromptId, item: Item | DupePair | { ref: string }, db: DatabaseSync, body: string = renderJev(id, item as Item | DupePair), perCallUsage = true): Promise<BasalReply> {
-  const runId = startJevRun(db, { promptId: id, promptVersion: promptVersion(id), provider: "jev", model: "jev", items: refsOf([item]), prompt: body });
+/** Sends a registered basal request (src/prompts) for one item to basal-serve; the same rule as `askClaude`. Recorded as an agent run without an account. */
+export async function askBasal(id: BasalPromptId, item: Item | DupePair | { ref: string }, db: DatabaseSync, body: string = renderBasal(id, item as Item | DupePair), perCallUsage = true): Promise<BasalReply> {
+  const runId = startBasalRun(db, { promptId: id, promptVersion: promptVersion(id), provider: "basal", model: "basal", items: refsOf([item]), prompt: body });
   const start = now();
   try {
-    const r = await jevRunner(body, JEV_PROMPTS[id].limits.timeoutSeconds * 1000);
+    const r = await basalRunner(body, BASAL_PROMPTS[id].limits.timeoutSeconds * 1000);
     let tokens: { input: number; output: number; cacheRead: number; cacheWrite: number } | undefined;
     try {
       const j = JSON.parse(r.stdout) as { usage?: { input_tokens?: number; output_tokens?: number } };
       if (j.usage) tokens = { input: j.usage.input_tokens ?? 0, output: j.usage.output_tokens ?? 0, cacheRead: 0, cacheWrite: 0 };
     } catch { /* the caller reports an unreadable answer */ }
     // A step that sums its retries into one row (usage option of runModelStep) saves nothing here.
-    if (tokens && perCallUsage) saveUsage(db, String(runId), "jev", id.split(".")[0]!, JEV_PROMPTS[id].models[0]!, 1, { ...tokens, cost: tokens.input * BASAL_USD_PER_INPUT_TOKEN }, start, now());
-    const outage = jevFailure(r);
-    if (outage) markJevUnavailable(db, outage.kind, outage.reason);
-    else if (r.code === 0) markJevWorking(db, Date.parse(start));
+    if (tokens && perCallUsage) saveUsage(db, String(runId), "basal", id.split(".")[0]!, BASAL_PROMPTS[id].models[0]!, 1, { ...tokens, cost: tokens.input * BASAL_USD_PER_INPUT_TOKEN }, start, now());
+    const outage = basalFailure(r);
+    if (outage) markBasalUnavailable(db, outage.kind, outage.reason);
+    else if (r.code === 0) markBasalWorking(db, Date.parse(start));
     if (r.code === 0 && tokens) finishRun(db, runId, { state: "done", tokens, costUsd: tokens.input * BASAL_USD_PER_INPUT_TOKEN, summary: "answered", output: r.stdout });
     else finishRun(db, runId, { state: "failed", error: scrubError(`${exitClass(r.code)} ${r.stderr}`), summary: r.code === 0 ? "unreadable answer" : exitClass(r.code), output: r.stdout });
     return r;
@@ -833,14 +833,14 @@ export async function runHaiku(db: DatabaseSync, runId: string, items: Item[], b
   return items.length - skipped;
 }
 
-export async function runJev(db: DatabaseSync, runId: string, items: Item[], width = jevParallel(db)): Promise<void> {
+export async function runBasal(db: DatabaseSync, runId: string, items: Item[], width = basalParallel(db)): Promise<void> {
   await pool(items.map((item) => async () => {
-    // Once a call shows Jev is unavailable, the items still waiting are left for Haiku.
-    if (!jevAvailable(db)) return;
+    // Once a call shows basal is unavailable, the items still waiting are left for Haiku.
+    if (!basalAvailable(db)) return;
     const ref = refOf(item);
-    const r = await runModelStep(db, CLASSIFY_JEV, item, { usage: { run: runId, agent: `jev-${ref}`, stage: "classify", items: (ok) => (ok ? 1 : 0), withoutUsage: true, skipWhen: (x) => !x.ok && !jevAvailable(db) } });
-    if (r.ok) saveVerdict(db, "jev", runId, r.value);
-    else if (jevAvailable(db)) console.error(`jev: no valid answer for ${ref}`);
+    const r = await runModelStep(db, CLASSIFY_BASAL, item, { usage: { run: runId, agent: `basal-${ref}`, stage: "classify", items: (ok) => (ok ? 1 : 0), withoutUsage: true, skipWhen: (x) => !x.ok && !basalAvailable(db) } });
+    if (r.ok) saveVerdict(db, "basal", runId, r.value);
+    else if (basalAvailable(db)) console.error(`basal: no valid answer for ${ref}`);
   }), width);
 }
 

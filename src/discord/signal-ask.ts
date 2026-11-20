@@ -3,8 +3,8 @@
 import { flagBand, type FlagBand } from "../classify/parse.ts";
 import { wholeReplyJson } from "../core/reply-json.ts";
 
-/** Jev's yes-probability from which a message counts as asking; below JEV_FLAG_NO (0.3) it does not, and Haiku decides in between. */
-export const SIGNAL_JEV_YES = 0.8;
+/** Basal's yes-probability from which a message counts as asking; below BASAL_FLAG_NO (0.3) it does not, and Haiku decides in between. */
+export const SIGNAL_BASAL_YES = 0.8;
 export const SIGNAL_TEXT_CHARS = 1000;
 export const SIGNAL_TITLE_CHARS = 200;
 
@@ -17,13 +17,13 @@ export const SAMPLE_SIGNAL: SignalAsk[] = [{ ref: "photocraft#7", title: "Export
 
 const clean = (a: SignalAsk): SignalAsk => ({ ref: a.ref, title: a.title.slice(0, SIGNAL_TITLE_CHARS), text: a.text.slice(0, SIGNAL_TEXT_CHARS) });
 
-/** The data of one call, as one JSON string: Jev's request state and the Haiku prompt's data block. */
+/** The data of one call, as one JSON string: Basal's request state and the Haiku prompt's data block. */
 export const signalState = (a: SignalAsk): string => JSON.stringify(clean(a), null, 1).replace(/</g, "\\u003c");
 
-export const signalBand = (p: number): FlagBand => flagBand(p, SIGNAL_JEV_YES);
+export const signalBand = (p: number): FlagBand => flagBand(p, SIGNAL_BASAL_YES);
 
-/** Jev's answer: the yes-probability, or null when the answer has no number from 0 to 1. */
-export function jevSignal(answers: unknown): number | null {
+/** Basal's answer: the yes-probability, or null when the answer has no number from 0 to 1. */
+export function basalSignal(answers: unknown): number | null {
   const p = (answers as { asks?: { noul?: unknown } } | undefined)?.asks?.noul;
   return typeof p === "number" && p >= 0 && p <= 1 ? p : null;
 }

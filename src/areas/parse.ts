@@ -13,8 +13,8 @@ export function canonicalArea(choice: unknown, areas: Area[]): string | null | u
 
 export type AreaAnswer = { area: string | null; top: number };
 
-/** Jev's `answers` for the area question, or null when it is missing or names something that is not in the list. */
-export function jevAreaChoice(answers: unknown, areas: Area[]): AreaAnswer | null {
+/** Basal's `answers` for the area question, or null when it is missing or names something that is not in the list. */
+export function basalAreaChoice(answers: unknown, areas: Area[]): AreaAnswer | null {
   const a = (answers as { area?: { choice?: string; confidence?: number; probabilities?: Record<string, number> } } | undefined)?.area;
   const area = canonicalArea(a?.choice, areas);
   if (area === undefined) return null;
@@ -22,7 +22,7 @@ export function jevAreaChoice(answers: unknown, areas: Area[]): AreaAnswer | nul
   return typeof top === "number" ? { area, top } : null;
 }
 
-/** Jev's top choice settles the area from AREA_SURE up. */
+/** Basal's top choice settles the area from AREA_SURE up. */
 export const settles = (top: number): boolean => top >= AREA_SURE;
 
 /** One area (or none) per asked ref, from Haiku's reply. Refs without a valid entry are returned as missing. */

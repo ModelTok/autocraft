@@ -511,7 +511,7 @@ const LANE_CODE: Omit<Lane, "steps">[] = [
     },
   },
   {
-    // Label disagreements outside the scope labels, after Jev and Haiku have both answered.
+    // Label disagreements outside the scope labels, after basal and Haiku have both answered.
     name: "referee",
     detect: (db, ctx) => {
       // An item whose Opus call failed is asked again once its backoff ends.

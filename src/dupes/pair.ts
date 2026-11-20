@@ -3,11 +3,11 @@
 import { wholeReplyJson } from "../core/reply-json.ts";
 
 export const PAIR_BODY_LIMIT = 2000;
-/** Jev's yes-probability at or above this makes a pair a duplicate; at or below 1 minus this, distinct. */
-export const JEV_ACCEPT = 0.9;
-export const JEV_REJECT = 0.1;
-/** Jev's yes-probability a Haiku "duplicate" still needs, so the models do not contradict each other outright. */
-export const JEV_FLOOR = 0.5;
+/** Basal's yes-probability at or above this makes a pair a duplicate; at or below 1 minus this, distinct. */
+export const BASAL_ACCEPT = 0.9;
+export const BASAL_REJECT = 0.1;
+/** Basal's yes-probability a Haiku "duplicate" still needs, so the models do not contradict each other outright. */
+export const BASAL_FLOOR = 0.5;
 
 
 export const VERDICTS = ["duplicate", "distinct", "unsure"] as const;
@@ -43,12 +43,12 @@ export function parsePairReply(text: string, refs: string[]): { answers: PairAns
   return { answers, missing: refs.filter((r) => !seen.has(r)) };
 }
 
-/** The pair's verdict from Jev's probability and, when Jev is not sure either way, Haiku's answer. With Jev unavailable, Haiku's answer alone. null: Haiku is needed and has not answered. */
-export function settlePair(jev: number | null, haiku: PairVerdict | null, jevUnavailable = false): PairVerdict | null {
-  if (jevUnavailable) return haiku;
-  if (jev !== null && jev >= JEV_ACCEPT) return "duplicate";
-  if (jev !== null && jev <= JEV_REJECT) return "distinct";
+/** The pair's verdict from basal's probability and, when basal is not sure either way, Haiku's answer. With basal unavailable, Haiku's answer alone. null: Haiku is needed and has not answered. */
+export function settlePair(basal: number | null, haiku: PairVerdict | null, basalUnavailable = false): PairVerdict | null {
+  if (basalUnavailable) return haiku;
+  if (basal !== null && basal >= BASAL_ACCEPT) return "duplicate";
+  if (basal !== null && basal <= BASAL_REJECT) return "distinct";
   if (haiku === null) return null;
-  if (haiku === "duplicate") return jev !== null && jev >= JEV_FLOOR ? "duplicate" : "unsure";
+  if (haiku === "duplicate") return basal !== null && basal >= BASAL_FLOOR ? "duplicate" : "unsure";
   return haiku;
 }

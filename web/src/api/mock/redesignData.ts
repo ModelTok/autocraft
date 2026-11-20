@@ -66,7 +66,7 @@ const BARS: Record<string, ItemBar> = {
     steps: [],
   },
   "filmcraft#1830": {
-    headline: { tone: "running", text: "Classify running", next: "priority and decision", model: "Jev", startedAt: at(0.15), jobId: 4418 },
+    headline: { tone: "running", text: "Classify running", next: "priority and decision", model: "Basal", startedAt: at(0.15), jobId: 4418 },
     steps: [step("dupes", "Duplicates", "done", 49, 0, 4416), step("classify", "Classify", "current", null, null, 4418, true)],
   },
   "photocraft#9970": {
@@ -165,7 +165,7 @@ const REVIEWS_9981: { latest: OpusReviewEntry; earlier: OpusReviewEntry[] } = {
 const hist = (id: string, minAgo: number, step: string, outcome: string, model: string | null, costUsd: number | null, kind: HistoryEntry["kind"] = "model", calls: HistoryEntry["calls"] = [], writeId: string | null = null): HistoryEntry => ({ id, at: at(minAgo), step, outcome, model, costUsd, kind, calls, writeId });
 
 const HISTORY_1484: HistoryEntry[] = [
-  hist("h1", 4 * D + 3 * H, "Classify", "missing feature, three of three agree", "Jev", 0.0, "model"),
+  hist("h1", 4 * D + 3 * H, "Classify", "missing feature, three of three agree", "Basal", 0.0, "model"),
   hist("h2", 4 * D + 2 * H, "Review", "Hold, unsure", "Opus", 1.1, "model", [{ label: "Read crates/spell/src/hu.rs", kind: "tool", costUsd: null }, { label: "Read data/hu/hyph.dic", kind: "tool", costUsd: null }, { label: "Opus, 38k tokens", via: { login: "kiri-n", harness: "claude", model: "claude-opus-4-5" }, kind: "model", costUsd: 1.1 }]),
   hist("h3", 4 * D + 2 * H - 4, "Posted review on GitHub", "Review comment created", null, null, "write", [], "w1"),
   hist("h4", 3 * D + 4 * H, "Review", "Take with fixes, new head b72c4d8", "Opus", 0.74, "model", [{ label: "Read crates/spell/tests/hyphen.rs", kind: "tool", costUsd: null }, { label: "Opus, 29k tokens", kind: "model", costUsd: 0.74 }]),
@@ -213,7 +213,7 @@ const GITHUB_1484: GithubSide = {
 
 // ---- photocraft#9981: in queue, waiting for CI ----
 const HISTORY_9981: HistoryEntry[] = [
-  hist("h1", 5 * H, "Classify", "bug fix, three of three agree", "Jev", 0, "model"),
+  hist("h1", 5 * H, "Classify", "bug fix, three of three agree", "Basal", 0, "model"),
   hist("h2", 4 * H, "Review", "Take with fixes", "Opus", 1.9, "model", [{ label: "Read crates/crop/src/handles.rs", kind: "tool", costUsd: null }, { label: "Opus, 52k tokens", kind: "model", costUsd: 1.9 }]),
   hist("h3", 4 * H - 3, "Posted review on GitHub", "Review comment created", null, null, "write", [], "w1"),
   hist("h4", 2 * H + 20, "Fix-up", "Pushed a1b2c3d: clamp skew", "Sonnet", 1.4, "model", [{ label: "Edit crates/crop/src/skew.rs", kind: "tool", costUsd: null }, { label: "cargo test -p crop", kind: "tool", costUsd: null }, { label: "Sonnet, 41k tokens", kind: "model", costUsd: 1.4 }]),
@@ -239,7 +239,7 @@ const GITHUB_9981: GithubSide = {
 
 // ---- wordcraft#2214: an issue AutoCraft is fixing ----
 const HISTORY_2214: HistoryEntry[] = [
-  hist("h1", 3 * H, "Classify", "bug, three of three agree", "Jev", 0, "model"),
+  hist("h1", 3 * H, "Classify", "bug, three of three agree", "Basal", 0, "model"),
   hist("h2", 3 * H - 10, "Assigned", "Assigned to autocraft", null, null, "write", [], "w1"),
   hist("h3", 2 * H + 30, "Fix", "Opened wordcraft#2231 with a first patch", "Opus", 2.31, "model", [{ label: "Read crates/export/src/pdf/links.rs", kind: "tool", costUsd: null }, { label: "Edit crates/export/src/pdf/links.rs", kind: "tool", costUsd: null }, { label: "Opus, 61k tokens", kind: "model", costUsd: 2.31 }]),
   hist("h4", 2 * H + 25, "Opened pull request", "wordcraft#2231", null, null, "write", [], "w2"),
@@ -323,7 +323,7 @@ export function itemPageFor(repo: string, number: number): ItemPageData | null {
   const full = FULL[`${repo}#${number}`];
   const base = { repo, number, kind: s.kind, state: s.state, title: s.title, author: s.author, status: s.status, bar: BARS[`${repo}#${number}`] ?? barFromStatus(s.status), stamp: "mock", header: { ...mockHeader(s.kind), ...full?.header } };
   if (full) return withTimeline({ ...base, ...full, header: base.header, costUsd: total(full.history) });
-  const history = [hist("h1", s.updated + 20, "Classify", "classified", "Jev", 0), hist("h2", s.updated, s.status.phase, s.status.waiting ?? "done", null, null, "event")];
+  const history = [hist("h1", s.updated + 20, "Classify", "classified", "Basal", 0), hist("h2", s.updated, s.status.phase, s.status.waiting ?? "done", null, null, "event")];
   return withTimeline({
     ...base, reviews: { latest: null, earlier: [] }, results: [{ id: "c1", kind: "classifiers", title: "Classifiers", outcome: "3 of 3 agree", tone: "neutral", at: at(s.updated + 20), detail: null, earlier: [] }], history, costUsd: 0,
     github: { description: s.title, url: `https://github.com/storytold/${repo}/${s.kind === "pr" ? "pull" : "issues"}/${number}`, events: [gh("g1", "opened", s.updated + 60, s.author, s.title)], checks: [], commits: [], files: [], syncedAt: at(3) },

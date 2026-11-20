@@ -1,14 +1,14 @@
 // Attention signals: whether a message that names a tracked item asks for attention on it (a review, a merge, an answer,
-// "is anyone looking at this"). Jev is asked once per message and item; Haiku decides where Jev is unsure and when Jev is
+// "is anyone looking at this"). Basal is asked once per message and item; Haiku decides where basal is unsure and when basal is
 // unavailable, under a daily dollar cap. The text is used for that call only: only a flag is kept on the mention row, the
 // recorded prompt and reply are deleted when the call ends, and an edit asks again. A deleted message takes its row, and
 // so its flag, with it (store.ts). Display only: nothing in the pipeline reads the flag.
 import type { DatabaseSync } from "node:sqlite";
-import { jevAvailable } from "../agents/jev.ts";
-import { runModelStep, type ClaudeStep, type JevStep } from "../agents/step.ts";
-import { JEV_PROMPTS } from "../prompts/index.ts";
+import { basalAvailable } from "../agents/basal-availability.ts";
+import { runModelStep, type ClaudeStep, type BasalStep } from "../agents/step.ts";
+import { BASAL_PROMPTS } from "../prompts/index.ts";
 import type { DiscordKeys } from "./keys.ts";
-import { jevSignal, parseSignal, signalBand, signalState, type SignalAsk } from "./signal-ask.ts";
+import { basalSignal, parseSignal, signalBand, signalState, type SignalAsk } from "./signal-ask.ts";
 import { isWatched, trackedRepos, type DiscordLink } from "./store.ts";
 import { parseRefs, type ItemKey } from "./refs.ts";
 
@@ -24,14 +24,14 @@ const MAX_CALLS = 2;
 /** Longest the Haiku call waits for a Claude account. */
 const MODEL_WAIT_MS = 20_000;
 
-/** The model calls; tests replace them. Jev gives the yes-probability, Haiku the answer; null when there was none. */
-export type Judge = { jev: (db: DatabaseSync, ask: SignalAsk) => Promise<number | null>; haiku: (db: DatabaseSync, ask: SignalAsk) => Promise<boolean | null> };
+/** The model calls; tests replace them. Basal gives the yes-probability, Haiku the answer; null when there was none. */
+export type Judge = { basal: (db: DatabaseSync, ask: SignalAsk) => Promise<number | null>; haiku: (db: DatabaseSync, ask: SignalAsk) => Promise<boolean | null> };
 
-const JEV_STEP: JevStep<SignalAsk, number> = {
-  provider: "jev", id: "discord.signal.jev",
-  request: (a) => ({ item: { ref: a.ref }, body: JSON.stringify({ ...JEV_PROMPTS["discord.signal.jev"].request, state: signalState(a) }) }),
+const BASAL_STEP: BasalStep<SignalAsk, number> = {
+  provider: "basal", id: "discord.signal.basal",
+  request: (a) => ({ item: { ref: a.ref }, body: JSON.stringify({ ...BASAL_PROMPTS["discord.signal.basal"].request, state: signalState(a) }) }),
   parse: (answers, _a, ctx) => {
-    const p = ctx.code === 0 ? jevSignal(answers) : null;
+    const p = ctx.code === 0 ? basalSignal(answers) : null;
     return p === null ? null : { value: p };
   },
 };
@@ -45,8 +45,8 @@ const HAIKU_STEP: ClaudeStep<SignalAsk, boolean> = {
 };
 
 export const modelJudge: Judge = {
-  jev: async (db, a) => {
-    const r = await runModelStep(db, JEV_STEP, a);
+  basal: async (db, a) => {
+    const r = await runModelStep(db, BASAL_STEP, a);
     return r.ok ? r.value : null;
   },
   haiku: async (db, a) => {
@@ -156,10 +156,10 @@ export class Signals {
     const { db, log } = this.#d;
     const judge = this.#d.judge ?? modelJudge;
     try {
-      // The daily cap comes first: a spent cap (or a cap of 0) makes no Jev or model call.
+      // The daily cap comes first: a spent cap (or a cap of 0) makes no basal or model call.
       if (signalSpentUsd(db, (this.#d.now ?? Date.now)()) >= signalCapUsd(db)) return null;
-      if (jevAvailable(db)) {
-        const p = await judge.jev(db, a);
+      if (basalAvailable(db)) {
+        const p = await judge.basal(db, a);
         const band = p === null ? "unsure" : signalBand(p);
         if (band === "yes") return true;
         if (band === "no") return false;

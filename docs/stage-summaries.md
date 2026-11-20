@@ -16,7 +16,7 @@
 
 **When.** After Sync, for new or changed items.
 
-**Model.** Jev first, Haiku for the unclear pairs.
+**Model.** Basal first, Haiku for the unclear pairs.
 
 **You see.** A "Duplicate?" question on the Needs you page. An open one holds the item out of Review, Verify, Fix and the merge queue.
 
@@ -28,11 +28,11 @@
 
 **When.** For every open item, repos with the pipeline on first.
 
-**Model.** Jev first, Haiku for a second opinion.
+**Model.** Basal first, Haiku for a second opinion.
 
 **You see.** The type and flags on the item. A disagreement on a scope label becomes a question.
 
-**Can go wrong.** When Jev is unavailable, Haiku decides alone.
+**Can go wrong.** When basal is unavailable, Haiku decides alone.
 
 ## Priority
 

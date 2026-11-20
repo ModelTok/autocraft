@@ -92,7 +92,7 @@ export function groupCalls(events: TraceEvent[]): TraceRow[] {
 
 const modelName = (m: string) => m.charAt(0).toUpperCase() + m.slice(1);
 
-/** "Reference lint: 10 Jev calls, 1 Haiku call". */
+/** "Reference lint: 10 basal calls, 1 Haiku call". */
 export function callGroupSummary(calls: TraceEvent[]): string {
   const counts = new Map<string, number>();
   for (const c of calls) {

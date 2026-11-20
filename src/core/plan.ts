@@ -282,9 +282,9 @@ export type PrFacts = {
 export const ITEM_STATES = [
   "held-duplicate", // an open or accepted Duplicate? decision holds it
   "held-backlog", // a Backlog answer holds it
-  "referee-due", // Jev and Haiku disagree, it is not a scope call, and the referee (Sonnet, then Opus when Sonnet was unsure) has not settled it
-  "unclassified", // no Jev or Haiku verdict in the run
-  "waiting-haiku", // Jev is unsure and Haiku has not given its second opinion
+  "referee-due", // basal and Haiku disagree, it is not a scope call, and the referee (Sonnet, then Opus when Sonnet was unsure) has not settled it
+  "unclassified", // no basal or Haiku verdict in the run
+  "waiting-haiku", // basal is unsure and Haiku has not given its second opinion
   "scope-open", // a scope decision about it waits for an answer
   "scope-due", // a scope decision is due (needs-decision flag, or a scope-vs-scope disagreement) and nobody asked yet
   "classified", // settled, nothing in the triage steps blocks it; later steps depend on its kind
@@ -327,11 +327,11 @@ export type ItemFacts = {
     status: "settled" | "waiting" | "disagree" | "unclassified";
     label: string | null;
     flags: string[];
-    jevLabel: string | null; haikuLabel: string | null;
+    basalLabel: string | null; haikuLabel: string | null;
     referee: { sure: boolean; final: boolean; failedAt?: string | null } | null;
-    /** Jev's verdict in the run: its time, whether the item's classifier input changed since, and whether Jev is unsure of the type or a flag. */
-    jev: { at: string; changed: boolean; unsure: boolean } | null;
-    /** Haiku's verdict in the run; `aloneCurrent`: it classified the item alone at its current input (that settles it without Jev). */
+    /** Basal's verdict in the run: its time, whether the item's classifier input changed since, and whether basal is unsure of the type or a flag. */
+    basal: { at: string; changed: boolean; unsure: boolean } | null;
+    /** Haiku's verdict in the run; `aloneCurrent`: it classified the item alone at its current input (that settles it without basal). */
     haiku: { at: string; aloneCurrent: boolean } | null;
   };
 

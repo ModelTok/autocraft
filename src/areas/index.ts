@@ -85,7 +85,7 @@ export const commands = {
         }
         case "rescan": {
           const r = await assignAreas(db, { repo, limit: Number(flag(args, "--limit") ?? 5000), rescan: true, usageRun, progress: (l) => console.log(l), log: console.log });
-          console.log(`${r.due} items asked: Jev settled ${r.jev}, Haiku ${r.haiku}, ${r.none} fit none, ${r.left} unanswered`);
+          console.log(`${r.due} items asked: Basal settled ${r.basal}, Haiku ${r.haiku}, ${r.none} fit none, ${r.left} unanswered`);
           break;
         }
         default:

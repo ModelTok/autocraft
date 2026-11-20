@@ -117,7 +117,7 @@ function useHashTarget(id: string, open: () => void) {
 
 /** The folded detail sections of a prompt. */
 function PromptBody({ p }: { p: PromptInfo }) {
-  const jev = p.runner === "jev";
+  const basal = p.runner === "basal";
   return (
     <div className="border-t border-line px-4 py-3">
       <Facts
@@ -127,8 +127,8 @@ function PromptBody({ p }: { p: PromptInfo }) {
         ]}
       />
       <div className="mt-3">
-        <Fold title={jev ? "Request template" : "Prompt template"} hint={`${p.placeholders.length} placeholder${p.placeholders.length === 1 ? "" : "s"}`}>
-          <Code text={p.template} title={jev ? "JSON, sent as one line" : "Text"} marks />
+        <Fold title={basal ? "Request template" : "Prompt template"} hint={`${p.placeholders.length} placeholder${p.placeholders.length === 1 ? "" : "s"}`}>
+          <Code text={p.template} title={basal ? "JSON, sent as one line" : "Text"} marks />
           <Placeholders items={p.placeholders} />
         </Fold>
         {p.questions.length > 0 && (
@@ -165,7 +165,7 @@ function PromptBody({ p }: { p: PromptInfo }) {
           <Code text={p.example} title={p.system === null ? "Exactly as sent on stdin, for made-up items" : "Sent on stdin, for made-up items"} />
         </Fold>
         <Fold title="Call settings" hint={p.runner}>
-          <Code text={p.command} title={jev ? "Command (request on stdin)" : "Command (prompt on stdin)"} />
+          <Code text={p.command} title={basal ? "Command (request on stdin)" : "Command (prompt on stdin)"} />
           <div className="mt-2">
             <Facts rows={p.settings.map((s) => ({ label: s.label, value: s.value }))} />
           </div>

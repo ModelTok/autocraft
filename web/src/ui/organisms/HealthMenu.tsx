@@ -16,7 +16,7 @@ const TONE: Record<NowProblem["tone"], { Icon: typeof WarningIcon; text: string 
 };
 
 /** Problems keep one place in the list whatever order they arrive in. */
-const AREAS: NowProblem["area"][] = ["pipeline", "runner", "workers", "sync", "breaker", "limit", "account", "jev", "main-ci", "jobs", "deadline", "liveness"];
+const AREAS: NowProblem["area"][] = ["pipeline", "runner", "workers", "sync", "breaker", "limit", "account", "basal", "main-ci", "jobs", "deadline", "liveness"];
 const place = (p: NowProblem) => AREAS.indexOf(p.area);
 
 /** Header indicator: icon and count of what is wrong, coloured by the worst problem; opens the list with a link to each fix. Renders nothing when healthy. */

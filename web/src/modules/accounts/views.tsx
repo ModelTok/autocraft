@@ -10,7 +10,7 @@ import { useUser } from "../../shell/UserContext";
 import { Badge } from "../../ui/atoms/Badge";
 import { Button } from "../../ui/atoms/Button";
 import { cn } from "../../ui/cn";
-import { EditForm, JevLine, PauseLevels, UsageBar } from "./controls";
+import { EditForm, BasalLine, PauseLevels, UsageBar } from "./controls";
 import { Block, ConfirmButton, ErrorLine, Page, TextInput, useWrite, when } from "../admin/parts";
 import { useNow } from "../../lib/useNow";
 import { safeHref } from "../../ui/safeHref";
@@ -189,9 +189,9 @@ export function AccountsView() {
   return (
     <Page title="Accounts" sub="Claude accounts for agent runs">
       <div className="mt-4 space-y-4">
-        <Block title="Pauses and Jev">
+        <Block title="Pauses and basal">
           <PauseLevels operator={operator} />
-          <JevLine operator={operator} />
+          <BasalLine operator={operator} />
         </Block>
         <Block title="Claude accounts">
           <ErrorLine error={q.error?.message} />

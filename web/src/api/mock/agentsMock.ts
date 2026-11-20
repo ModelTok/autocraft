@@ -1,7 +1,7 @@
 // Agents, accounts and rates on fake data: three accounts (one disabled), twelve runs in flight and a few hundred finished ones.
 import { traceRunDetail } from "./traceMock";
 import type { Api } from "../client";
-import type { AgentRun, AgentRunDetail, ClaudeAccount, JevStatus, Rates, UsagePause, User } from "../types";
+import type { AgentRun, AgentRunDetail, ClaudeAccount, BasalStatus, Rates, UsagePause, User } from "../types";
 import { NOW, REPOS } from "./fixtures";
 
 const wait = <T>(v: T, ms = 60) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), ms));
@@ -17,7 +17,7 @@ const STEPS = [
   { step: "decide", stage: 3, title: "Ask decisions", promptId: "decide.prepare", provider: "claude" as const, model: "opus" },
   { step: "opus-review", stage: 5, title: "Review pull requests", promptId: "review.opus", provider: "claude" as const, model: "opus" },
   { step: "classify-new", stage: 2, title: "Classify new and changed items", promptId: "classify.haiku", provider: "claude" as const, model: "haiku" },
-  { step: "classify-new", stage: 2, title: "Classify new and changed items", promptId: "classify.jev", provider: "jev" as const, model: "jev" },
+  { step: "classify-new", stage: 2, title: "Classify new and changed items", promptId: "classify.basal", provider: "basal" as const, model: "basal" },
 ];
 
 const AUTH = { loggedIn: true, method: "claude.ai", plan: "max", expiresAt: new Date(NOW + 40 * 24 * HOUR).toISOString(), checkedAt: new Date(NOW - 3 * MIN).toISOString() };
@@ -51,7 +51,7 @@ const shown = (i: { repo: string; number: number }): AgentRun["items"][number] =
 function makeRun(id: number, startedMsAgo: number, running: boolean): AgentRun {
   const s = pick(STEPS);
   const remote = s.provider === "claude" && id % 3 === 0;
-  const acct = s.provider === "jev" || remote ? null : running ? pick(accounts.filter((a) => a.enabled)) : pick(accounts);
+  const acct = s.provider === "basal" || remote ? null : running ? pick(accounts.filter((a) => a.enabled)) : pick(accounts);
   const n = s.step === "classify-new" ? 1 + Math.floor(rnd() * 30) : s.step === "opus-review" ? 1 + Math.floor(rnd() * 4) : 1 + Math.floor(rnd() * 8);
   const repo = pick(REPOS);
   const items = Array.from({ length: Math.min(n, 50) }, (_, i) => ({ repo: i % 3 === 2 ? pick(REPOS) : repo, number: 1000 + Math.floor(rnd() * 1400) })).map(shown);
@@ -64,7 +64,7 @@ function makeRun(id: number, startedMsAgo: number, running: boolean): AgentRun {
     items, itemCount: n, state: running ? "running" : failed ? "failed" : "done",
     startedAt: iso(startedMsAgo), endedAt: running ? null : iso(startedMsAgo - dur),
     inputTokens: tokens, outputTokens: running ? Math.round(tokens * 0.03) : Math.round(tokens * 0.08),
-    cacheReadTokens: s.provider === "jev" ? null : Math.round(tokens * 0.5), cacheWriteTokens: s.provider === "jev" ? null : Math.round(tokens * 0.1),
+    cacheReadTokens: s.provider === "basal" ? null : Math.round(tokens * 0.5), cacheWriteTokens: s.provider === "basal" ? null : Math.round(tokens * 0.1),
     ...(remote && { via: { login: pick(["kiri-n", "ochre-fox", "mara-t"]), harness: pick(["claude", "claude", "codex"]), model: s.model === "opus" ? "claude-opus-4-5" : "claude-haiku-4-5" } }),
     summary: running ? null : failed ? "timeout after 600 s" : s.step === "classify-new" ? `${n} classified` : `${Math.max(0, n - 1)} take, ${Math.min(1, n)} hold`,
   };
@@ -118,18 +118,18 @@ export function createAgentsMock(me: User, changed: () => void): Pick<Api, "acco
     return a;
   };
   let pause: UsagePause = { fiveHour: 80, weekly: 80 };
-  let jev: JevStatus = { enabled: true, unavailable: null };
+  let basal: BasalStatus = { enabled: true, unavailable: null };
   const visible = () => accounts.filter((a) => me.role === "operator" || a.enabled);
   return {
     accounts: {
       list: () => wait(visible()),
       pause: () => wait({ ...pause }),
-      jev: () => wait({ ...jev }),
-      async setJev(input) {
+      basal: () => wait({ ...basal }),
+      async setBasal(input) {
         if (me.role !== "operator") throw new Error("only operators change accounts");
-        jev = { enabled: input.enabled, unavailable: input.enabled ? null : { reason: "switched off", since: iso(0) } };
+        basal = { enabled: input.enabled, unavailable: input.enabled ? null : { reason: "switched off", since: iso(0) } };
         changed();
-        return wait({ ...jev });
+        return wait({ ...basal });
       },
       async setPause(input) {
         if (me.role !== "operator") throw new Error("only operators change accounts");

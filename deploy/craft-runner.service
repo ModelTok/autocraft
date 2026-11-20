@@ -7,7 +7,7 @@
 # @NODE@      absolute path of Node 24 (`command -v node`)
 # @ENV_FILE@  file with the AUTOCRAFT_* variables the CLI and the dashboard use
 #             (at least AUTOCRAFT_DB if not the default); see README
-# @PATH@      a PATH that reaches `claude`, which the classify steps call; Jev is
+# @PATH@      a PATH that reaches `claude`, which the classify steps call; basal is
 #             reached over HTTP at AUTOCRAFT_BASAL_URL (a basal-serve; see README)
 
 [Unit]

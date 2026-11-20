@@ -1,10 +1,10 @@
-// Discord attention signals: Jev's bands, Haiku between them, a deleted message losing its flag, and the Items filter.
+// Discord attention signals: Basal's bands, Haiku between them, a deleted message losing its flag, and the Items filter.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { connect } from "../src/db.ts";
-import { setJevEnabled } from "../src/agents/jev.ts";
+import { setBasalEnabled } from "../src/agents/basal-availability.ts";
 import { DiscordKeys } from "../src/discord/keys.ts";
 import { SIGNAL_CAP_KEY, Signals, signalCountOf, signalLinks, type Judge } from "../src/discord/signals.ts";
 import { handleDispatch } from "../src/discord/store.ts";
@@ -21,10 +21,10 @@ after(() => {
   rmSync(dir, { recursive: true, force: true });
 });
 
-let jevP: number | null = 0.5, haikuSays: boolean | null = true;
-const calls = { jev: 0, haiku: 0 };
+let basalP: number | null = 0.5, haikuSays: boolean | null = true;
+const calls = { basal: 0, haiku: 0 };
 const judge: Judge = {
-  jev: async () => (calls.jev++, jevP),
+  basal: async () => (calls.basal++, basalP),
   haiku: async () => (calls.haiku++, haikuSays),
 };
 const signals = new Signals({ db, keys, log: () => {}, judge });
@@ -46,35 +46,35 @@ describe("attention signals", () => {
     for (const n of [1, 2, 3, 4]) add.run(n, `Item ${n}`);
   });
 
-  test("Jev decides from 0.8 up and below 0.3; Haiku decides in between and when Jev is off", async () => {
-    jevP = 0.85; await send("MESSAGE_CREATE", msg("m1", "can someone review photocraft#1?"));
+  test("Basal decides from 0.8 up and below 0.3; Haiku decides in between and when basal is off", async () => {
+    basalP = 0.85; await send("MESSAGE_CREATE", msg("m1", "can someone review photocraft#1?"));
     assert.equal(asked(1), 1);
     assert.equal(calls.haiku, 0);
-    jevP = 0.1; haikuSays = true; await send("MESSAGE_CREATE", msg("m2", "photocraft#2 is the fix for the crash"));
+    basalP = 0.1; haikuSays = true; await send("MESSAGE_CREATE", msg("m2", "photocraft#2 is the fix for the crash"));
     assert.equal(asked(2), 0);
     assert.equal(calls.haiku, 0);
-    jevP = 0.5; haikuSays = true; await send("MESSAGE_CREATE", msg("m3", "any news on photocraft#3"));
+    basalP = 0.5; haikuSays = true; await send("MESSAGE_CREATE", msg("m3", "any news on photocraft#3"));
     assert.equal(asked(3), 1);
     assert.equal(calls.haiku, 1);
-    jevP = 0.5; haikuSays = false; await send("MESSAGE_CREATE", msg("m4", "photocraft#4 exists"));
+    basalP = 0.5; haikuSays = false; await send("MESSAGE_CREATE", msg("m4", "photocraft#4 exists"));
     assert.equal(asked(4), 0);
-    setJevEnabled(db, false, "test");
-    const jevCalls = calls.jev;
+    setBasalEnabled(db, false, "test");
+    const basalCalls = calls.basal;
     haikuSays = true; await send("MESSAGE_CREATE", msg("m5", "please look at photocraft#4"));
-    assert.equal(calls.jev, jevCalls);
+    assert.equal(calls.basal, basalCalls);
     assert.equal(asked(4), 1);
-    setJevEnabled(db, true, "test");
+    setBasalEnabled(db, true, "test");
   });
 
   test("an edit asks again, a link preview does not, and a delete removes the flag; no text is kept", async () => {
-    const before = calls.jev;
-    jevP = 0.1;
+    const before = calls.basal;
+    basalP = 0.1;
     await send("MESSAGE_UPDATE", { ...msg("m1", "can someone review photocraft#1?") });
-    assert.equal(calls.jev, before, "an update without an edit time is not asked");
+    assert.equal(calls.basal, before, "an update without an edit time is not asked");
     assert.equal(asked(1), 1);
     await send("MESSAGE_UPDATE", { ...msg("m1", "photocraft#1 solved, thanks"), edited_timestamp: "2026-11-01T11:00:00.000Z" });
     assert.equal(asked(1), 0, "the edit cleared the flag");
-    jevP = 0.9;
+    basalP = 0.9;
     await send("MESSAGE_UPDATE", { ...msg("m1", "photocraft#1 still needs a review"), edited_timestamp: "2026-11-01T12:00:00.000Z" });
     assert.equal(asked(1), 1);
     assert.deepEqual(signalLinks(db, keys, "photocraft", 1).map((l) => l.url), ["https://discord.com/channels/g1/c1/m1"]);
@@ -95,7 +95,7 @@ describe("attention signals", () => {
 
   test("limits per author and channel, two calls at a time, and a message naming many items is skipped", async () => {
     let now = 1_000_000, live = 0, peak = 0;
-    const slow: Judge = { jev: async () => { peak = Math.max(peak, ++live); await new Promise((r) => setTimeout(r, 10)); live--; return 0.9; }, haiku: async () => true };
+    const slow: Judge = { basal: async () => { peak = Math.max(peak, ++live); await new Promise((r) => setTimeout(r, 10)); live--; return 0.9; }, haiku: async () => true };
     const s = new Signals({ db, keys, log: () => {}, judge: slow, now: () => now });
     const from = (id: string, user: string, content: string) => ({ ...msg(id, content), author: { id: user } });
     db.prepare("UPDATE discord_mentions SET signal = 0").run();
@@ -117,12 +117,12 @@ describe("attention signals", () => {
     assert.equal((db.prepare("SELECT COUNT(*) AS n FROM discord_mentions WHERE signal = 1").get() as { n: number }).n, 11, "six items: not checked");
   });
 
-  test("a daily cap of 0 makes no Jev or Haiku call", async () => {
+  test("a daily cap of 0 makes no basal or Haiku call", async () => {
     db.prepare("INSERT INTO settings (key, value) VALUES (?, '0') ON CONFLICT(key) DO UPDATE SET value = '0'").run(SIGNAL_CAP_KEY);
     try {
-      const jev = calls.jev, haiku = calls.haiku;
-      jevP = 0.9; await send("MESSAGE_CREATE", msg("cap1", "please review photocraft#3"));
-      assert.equal(calls.jev, jev);
+      const basal = calls.basal, haiku = calls.haiku;
+      basalP = 0.9; await send("MESSAGE_CREATE", msg("cap1", "please review photocraft#3"));
+      assert.equal(calls.basal, basal);
       assert.equal(calls.haiku, haiku);
     } finally {
       db.prepare("DELETE FROM settings WHERE key = ?").run(SIGNAL_CAP_KEY);

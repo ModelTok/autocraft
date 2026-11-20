@@ -2,8 +2,8 @@
 // the limits. The Discord flow (src/discord/issue-new.ts) calls fileIssue() when the person presses File it.
 // The reporter's token set is kept by src/discord/reporter.ts; the sign-in routes are src/dash/server/reporter-signin.ts.
 import type { DatabaseSync } from "node:sqlite";
-import { jevAvailable } from "../agents/jev.ts";
-import { runModelStep, type ClaudeStep, type JevStep } from "../agents/step.ts";
+import { basalAvailable } from "../agents/basal-availability.ts";
+import { runModelStep, type ClaudeStep, type BasalStep } from "../agents/step.ts";
 import { envVar } from "../env.ts";
 import { TokenBox } from "../dash/server/crypto.ts";
 import { readSecrets } from "../dash/server/config.ts";
@@ -11,9 +11,9 @@ import { GitHubProvider, type Provider } from "../dash/server/provider.ts";
 import { exec as defaultExec, type Exec } from "../fixup/git.ts";
 import { createReporterIssue, IssueError, labelReporterIssue } from "../github/write.ts";
 import { appChildEnv } from "../github/install-token.ts";
-import { JEV_PROMPTS } from "../prompts/index.ts";
+import { BASAL_PROMPTS } from "../prompts/index.ts";
 import { isPublicRepo } from "../public/status.ts";
-import { jevJunk, junkBand, junkState, parseJunk, type JunkAsk } from "./junk-ask.ts";
+import { basalJunk, junkBand, junkState, parseJunk, type JunkAsk } from "./junk-ask.ts";
 import { failReporter, forgetReporterRow, newReporterState, readReporter, reporterToken } from "./reporter.ts";
 
 /** Filing from Discord under the person's account is built but off: the sign-in needs a Discord identity step first, so a forwarded sign-in link cannot link someone else's GitHub account. While off, the draft offers only the prefilled GitHub link and the sign-in routes answer 404. */
@@ -52,14 +52,14 @@ const LABEL: Record<IssueKind, string> = { bug: "bug", feature: "enhancement" };
 /** What a test replaces: the token box and provider (else the secrets file's), `gh`, the junk judges, the clock and the public base URL. */
 export type FileHooks = {
   box?: TokenBox; provider?: Provider; exec?: Exec; baseUrl?: string | null; now?: () => number;
-  judge?: { jev: (db: DatabaseSync, a: JunkAsk) => Promise<number | null>; haiku: (db: DatabaseSync, a: JunkAsk) => Promise<boolean | null> };
+  judge?: { basal: (db: DatabaseSync, a: JunkAsk) => Promise<number | null>; haiku: (db: DatabaseSync, a: JunkAsk) => Promise<boolean | null> };
 };
 
-const JEV_STEP: JevStep<JunkAsk, number> = {
-  provider: "jev", id: "discord.junk.jev",
-  request: (a) => ({ item: { ref: "discord" }, body: JSON.stringify({ ...JEV_PROMPTS["discord.junk.jev"].request, state: junkState(a) }) }),
+const BASAL_STEP: BasalStep<JunkAsk, number> = {
+  provider: "basal", id: "discord.junk.basal",
+  request: (a) => ({ item: { ref: "discord" }, body: JSON.stringify({ ...BASAL_PROMPTS["discord.junk.basal"].request, state: junkState(a) }) }),
   parse: (answers, _a, ctx) => {
-    const p = ctx.code === 0 ? jevJunk(answers) : null;
+    const p = ctx.code === 0 ? basalJunk(answers) : null;
     return p === null ? null : { value: p };
   },
 };
@@ -73,15 +73,15 @@ const HAIKU_STEP: ClaudeStep<JunkAsk, boolean> = {
 };
 const MODEL_WAIT_MS = 20_000;
 const modelJudge: NonNullable<FileHooks["judge"]> = {
-  jev: async (db, a) => { const r = await runModelStep(db, JEV_STEP, a); return r.ok ? r.value : null; },
+  basal: async (db, a) => { const r = await runModelStep(db, BASAL_STEP, a); return r.ok ? r.value : null; },
   haiku: async (db, a) => { const r = await runModelStep(db, HAIKU_STEP, a, { maxWaitMs: MODEL_WAIT_MS }); return r.ok ? r.value : null; },
 };
 
-/** Jev first, Haiku where Jev is unsure or unavailable. With no model answer the draft is not filed ("unknown"): the person still has the GitHub link. The texts of the calls are deleted when they end. */
+/** Basal first, Haiku where basal is unsure or unavailable. With no model answer the draft is not filed ("unknown"): the person still has the GitHub link. The texts of the calls are deleted when they end. */
 async function junkCheck(db: DatabaseSync, a: JunkAsk, judge: NonNullable<FileHooks["judge"]>, log: (l: string) => void): Promise<"junk" | "ok" | "unknown"> {
   try {
-    if (jevAvailable(db)) {
-      const p = await judge.jev(db, a);
+    if (basalAvailable(db)) {
+      const p = await judge.basal(db, a);
       const band = p === null ? "unsure" : junkBand(p);
       if (band === "yes") return "junk";
       if (band === "no") return "ok";

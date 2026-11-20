@@ -45,7 +45,7 @@ export interface RelatedItem extends ItemRef {
   kind: ItemKind;
 }
 
-export type Classifier = "haiku" | "jev" | "sonnet" | "owner";
+export type Classifier = "haiku" | "basal" | "sonnet" | "owner";
 export type TypeLabel = "bugfix" | "performance" | "missing feature" | "small extra" | "plugin candidate" | "infra";
 export type Want = "yes" | "no" | "unclear";
 
@@ -231,7 +231,7 @@ export interface ItemComment {
 /** Priority level, P0 (critical) to P4 (backlog). */
 export type PriorityLevel = "P0" | "P1" | "P2" | "P3" | "P4";
 
-/** Priority level of an item (src/priority). `model`: jev, haiku or jev-unsure. */
+/** Priority level of an item (src/priority). `model`: basal, haiku or basal-unsure. */
 export interface PriorityInfo {
   level: PriorityLevel;
   model: string;
@@ -515,9 +515,9 @@ export interface ItemAction {
 }
 
 /**
- * Settled type label for one classification run: Jev's label when its top
- * probability is at least 0.9, else Haiku's when Haiku agrees with Jev.
- * `waiting`: Jev unsure, Haiku hasn't answered; `disagree`: Haiku gave another label and the Sonnet referee is unsure or has not answered yet; a referee that is sure settles it.
+ * Settled type label for one classification run: Basal's label when its top
+ * probability is at least 0.9, else Haiku's when Haiku agrees with basal.
+ * `waiting`: Basal unsure, Haiku hasn't answered; `disagree`: Haiku gave another label and the Sonnet referee is unsure or has not answered yet; a referee that is sure settles it.
  */
 export type SettledStatus = "settled" | "waiting" | "disagree" | "unclassified";
 
@@ -525,14 +525,14 @@ export interface Settled {
   status: SettledStatus;
   /** Set only when `status` is `settled`. */
   label: TypeLabel | null;
-  source: "jev" | "haiku" | "sonnet" | null;
-  /** Jev's top probability. */
+  source: "basal" | "haiku" | "sonnet" | null;
+  /** Basal's top probability. */
   confidence: number | null;
-  jevLabel: TypeLabel | null;
+  basalLabel: TypeLabel | null;
   haikuLabel: TypeLabel | null;
-  /** Jev's flags when Jev is sure, otherwise every flag either classifier raised. */
+  /** Basal's flags when basal is sure, otherwise every flag either classifier raised. */
   flags: string[];
-  /** The Sonnet referee's answer to a Jev/Haiku disagreement; settles the item when `sure`, else a person decides. */
+  /** The Sonnet referee's answer to a basal/Haiku disagreement; settles the item when `sure`, else a person decides. */
   referee: { label: TypeLabel; sure: boolean; reason: string } | null;
 }
 
@@ -629,9 +629,9 @@ export interface Funnel {
   open: number;
   /** Settled type label (see `Settled`). */
   classified: number;
-  /** Jev unsure, Haiku hasn't answered yet. */
+  /** Basal unsure, Haiku hasn't answered yet. */
   secondOpinion: number;
-  /** Jev unsure and Haiku gave another label. */
+  /** Basal unsure and Haiku gave another label. */
   disagreement: number;
   reviewed: number;
   take: number;
@@ -1186,7 +1186,7 @@ export interface Job {
   error: string | null;
   cancelRequested: boolean;
   usage: JobUsage | null;
-  /** Models the job's step uses, e.g. ["jev", "haiku"]; known before any call is made. */
+  /** Models the job's step uses, e.g. ["basal", "haiku"]; known before any call is made. */
   models: string[];
   /** Labels of the Claude accounts used by the job's agent runs, running or finished. */
   accounts: string[];
@@ -1273,18 +1273,18 @@ export interface PromptInfo {
   purpose: string;
   /** The first is the default. */
   models: string[];
-  runner: "claude" | "jev";
+  runner: "claude" | "basal";
   /** The command line, as a shell would show it; the prompt or request goes on stdin. */
   command: string;
   settings: { label: string; value: string }[];
   /** Items per call, attempts per item and the time limit per call. */
   limits: { perCall: number; attempts: number; timeoutSeconds: number };
-  /** Static text with `{{name}}` placeholders; for Jev, the request body. */
+  /** Static text with `{{name}}` placeholders; for basal, the request body. */
   template: string;
-  /** Claude without tools: the fixed text sent as `--system-prompt`; null when the call keeps the CLI's own system prompt (sandboxed) or is a Jev request. */
+  /** Claude without tools: the fixed text sent as `--system-prompt`; null when the call keeps the CLI's own system prompt (sandboxed) or is a basal request. */
   system: string | null;
   placeholders: { name: string; meaning: string }[];
-  /** Jev only: every question with its type and criteria. */
+  /** Basal only: every question with its type and criteria. */
   questions: { id: string; type: string; instructions: string; criteria: Record<string, string> | null }[];
   output: string;
   validation: string;
@@ -1682,8 +1682,8 @@ export type AccountLoginState = "starting" | "waiting" | "checking" | "done" | "
 export type AccountLogin = { state: AccountLoginState; url: string | null; message: string | null; kind: "login" | "token" };
 /** Usage levels (%, 1 to 100) at which an account stops taking calls. */
 export type UsagePause = { fiveHour: number; weekly: number };
-/** Whether Jev is in use; `unavailable` says why not (Haiku then does its work) and since when. */
-export type JevStatus = { enabled: boolean; unavailable: { reason: string; since: string } | null };
+/** Whether basal is in use; `unavailable` says why not (Haiku then does its work) and since when. */
+export type BasalStatus = { enabled: boolean; unavailable: { reason: string; since: string } | null };
 export type AccountInput = { label?: string; enabled?: boolean; maxConcurrent?: number };
 
 export type AgentRunState = "running" | "done" | "failed";
@@ -1694,9 +1694,9 @@ export type AgentRun = {
   stage: number;             // stage number from docs/pipeline.md
   promptId: string;          // prompt registry id
   promptVersion: string;     // registry version or content hash
-  provider: "claude" | "jev";
-  model: string;             // e.g. "sonnet", "haiku", "jev"
-  accountId: string | null;  // null for Jev
+  provider: "claude" | "basal";
+  model: string;             // e.g. "sonnet", "haiku", "basal"
+  accountId: string | null;  // null for basal
   accountLabel: string | null;
   items: (ItemRef & ItemShown)[];   // at most 50
   itemCount: number;         // all items in the call
@@ -1705,7 +1705,7 @@ export type AgentRun = {
   endedAt: string | null;
   inputTokens: number | null; outputTokens: number | null;
   cacheReadTokens: number | null; cacheWriteTokens: number | null;
-  costUsd: number | null;    // USD; Jev is input tokens at the flat price; null for runs from before costs were stored
+  costUsd: number | null;    // USD; basal is input tokens at the flat price; null for runs from before costs were stored
   summary: string | null;    // one line: verdict counts, error class
   progress?: string;         // running calls with tools: the latest thing the model is doing
   via?: RemoteVia;           // user-local mode: who ran the call and with what
@@ -2303,7 +2303,7 @@ export interface NextPage {
 // ---- Now page (GET /api/now) ---------------------------------------------------
 
 /** A thing that needs attention; `to` is the page where it is fixed. `info` problems do not break "all healthy". */
-export type NowProblem = { id: string; area: "pipeline" | "runner" | "workers" | "breaker" | "limit" | "account" | "jev" | "main-ci" | "jobs" | "sync" | "deadline" | "liveness"; tone: "bad" | "warn"; text: string; to: string; since: string | null; /** Set on a job stopped for running past its step's limit: the step an operator acknowledges to clear the warning. */ ackStep?: string };
+export type NowProblem = { id: string; area: "pipeline" | "runner" | "workers" | "breaker" | "limit" | "account" | "basal" | "main-ci" | "jobs" | "sync" | "deadline" | "liveness"; tone: "bad" | "warn"; text: string; to: string; since: string | null; /** Set on a job stopped for running past its step's limit: the step an operator acknowledges to clear the warning. */ ackStep?: string };
 export type NowHealth = {
   pipeline: { enabled: boolean; by: string | null; at: string | null };
   problems: NowProblem[];

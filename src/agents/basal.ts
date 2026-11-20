@@ -1,7 +1,7 @@
-// Jev's model is served by basal (github.com/rkinas/basal, Apache-2.0): a self-hosted `basal-serve` that answers typed
+// The basal model is served by basal (github.com/rkinas/basal, Apache-2.0): a self-hosted `basal-serve` that answers typed
 // questions about a state over HTTP (`POST /v1/systemone`), with a calibrated probability for each allowed answer.
 // The request is the one the prompts in src/prompts register (`state` and named `choice` / `noul` questions); the answer
-// has the same `answers` and `usage` fields the Jev steps read.
+// has the same `answers` and `usage` fields the basal steps read.
 //
 // - AUTOCRAFT_BASAL_URL: the server's base URL, default http://127.0.0.1:8000.
 // - AUTOCRAFT_BASAL_KEY_FILE: optional; a file holding the key of a server started with `--api-keys`, sent as a bearer
@@ -12,7 +12,7 @@ import { envVar } from "../env.ts";
 export const BASAL_DEFAULT_URL = "http://127.0.0.1:8000";
 
 /**
- * A finished basal request, in the shape of a finished process so the Jev steps read it as before: `code` 0 with the
+ * A finished basal request, in the shape of a finished process so the basal steps read it as before: `code` 0 with the
  * response body on `stdout`; 1 for an HTTP error (`status` says which); -1 when the server could not be reached
  * (`unreachable` says why) or the key file could not be read; null when no answer came within the time limit.
  */

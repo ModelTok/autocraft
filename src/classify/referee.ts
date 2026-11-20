@@ -1,4 +1,4 @@
-// Referee: Sonnet decides disagreements between Jev and Haiku under the written rules.
+// Referee: Sonnet decides disagreements between basal and Haiku under the written rules.
 import { jobItem } from "../runner/job-items.ts";
 import type { DatabaseSync } from "node:sqlite";
 import { itemRepos, poolRoom, repoBatches } from "../agents/call.ts";
@@ -11,8 +11,8 @@ import { REFEREE_SONNET } from "../agents/steps.ts";
 import { rng, spread } from "./sample.ts";
 
 export function pickDisagreements(pairs: Pair[], count: number, seed: number): Pair[] {
-  const dis = pairs.filter((p) => p.jev.type_label !== p.haiku.type_label);
-  return spread(dis, (p) => `${p.r.kind}|${p.jev.type_label}`, count, rng(seed));
+  const dis = pairs.filter((p) => p.basal.type_label !== p.haiku.type_label);
+  return spread(dis, (p) => `${p.r.kind}|${p.basal.type_label}`, count, rng(seed));
 }
 
 const REFEREE = CLAUDE_PROMPTS["referee.sonnet"];
@@ -89,7 +89,7 @@ export function markSpotCheck(db: DatabaseSync, runId: string, pairs: Pair[], co
       { repo: string; number: number; type_label: string }[]).map((r) => [ref(r), r.type_label]),
   );
   const refereed = pairs.filter((p) => verdicts.has(ref(p.r)));
-  const side = (p: Pair) => { const v = verdicts.get(ref(p.r)); return v === p.jev.type_label ? "jev" : v === p.haiku.type_label ? "haiku" : "neither"; };
+  const side = (p: Pair) => { const v = verdicts.get(ref(p.r)); return v === p.basal.type_label ? "basal" : v === p.haiku.type_label ? "haiku" : "neither"; };
   db.prepare(`UPDATE main.classifications SET flags = '[]' WHERE classifier = 'sonnet' AND run_id = ?`).run(runId);
   const upd = db.prepare(`UPDATE main.classifications SET flags = '["spot-check"]' WHERE classifier = 'sonnet' AND run_id = ? AND repo = ? AND number = ?`);
   for (const p of spread(refereed, (p) => `${p.r.kind}|${side(p)}`, count, rng(seed + 1))) upd.run(runId, p.r.repo, p.r.number);

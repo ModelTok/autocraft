@@ -75,28 +75,28 @@ export function parseHaikuReply(text: string, refs: string[]): { verdicts: Verdi
   return { verdicts, missing: refs.filter((r) => !seen.has(r)) };
 }
 
-export type JevAnswers = {
+export type BasalAnswers = {
   type?: { choice?: string; confidence?: number; probabilities?: Record<string, number> };
   security?: { noul?: number };
   needs_decision?: { noul?: number };
 };
 
-/** Jev's yes/no flags: yes from the flag's own threshold, no below JEV_FLAG_NO, unsure in between (Haiku decides). */
-export const JEV_SECURITY_YES = 0.9;
-export const JEV_NEEDS_DECISION_YES = 0.8;
-export const JEV_FLAG_NO = 0.3;
+/** Basal's yes/no flags: yes from the flag's own threshold, no below BASAL_FLAG_NO, unsure in between (Haiku decides). */
+export const BASAL_SECURITY_YES = 0.9;
+export const BASAL_NEEDS_DECISION_YES = 0.8;
+export const BASAL_FLAG_NO = 0.3;
 
 export type FlagBand = "yes" | "no" | "unsure";
 
-export const flagBand = (p: number, yesMin: number): FlagBand => (p >= yesMin ? "yes" : p < JEV_FLAG_NO ? "no" : "unsure");
+export const flagBand = (p: number, yesMin: number): FlagBand => (p >= yesMin ? "yes" : p < BASAL_FLAG_NO ? "no" : "unsure");
 
-export function jevVerdict(ref: string, a: JevAnswers): Verdict | null {
+export function basalVerdict(ref: string, a: BasalAnswers): Verdict | null {
   const t = a.type;
   if (!t || !isLabel(t.choice) || typeof a.security?.noul !== "number" || typeof a.needs_decision?.noul !== "number") return null;
   const top = t.probabilities?.[t.choice] ?? t.confidence ?? 0;
   const probs = { type: t.probabilities ?? {}, top, security: a.security.noul, needs_decision: a.needs_decision.noul };
   return {
-    ref, type_label: t.choice, security: flagBand(a.security.noul, JEV_SECURITY_YES) === "yes", needs_decision: flagBand(a.needs_decision.noul, JEV_NEEDS_DECISION_YES) === "yes",
+    ref, type_label: t.choice, security: flagBand(a.security.noul, BASAL_SECURITY_YES) === "yes", needs_decision: flagBand(a.needs_decision.noul, BASAL_NEEDS_DECISION_YES) === "yes",
     reason: `${t.choice} ${top.toFixed(2)}; security ${a.security.noul.toFixed(2)}; needs decision ${a.needs_decision.noul.toFixed(2)}`,
     probs: JSON.stringify(probs),
   };
