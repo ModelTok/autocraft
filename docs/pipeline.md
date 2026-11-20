@@ -558,7 +558,7 @@ Untrusted code (a PR's build and tests) never runs where the GitHub token or a C
 
 ## What needs a person
 
-- **Scope calls**: is this in scope, closer to the reference app, a plug-in rather than core?
+- **Scope calls**: is this in the project's scope (docs, roadmap or upstream), a plug-in rather than core?
 - **Reference behaviour** that public sources don't settle.
 - **Merges outside the rule** (see Merge queue). Contributors shows who is on the whitelist and why. The pipeline's own account counts as whitelisted for the Fix PRs it opened from issues (S or M bugfix after Verify can merge by the rule) while the head is the pipeline's own work: a commit someone else pushed to the branch gets a Merge? question. An operator's deny still wins.
 - **Closing a PR** the review says to close.
@@ -581,7 +581,7 @@ A decision offers one **core action** (pick exactly one) and **extras** (checkbo
 
 | Action | Writes on GitHub | What AutoCraft does |
 |---|---|---|
-| The question's own answers: Merge, Close, Out of scope, Hold, Keep open, Wanted in core, Small extra, Plug-in candidate, Check the reference app | Merge: merge. Close and Out of scope: comment, close. The rest write nothing at once | Merge queues the PR: it merges after CI and checks pass. Close records the answer and stops work on the item. Wanted in core and Small extra keep the item in core: PRs go to review, an issue may get a fix attempt. Plug-in candidate adds the plugin candidate label later (Label). Check the reference app and Hold keep the item out of later stages until asked again. Keep open does not ask again at this head |
+| The question's own answers: Merge, Close, Out of scope, Hold, Keep open, Wanted in core, Small extra, Plug-in candidate, Check the scope | Merge: merge. Close and Out of scope: comment, close. The rest write nothing at once | Merge queues the PR: it merges after CI and checks pass. Close records the answer and stops work on the item. Wanted in core and Small extra keep the item in core: PRs go to review, an issue may get a fix attempt. Plug-in candidate adds the plugin candidate label later (Label). Check the reference app and Hold keep the item out of later stages until asked again. Keep open does not ask again at this head |
 | Fix up first, then merge | push, merge | Pushes the fix-up, reviews the PR again and merges if the review and CI pass; otherwise a new question comes back (see Pre-approved merge). On a scope question it also keeps the PR in core: the answer is Small extra when the card adds the "small extra" label or the PR already has it, else Wanted in core |
 | Fix up the PR | push | Pushes the fix-up and reviews again. On a scope question it also keeps the PR in core, as above |
 | Review the PR again | none | Marks the head's review stale; Opus reviews it again and the pipeline decides again |

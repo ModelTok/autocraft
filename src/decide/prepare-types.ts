@@ -43,26 +43,26 @@ export const SAMPLE_PREPARE: PrepareInput[] = [{
   ref: "photocraft#1562",
   item: {
     ref: "photocraft#1562", kind: "issue", title: "Add an in-app AI assistant for 16-bit PNG cleanup",
-    body: "Adds an assistant panel. The default endpoint is our hosted service (paid plan). The reference app has this, see docs/gaps.md row 14.",
+    body: "Adds an assistant panel. The default endpoint is our hosted service (paid plan). The roadmap lists this, see ROADMAP.md.",
     author_association: "NONE", labels: ["enhancement"], comments: [],
   },
   question: "Is this wanted in core?",
   facts: ["photocraft issue, opened 3 days ago, 0 comments", "author: someone, new contributor"],
   options: [
-    { key: "take", label: "Wanted in core", hint: "In scope: brings us closer to the reference app. Keep open; PRs go to review." },
+    { key: "take", label: "Wanted in core", hint: "In the project's scope (docs, roadmap or upstream). Keep open; PRs go to review." },
     { key: "plugin", label: "Plug-in candidate", hint: "Not for core. Keep open and label it plugin candidate." },
-    { key: "need-info", label: "Check the reference app", hint: "Ask how the reference app behaves before deciding." },
+    { key: "need-info", label: "Check the scope", hint: "Ask how it should behave (docs, roadmap or upstream) before deciding." },
     { key: "close", label: "Out of scope", hint: "Not wanted. Close with a short reason." },
   ],
   cores: [
     { key: "o:take", label: "Wanted in core", extras: ["comment", "label", "unlabel", "assign", "open_issue"] },
     { key: "o:plugin", label: "Plug-in candidate", extras: ["comment", "label", "unlabel", "assign", "open_issue"] },
-    { key: "o:need-info", label: "Check the reference app", extras: ["comment", "label", "unlabel", "assign"] },
+    { key: "o:need-info", label: "Check the scope", extras: ["comment", "label", "unlabel", "assign"] },
     { key: "o:close", label: "Out of scope", extras: ["label", "unlabel", "assign", "open_issue"] },
     { key: "backlog", label: "Later", extras: [] },
   ],
   stopped: {
     context: "The classifiers settled on missing feature and flagged it as needing a maintainer's call.",
-    classifications: [{ classifier: "basal", type_label: "missing feature", want: "unclear", reason: "Asks for a feature the reference app may have." }],
+    classifications: [{ classifier: "basal", type_label: "missing feature", want: "unclear", reason: "Asks for a feature the roadmap may cover." }],
   },
 }];
