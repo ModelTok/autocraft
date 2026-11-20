@@ -96,7 +96,7 @@ export const COMMENT_TEMPLATES: CommentTemplate[] = [
     purpose: "Posted when an operator answers a scope decision with Out of scope, just before the item is closed.",
     text: scopeCloseComment("{{reason}}"),
     placeholders: [{ name: "reason", meaning: "The reason of the conversation card that answered Out of scope (one sentence), else the decision's public text; cleaned to one line of at most 200 characters, cut at a sentence or word end; the Reason line is left out when there is none" }],
-    example: scopeCloseComment("The reference application does not do this."),
+    example: scopeCloseComment("This is outside what the project does or plans."),
   },
   {
     id: "act.pr-close", stage: "Act",

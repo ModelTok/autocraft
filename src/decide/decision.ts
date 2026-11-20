@@ -11,14 +11,14 @@ import type { Candidate } from "./select.ts";
  * - small-extra: keep in core as a small extra (label "small extra").
  * - plugin: keep open, label "plugin candidate"; not for core.
  * - close: out of scope; close with a short reason.
- * - need-info: ask how the reference app behaves before deciding.
+ * - need-info: ask how it should behave (docs, roadmap or upstream) before deciding.
  */
 export const SCOPE_OPTIONS = {
-  take: { key: "take", label: "Wanted in core", hint: "In scope: brings us closer to the reference app. Keep open; PRs go to review." },
-  "small-extra": { key: "small-extra", label: "Small extra", hint: "Beyond the reference app but tiny; keep it in core as a small extra." },
+  take: { key: "take", label: "Wanted in core", hint: "In the project's scope (docs, roadmap or upstream). Keep open; PRs go to review." },
+  "small-extra": { key: "small-extra", label: "Small extra", hint: "Outside what the project promises but tiny; keep it in core as a small extra." },
   plugin: { key: "plugin", label: "Plug-in candidate", hint: "Not for core. Keep open and label it plugin candidate." },
   close: { key: "close", label: "Out of scope", hint: "Not wanted. Close with a short reason." },
-  "need-info": { key: "need-info", label: "Check the reference app", hint: "Ask how the reference app behaves before deciding." },
+  "need-info": { key: "need-info", label: "Check the scope", hint: "Ask how it should behave (docs, roadmap or upstream) before deciding." },
 } as const;
 export type OptionKey = keyof typeof SCOPE_OPTIONS;
 
@@ -38,7 +38,7 @@ export function shapeOf(c: Candidate): Shape {
     if (pair.has("small extra") && pair.has("plugin candidate"))
       return { question: "Keep this in core as a small extra, or treat it as a plug-in?", options: ["small-extra", "plugin", "take", "need-info", "close"] };
     const other = OPTION_OF_LABEL[pair.has("small extra") ? "small extra" : "plugin candidate"]!;
-    return { question: "Does the reference app have this, and do we want it in core?", options: ["take", other, "need-info", "close"] };
+    return { question: "Is this in the project's scope, and do we want it in core?", options: ["take", other, "need-info", "close"] };
   }
   switch (s.label) {
     case "missing feature":

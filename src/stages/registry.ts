@@ -177,7 +177,7 @@ export const STAGES: StageDef[] = [
       { id: "small-extra", label: "Small extra", waitsOn: "nothing", tone: "ok", hint: "Answered small extra: kept in core, PRs go to review" },
       { id: "plugin", label: "Plug-in candidate", waitsOn: "nothing", tone: "neutral", hint: "Answered plugin: kept open, labelled plugin candidate" },
       { id: "close", label: "Out of scope", waitsOn: "nothing", tone: "neutral", hint: "Answered close: to be closed with a short reason" },
-      { id: "need-info", label: "Check the reference app", waitsOn: "nothing", tone: "warn", hint: "Answered need info: asked again once the reference app's behaviour is known" },
+      { id: "need-info", label: "Check the scope", waitsOn: "nothing", tone: "warn", hint: "Answered need info: asked again once the expected behaviour is known" },
       { id: "backlog", label: "Backlog", waitsOn: "nothing", tone: "neutral", hint: "Answered backlog: held undecided, no later step takes it up" },
     ],
     models: [
@@ -230,7 +230,7 @@ export const STAGES: StageDef[] = [
       { id: "not-reviewed", label: "Not reviewed yet", waitsOn: "model", tone: "neutral", hint: "No review at the PR's current head commit" },
       { id: "take", label: "Take", waitsOn: "nothing", tone: "ok" },
       { id: "take-fix", label: "Take with fixes", waitsOn: "nothing", tone: "ok" },
-      { id: "hold", label: "Hold", waitsOn: "person", tone: "warn", hint: "Needs a person: reference behaviour, a design or scope choice, or too large" },
+      { id: "hold", label: "Hold", waitsOn: "person", tone: "warn", hint: "Needs a person: expected behaviour, a design or scope choice, or too large" },
       { id: "close", label: "Close", waitsOn: "nothing", tone: "bad", hint: "Wrong, not wanted, already done or superseded" },
     ],
     models: [{ model: "opus", use: "Reviews every wanted PR", remark: "The review gives a verdict, a complete fix list and how sure Opus is" }],

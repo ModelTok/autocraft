@@ -8,7 +8,7 @@ import { cn } from "../../ui/cn";
 
 type Step = { node: string; label: string; detail: string; done: boolean };
 
-const ANSWER: Record<string, string> = { take: "wanted in core", "small-extra": "small extra", plugin: "plug-in candidate", close: "out of scope", "need-info": "check the reference app", backlog: "backlog", handled: "handled in the conversation", withdrawn: "withdrawn" };
+const ANSWER: Record<string, string> = { take: "wanted in core", "small-extra": "small extra", plugin: "plug-in candidate", close: "out of scope", "need-info": "check the scope", backlog: "backlog", handled: "handled in the conversation", withdrawn: "withdrawn" };
 const STATUS: Record<string, string> = { waiting: "waiting for a second opinion", disagree: "models disagree", unclassified: "not classified yet" };
 
 const FINAL = { take: "take", "take-fix": "take with fixes", hold: "hold", close: "close" } as const;
