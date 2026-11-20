@@ -145,7 +145,7 @@ export interface Api {
     };
   };
   repos(): Promise<RepoName[]>;
-  /** Owners of the visible repos that are not storytold's, by repo name. */
+  /** Owners of the visible repos that are not the default owner's, by repo name. */
   repoOwners(): Promise<Record<string, string>>;
   decisions: {
     list(filter: DecisionFilter): Promise<DecisionList>;

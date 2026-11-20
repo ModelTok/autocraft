@@ -137,9 +137,9 @@ export function world() {
             }
             if (cmd === "gh") {
               if (a[0] === "api" && a[1] === "user") return ok(JSON.stringify({ login: "bot", id: 7, node_id: "N7" }));
-              if (a[0] === "api") return ok("storytold/app\n");
+              if (a[0] === "api") return ok("ModelTok/app\n");
               if (a[0] === "pr" && a[1] === "list") return ok("");
-              if (a[0] === "pr" && a[1] === "create") { writes.push({ kind: "pr", number: 900, head: tip, detail: opts?.input }); return ok("https://github.com/storytold/app/pull/900\n"); }
+              if (a[0] === "pr" && a[1] === "create") { writes.push({ kind: "pr", number: 900, head: tip, detail: opts?.input }); return ok("https://github.com/ModelTok/app/pull/900\n"); }
               if (a[0] === "pr" && a[1] === "close") return ok();
             }
             throw new Error(`unexpected ${cmd} ${a.join(" ")}`);

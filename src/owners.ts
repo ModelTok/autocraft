@@ -7,7 +7,7 @@ type DatabaseSync = { prepare(sql: string): { all(...params: never[]): unknown[]
 export const OWNER = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
 
 // The GitHub org or user whose repos a bare name means. This fork serves ModelTok; `AUTOCRAFT_OWNER` overrides it
-// (upstream's value is `storytold`). The web build has no `process`, so the lookup is guarded.
+// The web build has no `process`, so the lookup is guarded.
 const envOwner = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.AUTOCRAFT_OWNER?.trim();
 export const DEFAULT_OWNER = envOwner && OWNER.test(envOwner) ? envOwner : "ModelTok";
 

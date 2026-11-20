@@ -15,7 +15,7 @@ import { SCRATCH } from "./scratch.ts";
 mkdirSync(SCRATCH, { recursive: true });
 const dir = mkdtempSync(join(SCRATCH, "mainfix-pr-"));
 const T0 = "2026-01-01T00:00:00Z";
-const PR_URL = "https://github.com/storytold/app/pull/9";
+const PR_URL = "https://github.com/ModelTok/app/pull/9";
 
 function git(cwd: string, ...args: string[]): string {
   const r = spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], { cwd, encoding: "utf8" });
@@ -61,13 +61,13 @@ function world() {
     }
     const joined = args.join(" ");
     if (joined === "api user") return ok(JSON.stringify({ login: "bot", id: 5, node_id: "N" }));
-    if (joined.startsWith("api repos/bot/app")) return ok("storytold/app");
+    if (joined.startsWith("api repos/bot/app")) return ok("ModelTok/app");
     if (args[0] === "pr" && args[1] === "list") return ok("");
     if (args[0] === "pr" && args[1] === "create") { log.opened++; return ok(`${PR_URL}\n`); }
     return { code: 1, stdout: "", stderr: `unexpected gh call: ${joined}` };
   };
   const gh = async (args: string[]): Promise<string> => {
-    if (args[1]?.includes("check-runs")) return JSON.stringify({ check_runs: [{ name: "gate / test", status: "completed", conclusion: "failure", details_url: "https://github.com/storytold/app/actions/runs/11/job/1" }] });
+    if (args[1]?.includes("check-runs")) return JSON.stringify({ check_runs: [{ name: "gate / test", status: "completed", conclusion: "failure", details_url: "https://github.com/ModelTok/app/actions/runs/11/job/1" }] });
     if (args[0] === "run") return "test\tcargo test\terror[E0425]: cannot find function `b`\ntest\tcargo test\t --> src/lib.rs:5:18\n";
     throw new Error(`unexpected call: ${args.join(" ")}`);
   };

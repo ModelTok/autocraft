@@ -32,7 +32,7 @@ const calls: { args: string[]; input?: string }[] = [];
 let junk = false;
 const hooks: FileHooks = {
   box, provider, baseUrl: "https://craft.example",
-  exec: async (_cmd, args, opts) => { calls.push({ args, input: opts?.input }); return { code: 0, stdout: args[1] === "create" ? "https://github.com/storytold/photocraft/issues/41\n" : "", stderr: "" }; },
+  exec: async (_cmd, args, opts) => { calls.push({ args, input: opts?.input }); return { code: 0, stdout: args[1] === "create" ? "https://github.com/ModelTok/photocraft/issues/41\n" : "", stderr: "" }; },
   judge: { jev: async () => (junk ? 0.95 : 0.05), haiku: async () => junk },
 };
 const deps = { db, log: () => {} };
@@ -65,12 +65,12 @@ describe("filing from Discord", () => {
     assert.equal(calls.length, 0);
     junk = false;
     const r = await fileIssue(deps, req, hooks);
-    assert.deepEqual(r, { status: "filed", number: 41, url: "https://github.com/storytold/photocraft/issues/41", login: "octo" });
+    assert.deepEqual(r, { status: "filed", number: 41, url: "https://github.com/ModelTok/photocraft/issues/41", login: "octo" });
     assert.equal(calls[0]!.input, "Quality 40 gives the same size as 100.\n\nFiled from Discord with AutoCraft.");
     assert.ok(calls[1]!.args.includes("bug"), "labelled");
     const a = db.prepare("SELECT login, target, details FROM audit WHERE action = 'discord-issue-open'").get() as { login: string; target: string; details: string };
     const det = JSON.parse(a.details);
-    assert.deepEqual([a.login, a.target, det.state, det.number, det.url], ["octo", "photocraft", "done", 41, "https://github.com/storytold/photocraft/issues/41"]);
+    assert.deepEqual([a.login, a.target, det.state, det.number, det.url], ["octo", "photocraft", "done", 41, "https://github.com/ModelTok/photocraft/issues/41"]);
     assert.ok(!a.details.includes("Quality 40"), "the text is not kept in the audit row");
     assert.equal((db.prepare("SELECT COUNT(*) AS c FROM audit WHERE action = 'discord-issue-label'").get() as { c: number }).c, 1);
   });

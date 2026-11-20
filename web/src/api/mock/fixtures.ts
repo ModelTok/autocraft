@@ -81,7 +81,7 @@ export const REPO_OPEN: [string, number][] = [
   ["font-preview-service", 39],
 ];
 export const REPOS = REPO_OPEN.map(([r]) => r);
-/** Repos owned by someone other than storytold. */
+/** Repos owned by someone other than ModelTok. */
 export const MOCK_REPO_OWNERS: Record<string, string> = { "font-preview-service": "example-org" };
 
 /** Signed-in user per mock role; pick one with `?as=` or the user menu. */
@@ -651,7 +651,7 @@ const SEEDS: Seed[] = [
     ageH: 8,
     author: "larkspur-dev",
     answer: ["merge", "kiri-n", 2, false],
-    exec: ["waiting-permission", "You have no write access to storytold/filmcraft"],
+    exec: ["waiting-permission", "You have no write access to ModelTok/filmcraft"],
   },
   {
     kind: "scope",

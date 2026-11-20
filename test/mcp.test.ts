@@ -258,7 +258,7 @@ describe("tools", () => {
     // maint can read secretcraft on GitHub, checked with their dashboard session's token.
     const maint = await tokenFor("maint");
     assert.ok(data((await call(maint, "list_inbox")).text).decisions.some((d: { id: string }) => d.id === S7));
-    const photo = data((await call(maint, "list_inbox", { repo: "storytold/photocraft", limit: 5 })).text);
+    const photo = data((await call(maint, "list_inbox", { repo: "ModelTok/photocraft", limit: 5 })).text);
     assert.deepEqual(photo.decisions.map((d: { id: string }) => d.id).sort(), [P1, P10, "photocraft#11:scope"].sort());
     assert.match(photo.decisions.find((d: { id: string }) => d.id === P1).link, /^\/items\/photocraft\/1#decision-/);
   });
@@ -340,7 +340,7 @@ describe("tools", () => {
     assert.deepEqual(rows.map((r: { item: string }) => r.item), ["photocraft#8"]);
     assert.equal(rows[0].stopped, "cannot-push: maintainers may not modify the branch");
     assert.deepEqual(rows[0].fixes, [{ file: "src/brush.rs", change: "Drop the unused import" }]);
-    assert.equal(rows[0].github, "https://github.com/storytold/photocraft/pull/8");
+    assert.equal(rows[0].github, "https://github.com/ModelTok/photocraft/pull/8");
     assert.deepEqual(data((await call(t, "list_fixups", { repo: "filmcraft" })).text), []);
     assert.equal((await call(await viewerToken(), "list_fixups", { repo: "secretcraft" })).isError, true);
     const repos = data((await call(t, "list_repos")).text);
@@ -407,7 +407,7 @@ describe("answering", () => {
     // No GitHub write on filmcraft: refused as on the dashboard.
     const refused = await call(t, "answer_decision", { id: F3, option: "small" });
     assert.equal(refused.isError, true);
-    assert.match(refused.text, /no write access to storytold\/filmcraft/);
+    assert.match(refused.text, /no write access to ModelTok\/filmcraft/);
     assert.match((await call(t, "answer_decision", { id: P10, option: "nope" })).text, /one of the option keys/);
     const done = await call(t, "answer_decision", { id: P10, option: "small", note: "Agreed with the reporter." });
     assert.equal(done.isError, false, done.text);
@@ -432,7 +432,7 @@ describe("answering", () => {
     db.prepare("DELETE FROM repo_permissions WHERE login = 'boss'").run();
     const r = await call(t, "answer_decision", { id: P10, option: "small" });
     assert.equal(r.isError, true);
-    assert.match(r.text, /no write access to storytold\/photocraft/);
+    assert.match(r.text, /no write access to ModelTok\/photocraft/);
     assert.match(r.text, /sign in to the dashboard/);
     assert.equal(actionable(db).length, 0);
   });

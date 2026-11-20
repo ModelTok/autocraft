@@ -40,7 +40,7 @@ const asked = (n: number) => signalCountOf(db, "photocraft", n);
 describe("attention signals", () => {
   before(() => {
     db.prepare("INSERT OR IGNORE INTO tracked_repos (name) VALUES ('photocraft')").run();
-    db.prepare("INSERT OR IGNORE INTO repos (name, owner) VALUES ('photocraft', 'storytold')").run();
+    db.prepare("INSERT OR IGNORE INTO repos (name, owner) VALUES ('photocraft', 'ModelTok')").run();
     db.prepare("INSERT INTO discord_channels (channel_id, guild_id, guild_name, name, watched) VALUES ('c1', 'g1', 'Guild', 'dev', 1)").run();
     const add = db.prepare("INSERT INTO items (repo, number, kind, state, title, updated_at) VALUES ('photocraft', ?, 'issue', 'OPEN', ?, '2026-01-01')");
     for (const n of [1, 2, 3, 4]) add.run(n, `Item ${n}`);

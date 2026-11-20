@@ -20,7 +20,7 @@ export const isTracked = (db: DatabaseSync, name: string): boolean =>
 
 const NAME = /^[A-Za-z0-9._-]{1,100}$/;
 
-/** Tracks `name` (a storytold repo) or `owner/name`. Repo names are unique across owners. */
+/** Tracks `name` (a repo of the default owner) or `owner/name`. Repo names are unique across owners. */
 export function trackRepo(db: DatabaseSync, by: string, input: string): boolean {
   const { owner, name } = splitSlug(input);
   if (!NAME.test(name)) throw new RepoError("Not a repo name.");
@@ -53,7 +53,7 @@ export const ghRepoExists: RepoExists = async (owner, name) => {
 
 /**
  * trackRepo for an operator's input: a repo of another owner is tracked only when GitHub confirms it
- * and storytold has no repo of that name (names are unique across owners).
+ * and the default owner has no repo of that name (names are unique across owners).
  */
 export async function trackRepoChecked(db: DatabaseSync, by: string, input: string, exists: RepoExists = ghRepoExists, mint?: (owner: string, repo: string) => Promise<string>): Promise<boolean> {
   const { owner, name } = splitSlug(input);

@@ -73,7 +73,7 @@ describe("decision choices", () => {
     const id = Number(db.prepare("INSERT INTO conversation_cards (turn_id, repo, number, kind, params, text, description) VALUES (0, 'app', 2, 'resolution', ?, NULL, ?)")
       .run(JSON.stringify(v.card.params), v.card.description).lastInsertRowid);
     const querier = { query: async () => ({}) };
-    const exec = async () => ({ code: 0, stdout: "https://github.com/storytold/app/issues/7\n", stderr: "" });
+    const exec = async () => ({ code: 0, stdout: "https://github.com/ModelTok/app/issues/7\n", stderr: "" });
     const { card } = await doCard(db, id, "op", { querier: querier as never, exec: exec as never });
     assert.equal(card.state, "done", card.error ?? "");
     assert.equal(getDecision(db, d.id)!.answer, "merge");

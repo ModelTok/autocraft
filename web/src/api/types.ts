@@ -1367,7 +1367,7 @@ export interface QueueBatch {
   size: number;
   /** The member PRs in batch order, as queue rows. */
   prs: QueueRow[];
-  /** The batch's own PR on the storytold repo, once opened. */
+  /** The batch's own PR on the tracked repo, once opened. */
   prNumber: number | null;
   prUrl: string | null;
   /** Why it failed or was replaced; the failure summary of a held PR. */

@@ -4,7 +4,7 @@ AutoCraft is a model harness for maintaining GitHub repositories with a large ba
 
 The models' tools are a fixed set of GitHub actions (comments, labels, branches, PRs, merges), all behind one write module and `safe-merge`-style checks. Actions run automatically where the rules say they are safe. Otherwise a model proposes and a person accepts. Each issue and PR has its own conversation between Opus and a maintainer, with action cards the maintainer can run. The pipeline is built around maintainers' judgement, which is the limited resource, not around token cost.
 
-Originally written for the [storytold](https://github.com/storytold) craft apps, AutoCraft can also track repositories owned by other GitHub organizations or users via `autocraft-server repos track owner/name` without requiring source edits. See [Track repos and sync](#track-repos-and-sync) for naming and GitHub App sync limitations.
+AutoCraft is ModelTok's fork of [storytold/autocraft](https://github.com/storytold/autocraft). It tracks the [ModelTok](https://github.com/ModelTok) repositories by default (`AUTOCRAFT_OWNER` names another owner) and can also track repositories of other GitHub organizations or users via `autocraft-server repos track owner/name`. See [Track repos and sync](#track-repos-and-sync) for naming and GitHub App sync limitations.
 
 ## How it works
 
@@ -62,7 +62,7 @@ See [Trust boundary](docs/pipeline.md#trust-boundary).
 ### Install
 
 ```sh
-git clone https://github.com/storytold/autocraft.git
+git clone https://github.com/ModelTok/autocraft.git
 cd autocraft
 pnpm install
 pnpm -C web install && pnpm -C web build    # writes web/dist
@@ -135,13 +135,13 @@ See [Claude accounts and agent runs](docs/pipeline.md#claude-accounts-and-agent-
 ### Track repos and sync
 
 ```sh
-autocraft-server repos track <name>        # a new bare name defaults to storytold
+autocraft-server repos track <name>        # a new bare name defaults to the default owner (ModelTok)
 autocraft-server repos track <owner/name>  # a repository owned by another organization or user
 autocraft-server repos list
 autocraft-server sync                   # first sync of the tracked repos
 ```
 
-Repo names are unique across owners and case-sensitive. With the GitHub App identity, the app must also be installed on `storytold`. See [Tracked repos](docs/operations.md#tracked-repos).
+Repo names are unique across owners and case-sensitive. With the GitHub App identity, the app must also be installed on the default owner (`AUTOCRAFT_OWNER`, ModelTok unless set). See [Tracked repos](docs/operations.md#tracked-repos).
 
 Newly tracked repositories start with their pipeline disabled. Sync, Embed, and Rank remain available; operator conversations and explicitly fast-tracked items are exceptions to the pipeline-off restriction. For recurring sync, install and enable the supplied systemd timer (`deploy/systemd/autocraft-sync.timer`) or use the periodic service in the Docker Compose deployment. Running the initial sync does not schedule future runs. `autocraft-server embed` populates vectors. With the default model and an empty cache, the first embedding operation downloads the approximately 34 MB model plus supporting files.
 
@@ -227,4 +227,4 @@ The mock API serves fixture data; pick the role with `?as=operator|maintainer|vi
 
 ## License
 
-AutoCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option. The ArtCraft mark in `web/public` is not covered; see [LICENSE-brand.txt](LICENSE-brand.txt).
+AutoCraft is dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option. The ModelTok mark in `web/public` is not covered; see [LICENSE-brand.txt](LICENSE-brand.txt).

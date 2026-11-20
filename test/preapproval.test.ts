@@ -388,7 +388,7 @@ describe("queue items: who may add", () => {
     assert.equal(preapprovalOf(w.db, "app", 51)?.state, "review");
     assert.equal(preapprovalOf(w.db, "app", 51)?.by, "maint");
     // An operator needs write access on the repo too, as for answering (src/settlers.ts, settleRefusal).
-    await assert.rejects(queueAdd(w.db, req(52, OPERATOR, "operator", false)), (e: Error & { status?: number }) => e.status === 403 && /no write access to storytold\/app/.test(e.message));
+    await assert.rejects(queueAdd(w.db, req(52, OPERATOR, "operator", false)), (e: Error & { status?: number }) => e.status === 403 && /no write access to ModelTok\/app/.test(e.message));
     assert.equal(preapprovalOf(w.db, "app", 52), null);
     await queueAdd(w.db, req(52, OPERATOR, "operator"));
     assert.equal(preapprovalOf(w.db, "app", 52)?.by, OPERATOR);

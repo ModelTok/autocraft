@@ -41,7 +41,7 @@ export function allVisibleRepos(db: DatabaseSync, req: Req): Promise<string[]> {
   return p;
 }
 
-/** Owner of each visible repo that is not storytold's; the web app builds GitHub links from it. */
+/** Owner of each visible repo that is not the default owner's; the web app builds GitHub links from it. */
 export async function repoOwners(db: DatabaseSync, req: Req): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   for (const r of await allVisibleRepos(db, req)) if (!isDefaultOwner(ownerOf(r))) out[r] = ownerOf(r);

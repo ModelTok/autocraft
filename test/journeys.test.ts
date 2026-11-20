@@ -511,7 +511,7 @@ describe("issue journey", () => {
     assert.equal(collected.opened, 1);
     assert.equal(attemptOf(w.db, "app", 5)!.state, "pr-opened");
     assert.deepEqual(g.prs.map((x) => x.head), ["pipeline-bot:autocraft/fix-5-panic-when-the-slice-is-empty"]);
-    assert.deepEqual(g.comments, ["A PR for this is in progress: https://github.com/storytold/app/pull/12."]);
+    assert.deepEqual(g.comments, ["A PR for this is in progress: https://github.com/ModelTok/app/pull/12."]);
   });
 });
 
@@ -559,13 +559,13 @@ function issueWorld(w: World, o: { lib: string; fix: string }) {
       if (args[0] === "api" && args[1]!.includes("/forks")) return out(forked ? "pipeline-bot/app\n" : "");
       if (args[0] === "repo") { forked = true; return out(""); }
       if (args[0] === "pr" && args[1] === "list") return out("");
-      if (args[0] === "pr") { prs.push({ head: args[args.indexOf("--head") + 1]! }); w.gh.writes.push({ kind: "pr", number: 12 }); return out("https://github.com/storytold/app/pull/12\n"); }
+      if (args[0] === "pr") { prs.push({ head: args[args.indexOf("--head") + 1]! }); w.gh.writes.push({ kind: "pr", number: 12 }); return out("https://github.com/ModelTok/app/pull/12\n"); }
       if (args[0] === "issue") { comments.push((opt.input ?? "").split("\n\n").at(-1)!); w.gh.writes.push({ kind: "comment", number: 5 }); return out(""); }
       return out("", 1);
     }
     const urlAt = args.findIndex((a) => a.startsWith("https://github.com/"));
     if (urlAt < 0) return exec("git", args, opt);
-    const target = args[urlAt]!.includes("/storytold/") ? upstream : fork;
+    const target = args[urlAt]!.includes("/ModelTok/") ? upstream : fork;
     if (args.includes("push")) w.gh.writes.push({ kind: "push", number: 5 });
     const local = args.map((a, i) => (i === urlAt ? target : a)).filter((a, i, all) => a !== "protocol.file.allow=never" && !(a === "-c" && all[i + 1] === "protocol.file.allow=never"));
     return exec("git", local, opt);
@@ -684,7 +684,7 @@ function gitWorld(n: number, lib = "fn a() {}\nfn main() { a(); }\n", conflict =
         ask: base.ask as unknown as CifixDeps["ask"],
         gh: async (args) => {
           if (args[0] === "api" && args[1]!.includes("/pulls/")) return `${"b".repeat(40)}\n`;
-          if (args[0] === "api") return JSON.stringify({ check_runs: [{ name: CHECK, status: "completed", conclusion: "failure", completed_at: "2026-01-03T12:00:00Z", details_url: "https://github.com/storytold/app/actions/runs/11/job/5" }] });
+          if (args[0] === "api") return JSON.stringify({ check_runs: [{ name: CHECK, status: "completed", conclusion: "failure", completed_at: "2026-01-03T12:00:00Z", details_url: "https://github.com/ModelTok/app/actions/runs/11/job/5" }] });
           return log;
         },
         check: async () => JSON.stringify({ verdict: "approve", reasons: "fixes the compile error only", problems: [] }),

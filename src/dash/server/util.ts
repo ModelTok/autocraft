@@ -19,7 +19,7 @@ export function esc(s: unknown): string {
 export function plainPage(nonce: string, title: string, body: string, head = ""): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title>
-<link rel="icon" type="image/svg+xml" href="/artcraft-mark.svg"><link rel="apple-touch-icon" href="/artcraft-mark.png">${head}
+<link rel="icon" type="image/svg+xml" href="/modeltok-mark.svg"><link rel="apple-touch-icon" href="/modeltok-mark.png">${head}
 <script nonce="${nonce}">try{var t=localStorage.getItem("autocraft:theme");if(t==="dark"||t==="light")document.documentElement.dataset.theme=t}catch(e){}</script>
 <style nonce="${nonce}">
 :root{color-scheme:dark;--bg:#101014;--card:#141518;--fg:#f2f1ee;--muted:#9a9aa0;--line:rgba(255,255,255,.1);--link:#74aaff;--accent:#2d81ff}
@@ -42,8 +42,8 @@ export function previewTags(baseUrl: string | null | undefined, path: string, ti
   return `<meta name="description" content="${esc(PREVIEW_DESCRIPTION)}">
 <meta property="og:type" content="website"><meta property="og:site_name" content="AutoCraft"><meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(PREVIEW_DESCRIPTION)}"><meta property="og:url" content="${esc(origin + path)}">
-<meta property="og:image" content="${esc(origin)}/artcraft-mark.png"><meta property="og:image:width" content="1024"><meta property="og:image:height" content="1024">
-<meta property="og:image:alt" content="ArtCraft"><meta name="twitter:card" content="summary">`;
+<meta property="og:image" content="${esc(origin)}/modeltok-mark.png"><meta property="og:image:width" content="1024"><meta property="og:image:height" content="1024">
+<meta property="og:image:alt" content="ModelTok"><meta name="twitter:card" content="summary">`;
 }
 const PREVIEW_DESCRIPTION = "Automation for GitHub issues and pull requests: reviews, fix-ups and a merge queue, with people deciding.";
 

@@ -224,7 +224,7 @@ The pipeline runs Claude agents under the operator's own Claude account on the o
 | Action | Who |
 |---|---|
 | Read every page | anyone on the access list |
-| Answer, adopt an opinion, Backlog (on a decision, or on an item from the item page or a Queue row), press or edit a conversation card | operator, or a settling maintainer (see Who settles a decision); either needs write, maintain or admin permission on `storytold/R` on GitHub for every repo involved |
+| Answer, adopt an opinion, Backlog (on a decision, or on an item from the item page or a Queue row), press or edit a conversation card | operator, or a settling maintainer (see Who settles a decision); either needs write, maintain or admin permission on `the default owner/R` on GitHub for every repo involved |
 | Undo or retry an answer | operator for any answer; a settling maintainer for their own |
 | Send feedback (a pick, text or both), retract your pick; mark a decision as open (presence) | operator or maintainer (rate-limited, audited; opinions shown with their GitHub permission on the repo). Viewers get 403 and see no such controls |
 | Make an MCP Connector token | operator or maintainer (audited); anyone lists and revokes their own |
@@ -238,7 +238,7 @@ The pipeline runs Claude agents under the operator's own Claude account on the o
 
 Roles on the access list: `operator`, `maintainer`, `viewer`. A `viewer` is read-only: every write returns 403 and the interface shows no write controls. A `maintainer` sends feedback, and settles decisions under the rule in the Trust boundary while `maintainer_writes` is on. GitHub write permission on the repo is required for an answer about that repo, from an operator too.
 
-GitHub permissions: after sign-in, read the user's permission on each repo with the user's own token (`GET /repos/storytold/<repo>` returns `permissions` for the authenticated user), cache it per user and repo for 10 minutes, and re-check at the moment of any write if the cached value is older than one minute. A user without any write permission still signs in and can give opinions. The card says in one line whether the reader's pick is an answer or an opinion.
+GitHub permissions: after sign-in, read the user's permission on each repo with the user's own token (`GET /repos/<owner>/<repo>` returns `permissions` for the authenticated user), cache it per user and repo for 10 minutes, and re-check at the moment of any write if the cached value is older than one minute. A user without any write permission still signs in and can give opinions. The card says in one line whether the reader's pick is an answer or an opinion.
 
 ### Sign-in flow
 

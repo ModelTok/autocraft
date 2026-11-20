@@ -113,7 +113,7 @@ describe("GET /img", () => {
     const refused = [
       "https://example.com/a.png",
       "http://avatars.githubusercontent.com/u/1",
-      "https://github.com/storytold/photocraft/raw/main/a.png",
+      "https://github.com/ModelTok/photocraft/raw/main/a.png",
       "https://github.com/user-attachments/assets/not-a-uuid",
       "https://raw.githubusercontent.com/someone/repo/main/a.png",
       "https://avatars.githubusercontent.com:8443/u/1",
@@ -135,13 +135,13 @@ describe("GET /img", () => {
 
 
   test("a non-image content type or body is refused", async () => {
-    const html = "https://raw.githubusercontent.com/storytold/photocraft/main/page.png";
+    const html = "https://raw.githubusercontent.com/ModelTok/photocraft/main/page.png";
     upstream.set(html, { headers: { "content-type": "text/html" }, body: "<script>alert(1)</script>" });
     assert.equal((await img(html)).status, 415);
-    const svg = "https://raw.githubusercontent.com/storytold/photocraft/main/logo.svg";
+    const svg = "https://raw.githubusercontent.com/ModelTok/photocraft/main/logo.svg";
     upstream.set(svg, { headers: { "content-type": "image/svg+xml" }, body: "<svg xmlns='http://www.w3.org/2000/svg'/>" });
     assert.equal((await img(svg)).status, 415);
-    const fake = "https://raw.githubusercontent.com/storytold/photocraft/main/fake.png";
+    const fake = "https://raw.githubusercontent.com/ModelTok/photocraft/main/fake.png";
     upstream.set(fake, { body: "<html>not a png</html>" });
     assert.equal((await img(fake)).status, 415);
   });

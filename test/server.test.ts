@@ -134,7 +134,7 @@ describe("without a session", () => {
       assert.equal(page.status, 200, p);
       const html = await page.text();
       assert.ok(html.includes(`<meta http-equiv="refresh" content="0;url=/auth/signin?${new URLSearchParams({ return_to: p }).toString().replaceAll("&", "&amp;")}">`), p);
-      assert.match(html, /<meta property="og:image" content="[^"]*\/artcraft-mark\.png">/);
+      assert.match(html, /<meta property="og:image" content="[^"]*\/modeltok-mark\.png">/);
       assert.equal((await c.get(p, false)).status, 401, p);
     }
     for (const r of allRoutes.filter((r) => r.method === "POST")) {

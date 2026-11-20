@@ -44,7 +44,7 @@ test("the trace lists every source of an item oldest first, with heads, a cursor
   };
   assert.equal(await syncActivity(db, client), 1);
   assert.equal(await syncActivity(db, client), 0, "an item whose head and update time are unchanged is not read again");
-  assert.deepEqual(asked, [{ owner: "storytold", name: "photocraft", number: 7 }]);
+  assert.deepEqual(asked, [{ owner: "ModelTok", name: "photocraft", number: 7 }]);
 
   const t = await full(db);
   assert.deepEqual(t.events.map((e) => e.id.replace(/:\d+$/, "")), ["gh:opened", `commit:${H1}`, "activity:L1", "comment:c1", "plan", "run", "review:opus", "review:opus", "audit"]);

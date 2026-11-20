@@ -9,6 +9,7 @@
 // headings) paragraphs. Only src, alt and href are read from attributes; every
 // other tag is dropped and its text kept as text. The contents of script, style
 // and similar tags are dropped. URLs still pass `safeUrl` in the renderer.
+import { GITHUB_ORG } from "../lib/links.ts";
 
 // Images the server's proxy (GET /img, src/dash/server/images.ts) fetches:
 // the same hosts and path shapes. Anything else stays a link.
@@ -16,7 +17,7 @@ const PROXIED: [string, RegExp][] = [
   ["github.com", /^\/user-attachments\/assets\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i],
   ["private-user-images.githubusercontent.com", /^\/./],
   ["user-images.githubusercontent.com", /^\/./],
-  ["raw.githubusercontent.com", /^\/storytold\/./],
+  ["raw.githubusercontent.com", new RegExp(`^/${GITHUB_ORG}/.`, "i")],
   ["avatars.githubusercontent.com", /^\/./],
 ];
 

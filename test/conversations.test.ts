@@ -234,7 +234,7 @@ describe("Do it", () => {
       sent.push(q.includes("transferIssue") ? "transfer" : "other");
       return q.includes("transferIssue") ? { transferIssue: { issue: { url: "https://x.test/lib/1" } } } : { repository: { id: "R_lib" } };
     } };
-    const first = await doCard(db, resolution(db, [{ kind: "transfer", to: "storytold/lib" }], null, null), "op", { querier: querier as never });
+    const first = await doCard(db, resolution(db, [{ kind: "transfer", to: "ModelTok/lib" }], null, null), "op", { querier: querier as never });
     assert.equal(first.card.state, "failed");
     assert.match(first.card.error ?? "", /lib/);
     assert.equal(sent.includes("transfer"), false);
@@ -412,6 +412,6 @@ describe("card headline", () => {
     assert.equal(headline(db, res([{ kind: "close", reason: "not_planned", pr: false }])), "Close issue as not planned");
     assert.equal(headline(db, res([{ kind: "close", reason: "completed", pr: true }])), "Close PR");
     assert.equal(headline(db, res([{ kind: "duplicate", of: 12 }])), "Close as duplicate of #12");
-    assert.equal(headline(db, res([{ kind: "transfer", to: "storytold/x" }])), "Move issue to storytold/x");
+    assert.equal(headline(db, res([{ kind: "transfer", to: "ModelTok/x" }])), "Move issue to ModelTok/x");
   });
 });

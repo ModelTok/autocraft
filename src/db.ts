@@ -17,6 +17,21 @@ import { SIM_THRESHOLD } from "./dupes/scan.ts";
 
 export const DEFAULT_DB = join(homedir(), ".local/share/autocraft/mirror.db");
 
+// Repos a new database tracks before any operator has chosen: `AUTOCRAFT_SEED_REPOS`, comma-separated bare names of the
+// default owner. Unset, a new database tracks nothing; an operator tracks repos with `repos track` or on the Repos page.
+const SEED_REPOS = (process.env.AUTOCRAFT_SEED_REPOS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+/** Seeds the tracked repos once; the flag keeps the seed from returning after an operator empties the list. */
+function seedTracked(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 FROM settings WHERE key = 'tracked_seeded'").get()) return;
+  if (!db.prepare("SELECT 1 FROM tracked_repos LIMIT 1").get()) {
+    const at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const put = db.prepare("INSERT OR IGNORE INTO tracked_repos (name, added_by, added_at) VALUES (?, 'seed', ?)");
+    for (const name of SEED_REPOS) put.run(name, at);
+  }
+  db.prepare("INSERT OR IGNORE INTO settings VALUES ('tracked_seeded', '1')").run();
+}
+
 export function dbPath(): string {
   return envVar("DB") ?? DEFAULT_DB;
 }
@@ -708,6 +723,7 @@ function open(path: string): DatabaseSync {
     return db;
   }
   db.exec(schema);
+  seedTracked(db);
   addColumns(db);
   dropColumns(db);
   for (const ix of ADDED_INDEXES) db.exec(ix);

@@ -18,7 +18,7 @@ mkdirSync(SCRATCH, { recursive: true });
 const dir = mkdtempSync(join(SCRATCH, "discord-test-"));
 const db = connect(join(dir, "d.db"));
 const keys = new DiscordKeys("k".repeat(40));
-const repos = [{ owner: "storytold", name: "photocraft" }, { owner: "storytold", name: "pdfcraft" }];
+const repos = [{ owner: "ModelTok", name: "photocraft" }, { owner: "ModelTok", name: "pdfcraft" }];
 
 after(() => {
   db.close();
@@ -27,7 +27,7 @@ after(() => {
 
 describe("reference parser", () => {
   test("counts item URLs and repo#n of tracked repos, each item once", () => {
-    const text = "see https://github.com/storytold/photocraft/pull/12#issuecomment-5 and photocraft#12, also pdfcraft#7 and storytold/pdfcraft#8";
+    const text = "see https://github.com/ModelTok/photocraft/pull/12#issuecomment-5 and photocraft#12, also pdfcraft#7 and ModelTok/pdfcraft#8";
     assert.deepEqual(parseRefs(text, repos).map((r) => `${r.repo}#${r.number}`), ["photocraft#12", "pdfcraft#7", "pdfcraft#8"]);
   });
   test("ignores untracked repos, other owners and look-alikes", () => {

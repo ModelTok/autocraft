@@ -464,38 +464,6 @@ CREATE TABLE IF NOT EXISTS ever_tracked_repos (name TEXT PRIMARY KEY) WITHOUT RO
 CREATE TRIGGER IF NOT EXISTS tracked_repos_ever AFTER INSERT ON tracked_repos BEGIN
   INSERT OR IGNORE INTO ever_tracked_repos (name) VALUES (NEW.name);
 END;
--- Seeded once; the flag keeps the seed from returning after an operator empties the list.
-INSERT INTO tracked_repos (name, added_by, added_at)
-SELECT column1, 'seed', strftime('%Y-%m-%dT%H:%M:%SZ', 'now') FROM (VALUES
-  ('photocraft'),
-  ('pdfcraft'),
-  ('wordcraft'),
-  ('filmcraft'),
-  ('gridcraft'),
-  ('lightcraft'),
-  ('cadcraft'),
-  ('vectorcraft'),
-  ('effectcraft'),
-  ('designcraft'),
-  ('deckcraft'),
-  ('artcraft'),
-  ('soundcraft'),
-  ('figcraft'),
-  ('texturecraft'),
-  ('materialcraft'),
-  ('stencilcraft'),
-  ('craft-libs'),
-  ('craft-launcher'),
-  ('craft-anything'),
-  ('craft-i18n'),
-  ('craft-fonts'),
-  ('font-preview-service'),
-  ('artcraft-services'),
-  ('egui'),
-  ('winit')
-) WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key = 'tracked_seeded')
-  AND NOT EXISTS (SELECT 1 FROM tracked_repos);
-INSERT OR IGNORE INTO settings VALUES ('tracked_seeded', '1');
 
 -- Pipeline jobs: the only channel from the dashboard to the runner
 -- (`autocraft-server runner serve`). The dashboard inserts requests and cancel

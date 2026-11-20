@@ -579,7 +579,7 @@ function DetailBody({ id }: { id: number }) {
         ) : t.baseline ? (
           <>
             <dt className="text-ink/55">Source</dt>
-            <dd className="min-w-0 break-all"><span className="font-medium">Baseline build</span> of <span className="code">{t.baseline.branch ?? t.repo}</span> at <CommitLink href={gh(`storytold/${t.repo}/commit/${t.headSha}`)} sha={t.headSha} className="text-xs" /></dd>
+            <dd className="min-w-0 break-all"><span className="font-medium">Baseline build</span> of <span className="code">{t.baseline.branch ?? t.repo}</span> at <CommitLink href={gh(`${repoSlug(t.repo)}/commit/${t.headSha}`)} sha={t.headSha} className="text-xs" /></dd>
           </>
         ) : (
           <>

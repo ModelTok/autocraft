@@ -17,7 +17,7 @@ const HEALTH: Now["health"] = {
   problems: [
     { id: "worker:sandbox", area: "workers", tone: "bad", text: "Build worker Sandbox has not reported for 4 h", to: "/envs", since: at(4 * 3600) },
     { id: "build-queue", area: "workers", tone: "bad", text: "3 build tasks have waited over 10 min for a worker", to: "/envs", since: at(1500) },
-    { id: "sync-repo:stencilcraft", area: "sync", tone: "warn", text: "storytold/stencilcraft no longer resolves on GitHub (moved, renamed or deleted)", to: "/repos", since: at(3 * 3600) },
+    { id: "sync-repo:stencilcraft", area: "sync", tone: "warn", text: "ModelTok/stencilcraft no longer resolves on GitHub (moved, renamed or deleted)", to: "/repos", since: at(3 * 3600) },
     { id: "main-ci:designcraft", area: "main-ci", tone: "bad", text: "Main is red in designcraft: Tests, Clippy", to: "/main-ci", since: at(95) },
     { id: "account:c", area: "account", tone: "warn", text: "Account Team account C is paused: 5-hour use 92 % (pauses at 90 %)", to: "/accounts", since: null },
     { id: "jobs", area: "jobs", tone: "warn", text: "2 jobs failed in the last hour: Review pull requests", to: "/pipeline", since: null },

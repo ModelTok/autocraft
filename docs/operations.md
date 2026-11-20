@@ -1,6 +1,6 @@
 # Operations reference
 
-Local mirror of every storytold issue and PR, the triage pipeline's state, and the backlog dashboard.
+Local mirror of every issue and PR of the tracked repos (the default owner is ModelTok, or `AUTOCRAFT_OWNER`), the triage pipeline's state, and the backlog dashboard.
 
 - `autocraft-server sync` fills a SQLite mirror (`~/.local/share/autocraft/mirror.db`, or `$AUTOCRAFT_DB`) from GitHub GraphQL. Agents and scripts query the mirror instead of calling `gh`.
 - `autocraft-server whitelist` shows and edits which contributors' PRs may merge on green CI without a decision.
@@ -24,11 +24,11 @@ Each run stores `sync_points_last_run` (a full run: `sync_full_points_last_run`)
 
 #### Tracked repos
 
-`autocraft-server repos track <name>` tracks a storytold repo; `autocraft-server repos track <owner/name>` tracks one of another owner. The name keeps the casing given, and sync compares names case-sensitively, so use the casing GitHub shows.
+`autocraft-server repos track <name>` tracks a repo of the default owner; `autocraft-server repos track <owner/name>` tracks one of another owner. The name keeps the casing given, and sync compares names case-sensitively, so use the casing GitHub shows.
 
-- Repo names are unique across owners. Tracking `owner/name` is refused when the name is known under another owner, or when it is new and storytold has a repo of that name. A known bare name means its recorded owner.
+- Repo names are unique across owners. Tracking `owner/name` is refused when the name is known under another owner, or when it is new and the default owner has a repo of that name. A known bare name means its recorded owner.
 - The repo must exist and be readable. With the GitHub App identity, the app's installation must cover it.
-- Sync refreshes the repo list from storytold first, so the GitHub App must be installed on storytold too. An app installed only on the other owner lets tracking succeed and sync fail.
+- Sync refreshes the repo list from the default owner first, so the GitHub App must be installed on that owner too. An app installed only on the other owner lets tracking succeed and sync fail.
 
 #### Webhooks
 
@@ -94,7 +94,7 @@ The GitHub OAuth App needs no scopes, and expiring user tokens are supported: th
 
 ### Images
 
-`GET /img?u=<url>` (signed in only) fetches GitHub-hosted images from issue and PR bodies and comments so the app can show them inline under its CSP. It serves only `https` URLs on `github.com/user-attachments/assets/<uuid>`, `private-user-images.githubusercontent.com`, `user-images.githubusercontent.com`, `raw.githubusercontent.com/storytold/` and `avatars.githubusercontent.com`, and only when the exact URL occurs in a mirrored body or comment of a tracked repo; everything else is a 404 with no upstream request. The set of such URLs is rebuilt from the mirror when it has changed (at most every 30 seconds), and a cached image is served only while its URL is still in it. `imageRepo(url)` in `src/dash/server/images.ts` returns the repo an allowed URL belongs to.
+`GET /img?u=<url>` (signed in only) fetches GitHub-hosted images from issue and PR bodies and comments so the app can show them inline under its CSP. It serves only `https` URLs on `github.com/user-attachments/assets/<uuid>`, `private-user-images.githubusercontent.com`, `user-images.githubusercontent.com`, `raw.githubusercontent.com/<default owner>/` and `avatars.githubusercontent.com`, and only when the exact URL occurs in a mirrored body or comment of a tracked repo; everything else is a 404 with no upstream request. The set of such URLs is rebuilt from the mirror when it has changed (at most every 30 seconds), and a cached image is served only while its URL is still in it. `imageRepo(url)` in `src/dash/server/images.ts` returns the repo an allowed URL belongs to.
 
 The proxy follows at most three redirects, each to one of those hosts or GitHub's attachment bucket (`github-production-user-asset-6210df.s3.amazonaws.com`); IP addresses and `localhost` are never fetched. It serves PNG, JPEG, GIF, WebP and AVIF, checked by their magic bytes, up to 5 MB (the stream is aborted past that), within 15 seconds; never SVG. At most 4 upstream fetches run at once; further ones wait up to 5 seconds, then get 429. Each session may make 120 upstream fetches a minute and each client address 240. Responses are `private, max-age=86400` with `default-src 'none'` and `nosniff`; images are cached on disk for 7 days (at most 512 MB).
 

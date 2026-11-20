@@ -96,7 +96,7 @@ export function createRedesignMock(me: User, base: Pick<Api, "decisions" | "secu
         repo, number, kind: it.kind, state: it.state, title: it.title, author: it.author, costUsd: 0, stamp: "mock", header: mockHeader(it.kind, it.labels),
         status, bar: barFromStatus(status),
         reviews: { latest: null, earlier: [] }, timeline: [], screenshots: [],
-        github: { description: it.body, url: `https://github.com/storytold/${repo}/${it.kind === "pr" ? "pull" : "issues"}/${number}`, events: [{ id: "g1", type: "opened", at: it.createdAt, actor: it.author, body: it.body, autocraft: null }], checks: [], commits: [], files: [], syncedAt: new Date(Date.now() - 120_000).toISOString() },
+        github: { description: it.body, url: `https://github.com/ModelTok/${repo}/${it.kind === "pr" ? "pull" : "issues"}/${number}`, events: [{ id: "g1", type: "opened", at: it.createdAt, actor: it.author, body: it.body, autocraft: null }], checks: [], commits: [], files: [], syncedAt: new Date(Date.now() - 120_000).toISOString() },
       });
     },
     async itemPeek(repo, number) {

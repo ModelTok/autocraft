@@ -85,7 +85,7 @@ function setup(prs: number[], o: { build?: boolean } = {}) {
       }
       if (cmd === "gh") {
         if (a[0] === "api" && /\/commits\/[0-9a-f]+\/check-runs/.test(a[1]!)) {
-          return ok(JSON.stringify({ check_runs: [{ name: "gate / test", status: "completed", conclusion: "failure", details_url: "https://github.com/storytold/app/actions/runs/77/job/1", completed_at: fake.completedAt }] }));
+          return ok(JSON.stringify({ check_runs: [{ name: "gate / test", status: "completed", conclusion: "failure", details_url: "https://github.com/ModelTok/app/actions/runs/77/job/1", completed_at: fake.completedAt }] }));
         }
         if (a[0] === "run" && a[1] === "view") return ok(fake.log);
         if (a[0] === "api" && /actions\/runs\/77$/.test(a[1]!)) return ok(JSON.stringify({ head_sha: (w.db.prepare("SELECT commit_sha FROM merge_batches WHERE state IN ('checking', 'open') ORDER BY id DESC").get() as { commit_sha: string }).commit_sha }));

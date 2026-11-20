@@ -191,7 +191,7 @@ const AC_APP = "kiri-n via the App";
 const GITHUB_1484: GithubSide = {
   syncedAt: at(1),
   description: "Adds Hungarian spellchecking and the nonstandard hyphenation cases (ccs, ggy, sz+sz) that the pattern file lacks.\n\nThe dictionary and the pattern file come from the Magyar Ispell project under its permissive licence.",
-  url: "https://github.com/storytold/designcraft/pull/1484",
+  url: "https://github.com/ModelTok/designcraft/pull/1484",
   events: [
     gh("g1", "opened", 4 * D + 5 * H, "rhea-m", "Adds Hungarian spellchecking and the nonstandard hyphenation cases."),
     gh("g2", "review", 4 * D + 2 * H - 4, "autocraft", "**Review of 5d19f03: Hold.** Large data addition with no tests. Asks for tests and a check against the language pack in craft-i18n.\n\nOpus, not sure.", { as: AC_APP, historyId: "h3" }),
@@ -225,7 +225,7 @@ const HISTORY_9981: HistoryEntry[] = [
 const GITHUB_9981: GithubSide = {
   syncedAt: at(1),
   description: "Crop handles drift when the layer is rotated. They are placed with the unrotated bounds.\n\nFixes #9940.",
-  url: "https://github.com/storytold/photocraft/pull/9981",
+  url: "https://github.com/ModelTok/photocraft/pull/9981",
   events: [
     gh("g1", "opened", 6 * H, "dana-k", "Crop handles drift when the layer is rotated."),
     gh("g2", "review", 4 * H - 3, "autocraft", "**Review of 7c1d5ee: Take with fixes.** The fix is right for rotation but breaks on skewed layers.", { as: "box account", historyId: "h3" }),
@@ -249,7 +249,7 @@ const HISTORY_2214: HistoryEntry[] = [
 const GITHUB_2214: GithubSide = {
   syncedAt: at(1),
   description: "When a paragraph ends with a hyperlink, the exported PDF has the text but the link area is missing.\n\nSteps: type a paragraph, make the last words a link, export to PDF, click the link in a viewer.",
-  url: "https://github.com/storytold/wordcraft/issues/2214",
+  url: "https://github.com/ModelTok/wordcraft/issues/2214",
   events: [
     gh("g1", "opened", 6 * H, "linnea-w", "When a paragraph ends with a hyperlink, the exported PDF has the text but no link area."),
     gh("g2", "label", 3 * H - 10, "autocraft", "assigned autocraft and added label bug", { as: AC_APP, historyId: "h2" }),
@@ -268,7 +268,7 @@ const HISTORY_9970: HistoryEntry[] = [
 const GITHUB_9970: GithubSide = {
   syncedAt: at(1),
   description: "Keeps the endpoint handles inside the plot area when the curve is steep.",
-  url: "https://github.com/storytold/photocraft/pull/9970",
+  url: "https://github.com/ModelTok/photocraft/pull/9970",
   events: [
     gh("g1", "opened", 2 * D + 4 * H, "hollowbrook", "Keeps the endpoint handles inside the plot area."),
     gh("g2", "merged", 100, "autocraft", "Merged in integration batch #40 (merge commit 4f8a21c).", { as: AC_APP, historyId: "h3" }),
@@ -326,7 +326,7 @@ export function itemPageFor(repo: string, number: number): ItemPageData | null {
   const history = [hist("h1", s.updated + 20, "Classify", "classified", "Jev", 0), hist("h2", s.updated, s.status.phase, s.status.waiting ?? "done", null, null, "event")];
   return withTimeline({
     ...base, reviews: { latest: null, earlier: [] }, results: [{ id: "c1", kind: "classifiers", title: "Classifiers", outcome: "3 of 3 agree", tone: "neutral", at: at(s.updated + 20), detail: null, earlier: [] }], history, costUsd: 0,
-    github: { description: s.title, url: `https://github.com/storytold/${repo}/${s.kind === "pr" ? "pull" : "issues"}/${number}`, events: [gh("g1", "opened", s.updated + 60, s.author, s.title)], checks: [], commits: [], files: [], syncedAt: at(3) },
+    github: { description: s.title, url: `https://github.com/ModelTok/${repo}/${s.kind === "pr" ? "pull" : "issues"}/${number}`, events: [gh("g1", "opened", s.updated + 60, s.author, s.title)], checks: [], commits: [], files: [], syncedAt: at(3) },
   });
 }
 

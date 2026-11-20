@@ -37,10 +37,10 @@ function fake(answers: { fork?: { code: number; stderr: string }; pr?: string } 
     if (cmd === "git" && a.includes("ls-tree")) return { code: 0, stdout: a.includes("crates/psd/Cargo.toml") ? "100644 blob abc123\tcrates/psd/Cargo.toml\n" : "", stderr: "" };
     if (cmd === "git" && a.includes("cat-file blob") && a.includes("crates/psd/Cargo.toml")) return { code: 0, stdout: '[package]\nname = "psd"\nversion = "0.3.2"\n', stderr: "" };
     if (cmd === "git") return { code: 0, stdout: a.includes("rev-parse") ? `${SHA}\n` : "", stderr: "" };
-    if (a.includes("--jq .parent.full_name")) return { code: 0, stdout: "storytold/photocraft\n", stderr: "" };
+    if (a.includes("--jq .parent.full_name")) return { code: 0, stdout: "ModelTok/photocraft\n", stderr: "" };
     if (a.startsWith("pr list")) return { code: 0, stdout: "", stderr: "" };
-    if (a.startsWith("pr create")) return { code: 0, stdout: `${answers.pr ?? "https://github.com/storytold/photocraft/pull/77"}\n`, stderr: "" };
-    if (a.includes("security-advisories/GHSA") && a.includes("/forks")) return { code: answers.fork?.code ?? 0, stdout: answers.fork?.code ? "" : "storytold/photocraft-ghsa-aaaa\n", stderr: answers.fork?.stderr ?? "" };
+    if (a.startsWith("pr create")) return { code: 0, stdout: `${answers.pr ?? "https://github.com/ModelTok/photocraft/pull/77"}\n`, stderr: "" };
+    if (a.includes("security-advisories/GHSA") && a.includes("/forks")) return { code: answers.fork?.code ?? 0, stdout: answers.fork?.code ? "" : "ModelTok/photocraft-ghsa-aaaa\n", stderr: answers.fork?.stderr ?? "" };
     if (a.includes("security-advisories") && a.includes("POST") && !a.includes("GHSA")) return { code: 0, stdout: "GHSA-aaaa-bbbb-cccc\n", stderr: "" };
     return { code: 0, stdout: "", stderr: "" };
   };
@@ -183,7 +183,7 @@ describe("private fix and landing", () => {
 
   test("a refused git push is an admin wait on the advisory route", async () => {
     const f = fake({ fork: { code: 0, stderr: "" } });
-    const denied: Exec = async (cmd, args, opts) => (cmd === "git" && args.includes("push") ? { code: 128, stdout: "", stderr: "remote: Permission to storytold/x denied to bot.\nfatal: unable to access: The requested URL returned error: 403" } : f.exec(cmd, args, opts));
+    const denied: Exec = async (cmd, args, opts) => (cmd === "git" && args.includes("push") ? { code: 128, stdout: "", stderr: "remote: Permission to ModelTok/x denied to bot.\nfatal: unable to access: The requested URL returned error: 403" } : f.exec(cmd, args, opts));
     const n = finding("landing", { urgent: 1 });
     await runAdvisory(db, "photocraft", n, BY, deps(denied));
     assert.equal(stateOf(n).state, "awaiting-admin");
@@ -245,13 +245,13 @@ describe("private fix and landing", () => {
 
     // Pressing Advisory again resumes after the steps that are done.
     db.prepare("UPDATE security_findings SET state = 'landing' WHERE number = ?").run(n);
-    const ok = fake({ pr: "https://github.com/storytold/photocraft-ghsa-aaaa/pull/3" });
+    const ok = fake({ pr: "https://github.com/ModelTok/photocraft-ghsa-aaaa/pull/3" });
     await runAdvisory(db, "photocraft", n, BY, deps(ok.exec));
     const row = stateOf(n);
     assert.equal(row.state, "awaiting-admin");
-    assert.equal(row.fork, "storytold/photocraft-ghsa-aaaa");
+    assert.equal(row.fork, "ModelTok/photocraft-ghsa-aaaa");
     assert.equal(row.fix_pr, 3);
-    assert.ok(ok.calls.some((c) => c.cmd === "git" && c.args.some((a) => a.includes("storytold/photocraft-ghsa-aaaa.git"))), "the fix is pushed to the private fork");
+    assert.ok(ok.calls.some((c) => c.cmd === "git" && c.args.some((a) => a.includes("ModelTok/photocraft-ghsa-aaaa.git"))), "the fix is pushed to the private fork");
     assert.ok(!ok.calls.some((c) => c.args.includes("POST") && c.args.some((a) => a.endsWith("/security-advisories"))), "the advisory is not created twice");
 
     // The merge shows as the fix commit being part of the default branch (the fake git answers yes to the ancestor check).

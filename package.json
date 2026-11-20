@@ -2,7 +2,7 @@
   "name": "autocraft",
   "license": "MIT OR Apache-2.0",
   "version": "0.1.0",
-  "description": "Backlog mirror, triage pipeline state and dashboard for the storytold craft apps",
+  "description": "Backlog mirror, triage pipeline state and dashboard for the ModelTok repositories",
   "private": true,
   "packageManager": "pnpm@11.28.10",
   "type": "module",
@@ -19,7 +19,7 @@
     "docs:check": "node scripts/gen-docs.ts --check",
     "docs:image": "node scripts/flowchart-shot.mjs",
     "gql-schema": "scripts/gql-schema.sh",
-    "test": "node --import ./test/owner-env.ts --test"
+    "test": "node --import ./test/seed-env.ts --test"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

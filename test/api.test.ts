@@ -241,7 +241,7 @@ describe("api", () => {
     const boss = await signedIn("boss");
     const r = await boss.req("POST", dpath(F3, "/answer"), { body: { answer: "small" } });
     assert.equal(r.status, 403);
-    assert.match(((await r.json()) as { error: string }).error, /storytold\/filmcraft/);
+    assert.match(((await r.json()) as { error: string }).error, /ModelTok\/filmcraft/);
     const d = await boss.post<Decision>(dpath(P2, "/answer"), { answer: "plugin", note: "private note" });
     assert.equal(d.answer, "plugin");
     assert.equal(d.answerNote, "private note");

@@ -1,4 +1,4 @@
-// Mirror of every issue and PR of the tracked owners (storytold and any other owner of a tracked repo) into SQLite, via `gh api graphql`.
+// Mirror of every issue and PR of the tracked owners (the default owner and any other owner of a tracked repo) into SQLite, via `gh api graphql`.
 import { refreshSnapshot } from "./itemtools/snapshot.ts";
 import { isCounted } from "./review/discussion.ts";
 import { spawn, spawnSync } from "node:child_process";

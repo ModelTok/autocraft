@@ -1,7 +1,7 @@
 -- Mirror tables: written only by `craft-auto sync`, overwritten from GitHub.
 
 CREATE TABLE IF NOT EXISTS repos (
-  name TEXT PRIMARY KEY,              -- "photocraft" (owner is always storytold)
+  name TEXT PRIMARY KEY,              -- "photocraft" (owner is always ModelTok)
   visibility TEXT,
   default_branch TEXT,
   open_prs INTEGER,

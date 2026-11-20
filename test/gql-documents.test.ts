@@ -81,7 +81,7 @@ function scan(file: string, src: string): Found[] {
 const walk = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith(".ts") ? [join(dir, e.name)] : []);
 
-const KNOWN: Record<string, string> = { ORG: "storytold", COMMON, COMMENTS, PR_EXTRA, PR_FULL, FORMAL_REVIEWS };
+const KNOWN: Record<string, string> = { ORG: "ModelTok", COMMON, COMMENTS, PR_EXTRA, PR_FULL, FORMAL_REVIEWS };
 
 // Documents with computed parts, called with plausible arguments. Keyed by source file.
 const BUILT: Record<string, string[]> = {

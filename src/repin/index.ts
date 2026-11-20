@@ -1,7 +1,7 @@
 // Autorepin: a pull request that depends on an unmerged pull request of another tracked repository (a craft-libs change,
 // say) pins that repository's crates to a commit of its branch. Someone who may queue items on the repo comments
 //
-//   @<app-slug> autorepin storytold/craft-libs#12        (also `craft-libs#12`, the pull request's URL, or `off`)
+//   @<app-slug> autorepin ModelTok/craft-libs#12        (also `craft-libs#12`, the pull request's URL, or `off`)
 //
 // and once that pull request is merged into its default branch, this one gets a commit that sets the `rev` of every Cargo
 // git dependency on that repository to the merge commit, with Cargo.lock updated to match. No model is involved:
