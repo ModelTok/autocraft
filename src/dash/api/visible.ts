@@ -6,7 +6,7 @@
 import type { HiddenRepos } from "../../hidden-sql.ts";
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import { trackedNames } from "../../repos.ts";
-import { DEFAULT_OWNER, ownerOf } from "../../owners.ts";
+import { isDefaultOwner, ownerOf } from "../../owners.ts";
 import { HttpError } from "../server/util.ts";
 import type { Req, User } from "../types.ts";
 import { securityRepo } from "../../security/rules.ts";
@@ -44,7 +44,7 @@ export function allVisibleRepos(db: DatabaseSync, req: Req): Promise<string[]> {
 /** Owner of each visible repo that is not storytold's; the web app builds GitHub links from it. */
 export async function repoOwners(db: DatabaseSync, req: Req): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  for (const r of await allVisibleRepos(db, req)) if (ownerOf(r) !== DEFAULT_OWNER) out[r] = ownerOf(r);
+  for (const r of await allVisibleRepos(db, req)) if (!isDefaultOwner(ownerOf(r))) out[r] = ownerOf(r);
   return out;
 }
 

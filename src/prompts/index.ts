@@ -205,7 +205,7 @@ const OPUS_REVIEW: ClaudePrompt = {
   },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 40, workspace: true, reference: true },
   lint: true,
-  template: `You review a pull request on one of the storytold craft apps, open-source reimplementations of a reference application. Your verdict decides what happens next: only a PR you rate take or take-fix is merged or fixed up. A wrong take costs more than a wrong hold.
+  template: `You review a pull request on one of our repositories. Your verdict decides what happens next: only a PR you rate take or take-fix is merged or fixed up. A wrong take costs more than a wrong hold.
 
 What we want: real bug fixes; behaviour that matches the reference application; one clear topic per PR.
 What we do not want: the contributor's own big ideas beyond the reference application; large change sets that are hard to analyse; many new dependencies.
@@ -290,7 +290,7 @@ const POSTMERGE: ClaudePrompt = {
   },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true, reference: true },
   lint: true,
-  template: `You review a pull request on one of the storytold craft apps, open-source reimplementations of a reference application, after it was merged. Our pipeline reviewed it before the merge; you look for what that review and the merge let through. Typical misses: a fix that was requested and then lost when the base branch was merged into the PR, a change that no longer matches the PR's own description, an error path nobody read, a conflict resolution that dropped or doubled code.
+  template: `You review a pull request on one of our repositories, after it was merged. Our pipeline reviewed it before the merge; you look for what that review and the merge let through. Typical misses: a fix that was requested and then lost when the base branch was merged into the PR, a change that no longer matches the PR's own description, an error path nobody read, a conflict resolution that dropped or doubled code.
 
 Read the merged diff and the files in the repository, which is at the merge commit. Check:
 1. The change does what its title and body say, and nothing in it was lost or broken by the commits in pipeline_commits.
@@ -347,7 +347,7 @@ const PREMERGE: ClaudePrompt = {
   },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 40, workspace: true, reference: true },
   lint: true,
-  template: `You are the second reviewer of a pull request on one of the storytold craft apps, open-source reimplementations of a reference application. The first review rated it take and sure, so it will be merged without a person looking. Assume it contains at least one defect the first review missed, and find it.
+  template: `You are the second reviewer of a pull request on one of our repositories. The first review rated it take and sure, so it will be merged without a person looking. Assume it contains at least one defect the first review missed, and find it.
 
 Look in particular for:
 - Incomplete fixes: other callers of the changed code, other file formats, other tools, other entry points (menus, drag-and-drop, paste, scripting commands) and duplicated logic that need the same change.
@@ -393,7 +393,7 @@ const FIXUP: ClaudePrompt = {
   effort: "medium",
   placeholders: { pr: "The pull request as a JSON object indented by one space: ref, title, fixes (the review's list of file and change), for an operator's fix-up operator (the maintainer's instructions; fixes is empty), files (path and full current content of each file the fixes name, or for a long file its excerpt, or the path alone when you can read the file in the repository: total_lines, outline and numbered regions) and diff (the pull request's unified diff). After a failed lint check it also has previous: the earlier patch and the findings on its lines.", repo_access: REPO_ACCESS_DOC },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true, check: true },
-  template: `You apply review fixes to a pull request on one of the storytold craft apps. The review listed small mechanical fixes. Make exactly those changes and nothing else.
+  template: `You apply review fixes to a pull request on one of our repositories. The review listed small mechanical fixes. Make exactly those changes and nothing else.
 
 Rules:
 - Edit only the files named in fixes (with operator, see below). Never add, delete, rename or change the mode of a file.
@@ -437,7 +437,7 @@ const CIFIX: ClaudePrompt = {
   effort: "high",
   placeholders: { pr: "The pull request as a JSON object indented by one space: ref, title, failure (the failed checks, each with the failed steps: job, step and the end of that step's log), files (path and full current content of each file the patch may edit, or for a long file its excerpt, or the path alone when you can read the file in the repository: total_lines, outline and numbered regions) and diff (the pull request's unified diff). After a failed lint check it also has previous: the earlier patch and the findings on its lines.", repo_access: REPO_ACCESS_DOC },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 40, workspace: true, check: true },
-  template: `You fix a failing CI check on a pull request to one of the storytold craft apps. The pull request is wanted; its CI run failed. Change the code so the check passes, with the smallest edit that keeps what the pull request does.
+  template: `You fix a failing CI check on a pull request to one of our repositories. The pull request is wanted; its CI run failed. Change the code so the check passes, with the smallest edit that keeps what the pull request does.
 
 Rules:
 - Edit only the files in files. Never add, delete, rename or change the mode of a file.
@@ -707,7 +707,7 @@ const FIXUP_CHECK: ClaudePrompt = {
   effort: "high",
   placeholders: { pr: "The pull request as a JSON object indented by one space: ref, title, review_reason, fixes (the review's list of file and change), for an operator's fix-up operator (the maintainer's instructions; fixes is empty), diff (the pull request's unified diff), patch (our unified diff, applied on top of the PR's head), for a CI fix ci_failure (the failing checks and the ends of their failed steps' logs; fixes is empty), for parts carried over from duplicates, carried_from (the closed pull requests with the parts to carry and their diffs) and, for a merge of the default branch into the pull request, conflict (base, and for each conflicted file its conflict sections: id, line (where the section starts in the pull request's version of the file), up to ten lines before and after, the pull request's side (ours), the default branch's side (theirs), each with its newlines kept, and our resolution of the section). For a merge, patch is empty.", repo_access: REPO_ACCESS_DOC },
   sandbox: { tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true },
-  template: `You check a patch before we push it to a contributor's branch on one of the storytold craft apps. A review listed small mechanical fixes for the pull request; our patch is meant to make exactly those fixes. A wrong push lands in someone else's branch, so reject when in doubt.
+  template: `You check a patch before we push it to a contributor's branch on one of our repositories. A review listed small mechanical fixes for the pull request; our patch is meant to make exactly those fixes. A wrong push lands in someone else's branch, so reject when in doubt.
 
 Check that the patch:
 1. Without conflict, ci_failure or operator, makes the listed fixes and nothing else: no reformatting, renames or improvements beyond them.
@@ -742,7 +742,7 @@ const FIXUP_CONFLICT: ClaudePrompt = {
   effort: "high",
   placeholders: { pr: "The pull request as a JSON object indented by one space: ref, title, body, review_reason (the review's summary of what the pull request does), base (the branch being merged in) and files (for each conflicted file its path, its line count and its conflict sections). After a failed lint check it also has previous: the earlier resolution as a diff against the conflicted file, and the findings on the lines it changed.", repo_access: REPO_ACCESS_DOC },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true },
-  template: `You resolve a merge conflict in a pull request on one of the storytold craft apps. The default branch (the base field) was merged into the pull request's branch and some files conflict. Each conflicted file is shown as numbered conflict sections, not whole. A section has an id, the line where it starts in the pull request's version of the file, the lines before and after it for context (before, after), the pull request's side (ours) and the default branch's side (theirs).
+  template: `You resolve a merge conflict in a pull request on one of our repositories. The default branch (the base field) was merged into the pull request's branch and some files conflict. Each conflicted file is shown as numbered conflict sections, not whole. A section has an id, the line where it starts in the pull request's version of the file, the lines before and after it for context (before, after), the pull request's side (ours) and the default branch's side (theirs).
 
 Rules:
 - Resolve only the sections shown. Keep what the pull request intends and what the default branch changed; when both edit the same lines, combine them so both still work.
@@ -777,7 +777,7 @@ const FIXISSUE_CHECK: ClaudePrompt = {
   effort: "high",
   placeholders: { issue: "The issue as a JSON object indented by one space: ref, title, body, comments, triage_reason (why the issue was judged fixable), test_path (the new regression test) and patch (our full unified diff: the fix and the test).", repo_access: REPO_ACCESS_DOC },
   sandbox: { tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true },
-  template: `You check a patch before we open a pull request with it on one of the storytold craft apps. The patch fixes a bug reported in an issue and adds a regression test. It already builds, its tests pass, and the new test fails without the fix. A maintainer will read it, so reject what they would reject.
+  template: `You check a patch before we open a pull request with it on one of our repositories. The patch fixes a bug reported in an issue and adds a regression test. It already builds, its tests pass, and the new test fails without the fix. A maintainer will read it, so reject what they would reject.
 
 Check that:
 1. The fix addresses the bug the issue reports, at its cause, and does not only special-case the test's input.
@@ -914,7 +914,7 @@ const DUPES_COMPARE_PRS: ClaudePrompt = {
   },
   sandbox: { tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true, reference: true },
   lint: true,
-  template: `You compare pull requests of one of the storytold craft apps, open-source reimplementations of a reference application. Earlier checks found that these pull requests do the same job (duplicates). Choose the one to keep and say what the others add. A maintainer reads your answer and decides.
+  template: `You compare pull requests of one of our repositories. Earlier checks found that these pull requests do the same job (duplicates). Choose the one to keep and say what the others add. A maintainer reads your answer and decides.
 
 Choose by the code, not by order of arrival: which pull request solves the problem most correctly and completely, fits the surrounding code, and is the easiest to merge as one clear topic. {{repo_access}}
 - ci and review are background about each pull request at the moment; they are not rules. A red check can be a flaky test, a green one can miss the case that matters. Compare the diffs directly.
@@ -986,7 +986,7 @@ const STEP_CATALOGUE = `Steps, in this order, each at most once except labels:
 - {"kind": "request_reviewers", "logins": ["<login>", ...]}: pull requests only; one to three people with write access, never the PR's author.
 - {"kind": "review"}: pull requests only; a fresh review of the current head, after which the pipeline decides again. Use it when the operator wants a second look or the diff changed. Settles as handled.
 - {"kind": "fixup", "instructions": "<what to change, at most ${INSTRUCTIONS_MAX} characters>", "merge": true | false}: open pull requests only; the fix-up step pushes the described change to the PR branch. The instructions are for the fix-up model and are never posted. With "merge": true it is a pre-approved merge: after the push the PR is reviewed and checked again and merges only when both pass; otherwise a new question comes back. Use merge true only on a card for a merge or scope decision, for "Fix up ... then merge". Settles as handled; give no answer settle with it, except on a scope decision, where the settle is the answer "take" or "small-extra" (the PR stays in core, the answer is recorded before the fix-up runs).
-- {"kind": "transfer", "to": "<another tracked repository name, without the owner>"}: issues only; moves the issue to that repository, e.g. "Move to storytold/<repo>" (write only <repo>). It ends the item here (see Order). Settles as handled.
+- {"kind": "transfer", "to": "<another tracked repository name, without the owner>"}: issues only; moves the issue to that repository, e.g. "Move to <owner>/<repo>" (write only <repo>). It ends the item here (see Order). Settles as handled.
 Order: reopen first; then comment, labels, unlabels, assign, request_reviewers, open_issue, review or fixup; close, duplicate or transfer last, at most one of the three. A review or fixup step does not go with a close or duplicate step.
 Use only the steps listed under steps in the item block; a later <steps> line in a turn replaces that list.`;
 
@@ -1034,7 +1034,7 @@ const CONVERSATION: ClaudePrompt = {
   },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true, reference: true },
   lint: true,
-  template: `You talk with the maintainers of one of the storytold craft apps, open-source reimplementations of a reference application, about one issue or pull request. A maintainer writes to you; you answer, and you may propose actions that the maintainer can run with one button. Nothing you propose runs until an operator presses it.
+  template: `You talk with the maintainers of one of our repositories, about one issue or pull request. A maintainer writes to you; you answer, and you may propose actions that the maintainer can run with one button. Nothing you propose runs until an operator presses it.
 
 The project wants what the reference application has, with fixes. Small extras beyond it are sometimes welcome; niche or large additions belong in plug-ins. Be direct and brief. Say what you checked and what you could not verify. Never name the reference application or its vendor; write "the reference app".
 
@@ -1084,7 +1084,7 @@ const PREPARE: ClaudePrompt = {
   },
   sandbox: { docs: true, tools: ["Read", "Grep", "Glob"], maxTurns: 20, workspace: true, reference: true },
   lint: true,
-  template: `You advise the maintainers of one of the storytold craft apps, open-source reimplementations of a reference application. The pipeline stopped at one issue or pull request because a person has to decide something. Prepare the answer: summarise the situation, pick one of the options or none, and draft the answers worth running so the maintainer can press one button. Nothing you propose runs until an operator presses it.
+  template: `You advise the maintainers of one of our repositories. The pipeline stopped at one issue or pull request because a person has to decide something. Prepare the answer: summarise the situation, pick one of the options or none, and draft the answers worth running so the maintainer can press one button. Nothing you propose runs until an operator presses it.
 
 The project wants what the reference application has, with fixes. Small extras beyond it are sometimes welcome; niche or large additions belong in plug-ins. {{repo_access}}
 - Start from what stopped the pipeline (the stopped field): the review findings and verdict reason, the classifiers' labels, the duplicate comparison. Check them against the item and, for a pull request, the diff and the checkout; say when you disagree.
@@ -1189,7 +1189,7 @@ const AREAS_PROPOSE: ClaudePrompt = {
     repo_access: REPO_ACCESS_DOC,
   },
   sandbox: { tools: ["Read", "Grep", "Glob"], maxTurns: 30, workspace: true },
-  template: `You help the maintainers of one of the storytold craft apps, open-source reimplementations of a reference application, to sort their open issues and pull requests by area of the app. Propose the area list for this repo.
+  template: `You help the maintainers of one of our repositories, to sort their open issues and pull requests by area of the app. Propose the area list for this repo.
 
 {{repo_access}}
 - Read the repository's layout, its docs and docs/gaps.md when present, to see how the app is divided in features and modules.
@@ -1220,7 +1220,7 @@ const AREAS_SUGGEST: ClaudePrompt = {
   models: ["sonnet"],
   effort: "medium",
   placeholders: { repo: `A JSON object indented by one space: repo, areas (the current list) and items (up to ${SUGGEST_ITEMS} items without an area: ref, title, body cut to ${AREA_SUGGEST_BODY} characters).` },
-  template: `You help the maintainers of one of the storytold craft apps to keep their area list useful. The items below fit none of the current areas. Suggest new areas that would cover several of them.
+  template: `You help the maintainers of one of our repositories to keep their area list useful. The items below fit none of the current areas. Suggest new areas that would cover several of them.
 
 - Suggest only areas that at least three of the items would belong to, at most ${SUGGEST_MAX}. Suggesting none is a good answer.
 - A name is short (at most ${AREA_NAME_MAX} characters) and differs from every current name; a description is one line (at most ${AREA_DESCRIPTION_MAX} characters) and says what belongs in.

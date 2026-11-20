@@ -58,7 +58,7 @@ export type Msg = { jsonrpc?: unknown; id?: string | number | null; method?: unk
 export type Reply = { jsonrpc: "2.0"; id: string | number | null; result?: unknown; error?: { code: number; message: string } };
 export type ToolResult = { text: string; isError?: boolean };
 
-const INSTRUCTIONS = `AutoCraft's MCP Connector. The Inbox holds the open work its pipeline could not settle on its own, across every storytold craft app it tracks. You act as the signed-in dashboard user who made this token, with their role.
+const INSTRUCTIONS = `AutoCraft's MCP Connector. The Inbox holds the open work its pipeline could not settle on its own, across every repository it tracks. You act as the signed-in dashboard user who made this token, with their role.
 
 How to help:
 1. Find work: list_repos for an overview, list_inbox for open decisions (filter by repo and kind), list_fixups for pull requests whose review fixes the pipeline could not apply.
@@ -183,7 +183,7 @@ export const ANSWER_TOOLS = [
 export const TOOLS = [
   {
     name: "list_repos",
-    description: "The tracked storytold repositories you can see, each with its open Inbox decisions by kind and its pull requests waiting for a fix-up the pipeline could not make.",
+    description: "The tracked repositories you can see, each with its open Inbox decisions by kind and its pull requests waiting for a fix-up the pipeline could not make.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: true },
   },

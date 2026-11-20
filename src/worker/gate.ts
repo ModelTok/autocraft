@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { DEFAULT_OWNER, slugOf } from "../owners.ts";
+import { slugOf } from "../owners.ts";
 // The CI gate of a repo, read from its default branch so a task's environment matches upstream CI
 // on Linux: apt packages, the craft-fonts and craft-i18n checkouts, and the gate's extra env.
 // The inputs come from the workflow at the task's BASE commit, never from the PR being tested:
@@ -185,7 +185,7 @@ export async function resolveGate(repo: string, sha: string, fetchImpl: typeof f
   const ci = await getText(`${RAW}/${slugOf(repo)}/${sha}/.github/workflows/ci.yml`, fetchImpl);
   const call = ci === null ? null : parseGateCall(ci);
   if (!call) return null;
-  const gate = await getText(`${RAW}/${DEFAULT_OWNER}/craft-common-actions/${call.ref}/.github/workflows/gate.yml`, fetchImpl);
+  const gate = await getText(`${RAW}/storytold/craft-common-actions/${call.ref}/.github/workflows/gate.yml`, fetchImpl);
   if (gate === null) throw new Error(`craft-common-actions gate.yml not found at ${call.ref}`);
   return { ...gateEnv(call, parseGateDefaults(gate), repo), gateSha256: createHash("sha256").update(gate).digest("hex") };
 }

@@ -6,7 +6,7 @@
 import { existsSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { dbPath } from "../db.ts";
-import { DEFAULT_OWNER, OWNER } from "../owners.ts";
+import { DEFAULT_OWNER, isDefaultOwner, OWNER } from "../owners.ts";
 import { AppNotInstalledError, TOKEN_ENV, appChildEnv, installationToken } from "./install-token.ts";
 
 export type ReadEnv = Record<string, string>;
@@ -54,7 +54,7 @@ export function trackedOwner(db?: DatabaseSync): string {
   try {
     const rows = d?.prepare("SELECT r.owner FROM main.tracked_repos t JOIN main.repos r ON r.name = t.name WHERE r.owner IS NOT NULL ORDER BY t.added_at").all() as { owner: string }[] | undefined;
     const owners = (rows ?? []).map((r) => r.owner).filter((o) => OWNER.test(o));
-    if (owners.some((o) => o.toLowerCase() === DEFAULT_OWNER)) return DEFAULT_OWNER;
+    if (owners.some(isDefaultOwner)) return DEFAULT_OWNER;
     if (owners[0]) return owners[0];
   } catch { /* fall through to the default owner */ }
   return DEFAULT_OWNER;

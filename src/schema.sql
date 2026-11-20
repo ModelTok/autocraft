@@ -2,7 +2,7 @@
 
 CREATE TABLE IF NOT EXISTS repos (
   name TEXT PRIMARY KEY,              -- "photocraft"; unique across owners
-  owner TEXT NOT NULL DEFAULT 'storytold', -- GitHub org or user
+  owner TEXT NOT NULL DEFAULT 'ModelTok', -- GitHub org or user
   visibility TEXT,
   default_branch TEXT,
   open_prs INTEGER,
