@@ -3,6 +3,7 @@
 // step works in. The steps keep their own work; none of them selects items on its own any more.
 import type { DatabaseSync } from "node:sqlite";
 import type { Item } from "../classify/parse.ts";
+import { repoScope } from "../repo-scope.ts";
 import { decideItem } from "./decide-item.ts";
 import { inFlightNow } from "./select.ts";
 import { loadItemFacts, type ItemLoadOptions } from "./issue-facts.ts";
@@ -72,5 +73,6 @@ export function itemOf(db: DatabaseSync, repo: string, number: number): Item {
   const r = db.prepare(`SELECT repo, number, kind, COALESCE(title, '') AS title, COALESCE(body, '') AS body, additions + deletions AS lines_changed,
     changed_files AS files_changed, author_association FROM items WHERE repo = ? AND number = ?`).get(repo, number) as Item | undefined;
   if (!r) throw new Error(`${repo}#${number} is not in the database`);
-  return r;
+  const project = repoScope(db, repo);
+  return project ? { ...r, project } : r;
 }

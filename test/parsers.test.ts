@@ -20,7 +20,7 @@ describe("model replies", () => {
   test("choices block: the public texts are read from drafted extras, closing reasons and the ask, not from the pick's reason", () => {
     const block = { pick: { core: "o:merge", reason: "internal" }, cores: [
       { core: "o:close", reason: "Out of scope.", extras: [{ kind: "open_issue", on: true, repo: "app", title: "A  title", body: "Body." }] },
-      { core: "o:merge", extras: [{ kind: "comment", on: true, text: "Thanks." }, { kind: "label", on: false, label: "bugfix" }] },
+      { core: "o:merge", extras: [{ kind: "comment", on: true, text: "Thanks." }, { kind: "label", on: false, label: "bug" }] },
     ], add: [{ end: { review: true }, extras: [{ kind: "comment", on: false, text: "Please retest." }] }], ask: { text: "Which version?" } };
     const texts = choicesTexts(`Summary.\n\`\`\`choices\n${JSON.stringify(block)}\n\`\`\``);
     assert.deepEqual(texts.map((t) => [t.field, t.text]), [

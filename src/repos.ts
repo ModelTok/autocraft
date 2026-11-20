@@ -9,6 +9,7 @@ import { appCoverage, githubIdentity, setGithubIdentityChecked } from "./github/
 import { readAppSecrets } from "./github/install-token.ts";
 import { PilotError, setRepoPipeline } from "./pilot.ts";
 import { AppReadError, readEnv } from "./github/read.ts";
+import { repoScope, setRepoScope } from "./repo-scope.ts";
 
 export class RepoError extends Error {}
 
@@ -183,6 +184,21 @@ const sub: Record<string, (args: string[]) => void | Promise<void>> = {
       process.exit(1);
     }
   },
+  scope: (a) => {
+    const usage = "scope <name> [<text> | --clear]";
+    const name = need(a, usage);
+    const db = connect();
+    if (a.length === 1) { console.log(repoScope(db, name) ?? `${name}: no scope line set`); return; }
+    const clear = a.length === 2 && a[1] === "--clear";
+    if (!clear && !db.prepare("SELECT 1 FROM main.tracked_repos WHERE name = ?").get(name)) { console.error(`${name} is not tracked`); process.exit(1); }
+    try {
+      const changed = setRepoScope(db, "cli", name, clear ? null : a.slice(1).join(" "));
+      console.log(clear ? (changed ? `${name}: scope line removed` : `${name}: no scope line was set`) : changed ? `${name}: scope line set` : `${name}: scope line unchanged`);
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exit(1);
+    }
+  },
   purge: (a) => {
     const name = need(a, "purge <name>");
     try {
@@ -214,7 +230,7 @@ export const commands = {
     },
   },
   repos: {
-    summary: "tracked repos: list | track <name> | untrack <name> | pipeline <name> on|off | purge <name>",
+    summary: "tracked repos: list | track <name> | untrack <name> | pipeline <name> on|off | scope <name> [<text> | --clear] | purge <name>",
     run: (args: string[]) => {
       const f = args[0] ? sub[args[0]] : undefined;
       if (!f) {

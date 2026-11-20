@@ -13,7 +13,7 @@ export type Size = (typeof SIZES)[number];
 
 export const RANK_ORDER = {
   /** Settled type labels, best first. An item without a settled label comes after all of them. */
-  types: ["bugfix", "performance", "infra", "missing feature", "small extra", "plugin candidate"] as readonly string[],
+  types: ["bug", "performance", "chore", "documentation", "new feature", "enhancement", "gtm", "task"] as readonly string[],
   /** Smaller first. */
   sizes: SIZES,
   /** Level used when the item has not been rated. */

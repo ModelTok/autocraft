@@ -33,8 +33,8 @@ export type NodeCount = { counts: Counts; members: Map<string, Refs> };
 const DAY = 24 * 3600_000;
 const ref = (r: { repo: string; number: number }) => `${r.repo}#${r.number}`;
 
-/** Scope answers the step that applies them reads (docs/pipeline.md, Decide). */
-export const SCOPE_ANSWERS = ["take", "small-extra", "plugin", "close", "need-info", "backlog"] as const;
+/** Scope answers the step that applies them reads (docs/pipeline.md, Decide). The legacy small-extra and plugin keys count as take and close (core/rules.ts LEGACY_SCOPE_ANSWERS). */
+export const SCOPE_ANSWERS = ["take", "close", "need-info", "backlog"] as const;
 export const VERDICTS = ["take", "take-fix", "hold", "close"] as const;
 
 type OpenRow = { repo: string; number: number; kind: string; status: string | null; referee_sure: number | null; basal_label: string | null; haiku_label: string | null };

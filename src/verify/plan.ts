@@ -70,7 +70,7 @@ export function parsePlanReply(text: string, ref: string, crates: Crate[], label
     if (!Array.isArray(ts) || ts.length > MAX_FILTERS || ts.some((t) => typeof t !== "string" || !FILTER_RE.test(t))) return fail("a test filter is not valid");
     return { ok: true, plan: { kind, reason, crates: [...new Set(cs as string[])], tests: ts as string[] } };
   }
-  if (label !== "bugfix") return fail("regression is only for bugfix PRs");
+  if (label !== "bug") return fail("regression is only for bug PRs");
   const c = crates.find((x) => x.name === o.crate);
   if (!c || typeof o.crate !== "string") return fail("crate is not in the workspace");
   if (!/^[A-Za-z0-9_./-]+$/.test(c.dir) || c.dir.split("/").includes("..")) return fail("crate directory is not a plain path");

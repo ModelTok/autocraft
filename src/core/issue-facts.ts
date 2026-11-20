@@ -2,7 +2,7 @@
 // Loaded in one pass for a whole database or a slice. Reads only: the old selectors fill missing text hashes in the database on the way; here a missing hash is computed.
 import { settleMemo, settledBy } from "../settlers.ts";
 import { groupClosersPending } from "../act/dupe-groups.ts";
-import { pipelineWrites } from "./rules.ts";
+import { pipelineWrites, scopeAnswerOf } from "./rules.ts";
 import { assignmentsOf, ownFixPrs } from "./facts.ts";
 import { activeTrips } from "../push-outcomes.ts";
 import type { DatabaseSync } from "node:sqlite";
@@ -98,7 +98,6 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
   const memo = settleMemo();
   const outsideHolds = holdMap(db);
   const answers = scopeAnswers(db);
-  const operatorAnswers = scopeAnswers(db, true);
   const unsettled = unsettledScope(db);
   const latestScope = new Map<string, { answer: string | null; byOperator: boolean }>(), securityIds = new Set<string>();
   const head = db.prepare("SELECT kind, head_oid FROM items WHERE repo = ? AND number = ?");
@@ -106,7 +105,7 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
   for (const d of db.prepare(`SELECT id, kind, repo, number, items, answer, answered_by, asked_by, prepared_at, prepared_head, prepare_failed_head, recommend_failures, recommend_failed_at, prepared_discussion, prepare_requested_at, ${prepareStateSql("decisions")}, ${lockLiveSql("decisions")} AS locked FROM decisions ORDER BY asked_at, id`).all(utcDayStart(now)) as
     (PrepareColumns & { locked: number; id: string; kind: string; answered_by: string | null; asked_by: string | null; repo: string | null; number: number | null; items: string | null; answer: string | null })[]) {
     const dupegroup = d.id.includes(":dupegroup:");
-    if (d.kind === "scope" && d.number !== null && !(d.answer === "withdrawn" && d.answered_by === "pipeline")) latestScope.set(`${d.repo}#${d.number}`, { answer: d.answer, byOperator: settledBy(db, d, memo) });
+    if (d.kind === "scope" && d.number !== null && !(d.answer === "withdrawn" && d.answered_by === "pipeline")) latestScope.set(`${d.repo}#${d.number}`, { answer: d.answer === null ? null : scopeAnswerOf(d.answer), byOperator: settledBy(db, d, memo) });
     if (d.asked_by === SECURITY_ASKER) securityIds.add(d.id);
     if (d.kind === "scope" && d.answer === null) {
       for (const r of refsOf(d)) openScope.add(r);
@@ -247,7 +246,7 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
       embedHash, embeddedHash: r.e_hash, priorityHash: r.pr_hash, scannedHash: r.scan_hash,
       pairsToCheck: pairs.get(ref) ?? 0, inGroupToAsk: inGroup.has(ref), inCompareSet: inCompare.has(ref), dupeAnswers: dupeAnswers.get(ref) ?? [],
       scope: { open: openScope.has(ref), answer: answers.get(ref) ?? null, covered: covered.has(ref), recommend: recommend.get(ref) ?? null },
-      labels: { quietFix: own.quiet.has(ref), existing: json<unknown[]>(r.labels, []).map(String), pluginAnswer: operatorAnswers.get(ref) === "plugin", labeledNote: note },
+      labels: { quietFix: own.quiet.has(ref), existing: json<unknown[]>(r.labels, []).map(String), labeledNote: note },
       answeredClose: answeredClose.get(ref) ?? [],
       closeReview: closeReview.get(ref) ?? null,
       fix: {

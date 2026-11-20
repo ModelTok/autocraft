@@ -326,7 +326,7 @@ export const HISTORY_COPY_SQL = `INSERT INTO main.opus_review_history (repo, num
   WHERE NOT EXISTS (SELECT 1 FROM main.opus_review_history h WHERE h.repo = o.repo AND h.number = o.number AND h.head_oid = o.head_oid AND h.at = o.at)`;
 
 // Bump when migrateValues() or backfill() change what they do.
-const MIGRATION_VERSION = 19;
+const MIGRATION_VERSION = 20;
 
 // Rows written before their column existed.
 function backfill(db: DatabaseSync): void {
@@ -487,6 +487,36 @@ function renameProvider(db: DatabaseSync): void {
   }
 }
 
+/**
+ * Type labels of the label set before 2026-11 and the type id each becomes (classify/rules.ts LABELS). plugin candidate
+ * becomes new feature: it was a feature the core did not have, and the owner's scope answer now decides whether core wants it.
+ */
+export const RENAMED_TYPE_LABELS: Readonly<Record<string, string>> = {
+  bugfix: "bug", "missing feature": "new feature", "small extra": "enhancement", "plugin candidate": "new feature", infra: "chore",
+};
+
+/**
+ * Stored type labels of the old set are rewritten to the new ids, so verdicts from before the change still settle and read
+ * as valid labels until the items are classified again (the label set is part of the classifier scheme, so every item is).
+ * classifications is the only table that stores a type label; plans and views are rebuilt by the next planner pass. Runs once.
+ */
+export function migrateTypeLabels(db: DatabaseSync): void {
+  const done = "type_labels_renamed_2026_11";
+  if (db.prepare("SELECT 1 FROM main.settings WHERE key = ?").get(done)) return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (!db.prepare("SELECT 1 FROM main.settings WHERE key = ?").get(done)) {
+      const set = db.prepare("UPDATE main.classifications SET type_label = ? WHERE type_label = ?");
+      for (const [from, to] of Object.entries(RENAMED_TYPE_LABELS)) set.run(to, from);
+      db.prepare("INSERT INTO main.settings (key, value) VALUES (?, ?)").run(done, new Date().toISOString());
+    }
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+}
+
 function dropColumns(db: DatabaseSync): void {
   for (const [table, column] of DROPPED_COLUMNS) {
     const cols = (db.prepare(`PRAGMA main.table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
@@ -620,6 +650,7 @@ function migrateValues(db: DatabaseSync): void {
     db.prepare(`UPDATE main.token_usage SET cost_usd = input_tokens * ? WHERE ${HOSTED_UNPRICED}`).run(LEGACY_JEV_USD_PER_INPUT_TOKEN);
   }
   renameProvider(db);
+  migrateTypeLabels(db);
 }
 
 // Upstream CI is the check for PRs and batches in repos that have it: queued `tests` verifications are settled as

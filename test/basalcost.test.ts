@@ -7,7 +7,7 @@ import { connect } from "../src/db.ts";
 import { SCRATCH } from "./scratch.ts";
 
 const answers = {
-  type: { type: "choice", choice: "performance", confidence: 0.8, probabilities: { performance: 0.8, bugfix: 0.2 } },
+  type: { type: "choice", choice: "performance", confidence: 0.8, probabilities: { performance: 0.8, bug: 0.2 } },
   security: { type: "noul", noul: 0.7 }, needs_decision: { type: "noul", noul: 0.1 },
 };
 const fresh = () => connect(join(mkdtempSync(join(SCRATCH, "basalcost-")), "t.db"));

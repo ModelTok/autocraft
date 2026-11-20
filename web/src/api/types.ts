@@ -46,7 +46,7 @@ export interface RelatedItem extends ItemRef {
 }
 
 export type Classifier = "haiku" | "basal" | "sonnet" | "owner";
-export type TypeLabel = "bugfix" | "performance" | "missing feature" | "small extra" | "plugin candidate" | "infra";
+export type TypeLabel = "bug" | "enhancement" | "new feature" | "performance" | "chore" | "documentation" | "gtm" | "task";
 export type Want = "yes" | "no" | "unclear";
 
 export interface Classification {

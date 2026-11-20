@@ -17,10 +17,10 @@ export function scopeReason(f: ItemFacts): "needs-decision" | "scope-disagreemen
   return null;
 }
 
-/** An issue the Fix stage may start on: settled bugfix, not backlog priority, no attempt (a skipped one returns when its text changed), a buildable Rust repo (public, or the org's private one with a private-code environment), no scope call against it, no open PR that closes or mentions it. */
+/** An issue the Fix stage may start on: settled bug, not backlog priority, no attempt (a skipped one returns when its text changed), a buildable Rust repo (public, or the org's private one with a private-code environment), no scope call against it, no open PR that closes or mentions it. */
 function fixCandidate(f: ItemFacts): boolean {
   const c = f.classification, fix = f.fix, a = fix.attempt;
-  if (!fix.buildableRepo || fix.notRust || c.status !== "settled" || c.label !== "bugfix") return false;
+  if (!fix.buildableRepo || fix.notRust || c.status !== "settled" || c.label !== "bug") return false;
   if (fix.impact && levelWith(fix.impact as Level, c.flags.includes("security")) === "P4") return false;
   if (a && !(a.state === "skipped" && a.textChanged)) return false;
   const d = fix.scopeDecision;
@@ -38,10 +38,6 @@ const scopeNeeded = (f: ItemFacts): boolean => scopeReason(f) !== null && !f.sco
 /** The wait of an open issue with nothing due and nothing to ask: it stays open as a request for anyone to pick up. */
 export const TRIAGE_WAIT = "an open request for a person to pick up";
 export const fixStoppedWait = (state: string): string => `a person to retry the ${state} fix`;
-
-const PLUGIN_WAIT = "stays open as a plugin candidate";
-/** A PR settled as a plugin candidate is not reviewed or merged: it stays open with its label (no question) unless a scope decision about it is open. */
-const pluginPr = (f: ItemFacts): boolean => f.kind === "pr" && f.classification.status === "settled" && f.classification.label === "plugin candidate" && !f.scope.open;
 
 export function itemState(f: ItemFacts): ItemState {
   if (f.held) return f.held === "backlog" ? "held-backlog" : "held-duplicate";
@@ -91,7 +87,7 @@ export function decideItem(f: ItemFacts): ItemPlan {
   // label: the repo's labelling approval is applied by gates().
   if (f.run && live && f.held !== "backlog") {
     const settled = c.status === "settled" && c.label ? { type: c.label, security: c.flags.includes("security") && !f.labels.quietFix, needsDecision: c.flags.includes("needs decision") } : null;
-    const add = labelsToAdd(settled, f.labels.pluginAnswer, f.labels.existing);
+    const add = labelsToAdd(settled, f.kind, f.labels.existing);
     if (add && add.length && !alreadyLabeled(f.labels.labeledNote, add)) actions.push(act("label", null, { add }));
   }
 
@@ -120,7 +116,7 @@ export function decideItem(f: ItemFacts): ItemPlan {
 
   // A closed item is here for its unapplied answered close only.
   if (!f.open) actions.splice(0, actions.length, ...actions.filter((a) => a.kind === "act" && !a.params?.ask));
-  const base = actions.some(isWork) ? null : !f.inScope ? "not in scope" : state === "classified" && pluginPr(f) ? PLUGIN_WAIT : WAITS[state] ?? null;
+  const base = actions.some(isWork) ? null : !f.inScope ? "not in scope" : WAITS[state] ?? null;
   // An issue with nothing else due waits on the PR that closes it, or on a person when its fix attempt was skipped or failed.
   let wait = base, waitKind: ItemPlan["waitKind"] = base === null ? null : f.inScope && (state === "held-duplicate" || state === "scope-open") ? "person" : "system";
   if (wait === null && f.kind === "issue" && f.open && f.inScope && !backlog && !f.held && actions.every((x) => !isWork(x))) {
@@ -141,7 +137,6 @@ export function nextStep(item: ItemPlan, f: ItemFacts, pr: PrFacts | null): stri
     default:
   }
   const c = f.classification;
-  if (item.state === "classified" && pluginPr(f)) return "Stays open as a plugin candidate";
   if (item.state === "scope-due" && c.status === "disagree") return "Decide";
   const needsDecision = c.flags.includes("needs decision");
   if (f.kind === "issue") {
@@ -149,7 +144,7 @@ export function nextStep(item: ItemPlan, f: ItemFacts, pr: PrFacts | null): stri
       case "retry": case "testing": return "Fix: in progress";
       case "passed": case "pr-opened": return "Fix: pull request opened";
       case "skipped": case "failed": return "Needs a person";
-      default: return c.label === "bugfix" && !needsDecision ? "Fix" : needsDecision ? "Decide" : "Triage by a person";
+      default: return c.label === "bug" && !needsDecision ? "Fix" : needsDecision ? "Decide" : "Triage by a person";
     }
   }
   const o = pr && !pr.inScope ? pr.outside ?? null : null;

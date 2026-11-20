@@ -1,7 +1,7 @@
 // decidePr: the review-to-merge rules for one open PR, in one place. Pure: no database, no clock (facts carry `now`).
 // The merge queue's rules (src/merge/queue.ts buildQueue, stateOf, eligible, toAsk) are ported rule by rule, in the same order and with the same reason wording.
 import {
-  BATCHABLE, MAIN_RED_HELD, PREMERGE_DEFECT_REASON, PREMERGE_UNSURE_REASON, PREMERGE_FAILED_REASON, PREMERGE_MAX_TRIES, RETRY_AFTER_MS, REVIEW_LABELS, KEEP_IN_CORE,
+  BATCHABLE, MAIN_RED_HELD, PREMERGE_DEFECT_REASON, PREMERGE_UNSURE_REASON, PREMERGE_FAILED_REASON, PREMERGE_MAX_TRIES, RETRY_AFTER_MS, REVIEW_LABELS, KEEP_IN_CORE, NO_REVIEW_WAIT,
   RULE_LABELS, RULE_SIZES, RULE_TIERS, UNSURE_REASON, VERIFY_UNAVAILABLE, ciAllows, conflictNote, verifyAllows, verifyOk,
   FIXUP_MAX_ATTEMPTS, CIFIX_FINAL_STATES, CIFIX_MAX_PUSHES_PER_PR, CIFIX_MAX_TRIES, CIFIX_MAX_TRIES_PER_PR, STATE_REFUSAL, TRANSIENT_REFUSAL, UNKNOWN_REREADS,
 } from "./rules.ts";
@@ -532,9 +532,9 @@ export function decidePr(f: PrFacts): Plan {
   const scopeAsk = (): Wait => (f.decision.hold.otherOpen ? person("a scope answer") : system("the scope question to be asked"));
   const unreviewableWait: Wait | null = state === "scope" && f.scopeAnswer === null ? scopeAsk()
     : state === "scope" && f.scopeAnswer !== null
-    ? (f.scopeAnswer === "need-info" ? person("the reference check the need-info answer asked for") : f.scopeAnswer === "plugin" ? contributor("the author: kept open as a plugin candidate") : system("the scope answer to be carried out"))
+    ? (f.scopeAnswer === "need-info" ? person("the reference check the need-info answer asked for") : system("the scope answer to be carried out"))
     : state === "label-not-reviewed" && f.needsDecisionFlag ? scopeAsk()
-    : state === "label-not-reviewed" ? (!f.label ? system("its label") : f.label === "plugin candidate" ? system("it stays open as a plugin candidate") : person(`a person: its label "${f.label}" gets no review`))
+    : state === "label-not-reviewed" ? (!f.label ? system("its label") : person(NO_REVIEW_WAIT))
     : null;
   const finalWait: Wait | null = wait ?? (main ? null : holdWait ?? unreviewedWait(f) ?? unreviewableWait) ?? (!main && reviewWait ? (f.reviewHold?.person ? person(reviewWait) : system(reviewWait)) : null) ?? (f.operator?.hold && !main ? system("its pre-approved merge") : null);
   return plan(state, { ...(e ? { path: e.path, reasons: e.reasons, note: e.note, conflictNote: e.conflictNote, eligible: eligible(f, e) } : {}), actions, wait: finalWait?.text ?? null, waitKind: finalWait?.kind ?? null });

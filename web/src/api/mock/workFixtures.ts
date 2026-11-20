@@ -3,7 +3,7 @@ import type { TypeLabel, WorkBreakdown, WorkFilter, WorkList, WorkRow } from "..
 import { REPOS, rng, titleFor } from "./fixtures";
 import { QUEUE_ROWS } from "./queueFixtures";
 
-const LABELS: TypeLabel[] = ["bugfix", "performance", "infra", "missing feature", "small extra", "plugin candidate"];
+const LABELS: TypeLabel[] = ["bug", "enhancement", "new feature", "performance", "chore", "documentation", "gtm", "task"];
 const SIZES = ["S", "M", "L", "XL"] as const;
 const NEXT_PR = ["Review", "Verify", "Verify: running", "Merge queue", "Fix-up", "Needs a person"];
 const NEXT_ISSUE = ["Fix", "Fix: in progress", "Fix: pull request opened", "Decide", "Needs a person", "Triage by a person"];

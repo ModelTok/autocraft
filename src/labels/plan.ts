@@ -2,13 +2,9 @@
 import type { DatabaseSync } from "node:sqlite";
 import { backlogHeldSql, notOwnIntegrationSql } from "../dupes/held.ts";
 import { forRun, settleRows, type ClsRow } from "./settled.ts";
-import { scopeAnswers } from "../review/candidates.ts";
-import { isTypeLabel, sameLabel } from "./set.ts";
+import { githubFlagLabel, githubTypeLabel, isTypeLabel, NEEDS_DECISION, sameType } from "./set.ts";
 import { pilotSql } from "../pilot.ts";
 import { quietFixPrs } from "../core/facts.ts";
-
-/** The type label an operator's `plugin` scope answer asks for. */
-export const PLUGIN_LABEL = "plugin candidate";
 
 export type PlanStatus = "add" | "already" | "unsettled" | "conflict";
 export type PlanRow = {
@@ -25,7 +21,6 @@ export function planLabels(db: DatabaseSync, repo: string, runId?: string): Plan
     ${runId ? "AND run_id = ?" : ""} ORDER BY at DESC`).all(...(runId ? [repo, runId] : [repo])) as (ClsRow & { number: number })[];
   for (const c of cls) (byItem.get(c.number) ?? byItem.set(c.number, []).get(c.number)!).push(c);
 
-  const answers = scopeAnswers(db, true);
   const quiet = quietFixPrs(db, repo);
   return items.map((it) => {
     let existing: string[] = [];
@@ -33,17 +28,16 @@ export function planLabels(db: DatabaseSync, repo: string, runId?: string): Plan
       existing = (JSON.parse(it.labels ?? "[]") as unknown[]).map(String);
     } catch { /* unreadable labels count as none */ }
     const row = { number: it.number, kind: it.kind, url: it.url ?? "", settled: "", existing, add: [] as string[], note: "" };
-    const settled = settleRows(forRun(byItem.get(it.number) ?? [], runId));
-    // An operator's plugin answer decides the type, also where the classifiers disagreed about it.
-    const plugin = answers.get(`${repo}#${it.number}`) === "plugin";
-    const s0 = plugin ? { type: PLUGIN_LABEL, security: settled?.security ?? false, needsDecision: false } : settled;
+    const s0 = settleRows(forRun(byItem.get(it.number) ?? [], runId));
     const s = s0 && quiet.has(`${repo}#${it.number}`) ? { ...s0, security: false } : s0;
     if (!s) return { ...row, status: "unsettled" as const };
     row.settled = s.type;
-    const other = existing.filter((l) => isTypeLabel(l) && !sameLabel(l, s.type));
+    // The GitHub name of the type (bug is "bugfix" on a PR); an item with another type label is left alone.
+    const type = githubTypeLabel(s.type, it.kind);
+    const other = existing.filter((l) => isTypeLabel(l) && !sameType(l, type));
     if (other.length) return { ...row, status: "conflict" as const, note: `has ${other.join(", ")}` };
-    const want = [s.type, ...(s.security ? ["security"] : []), ...(s.needsDecision ? ["needs decision"] : [])];
-    const add = want.filter((w) => !existing.some((e) => sameLabel(e, w)));
+    const want = [type, ...(s.security ? ["security"] : []), ...(s.needsDecision ? [githubFlagLabel(NEEDS_DECISION)] : [])];
+    const add = want.filter((w) => !existing.some((e) => sameType(e, w)));
     return { ...row, add, status: add.length ? ("add" as const) : ("already" as const) };
   });
 }

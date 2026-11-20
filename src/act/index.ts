@@ -8,9 +8,9 @@
 //   - a duplicate decision answered `close` (Close as duplicate): "Duplicate of
 //     #y." (or "..., which is closed.") and a close. "Not a duplicate" and "Keep
 //     both" store the pair as distinct and write nothing (src/dupes/decide.ts).
-// Other scope answers need no write here: take and small-extra go on to
-// review, plugin makes the Label stage add the plugin candidate label (in
-// repos approved for labels), need-info is checked by people. They count as
+// Other scope answers need no write here: take goes on to review, need-info
+// is checked by people, and the legacy small-extra and plugin keys
+// (core/rules.ts LEGACY_SCOPE_ANSWERS) write nothing. They count as
 // applied once the pipeline used them (src/decisions-used.ts). Only an
 // operator's answer counts (actionable()), and only in repos an operator
 // approved for comments. No model calls.

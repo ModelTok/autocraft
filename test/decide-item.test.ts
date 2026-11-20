@@ -2,11 +2,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { decideAll, decideItem } from "../src/core/decide-item.ts";
-import { SCOPE_LABELS, TYPE_LABEL_NAMES, PLUGIN_LABEL } from "../src/core/item-rules.ts";
+import { SCOPE_LABELS, TYPE_LABEL_NAMES, labelsToAdd } from "../src/core/item-rules.ts";
 import type { ItemPlan } from "../src/core/plan.ts";
 import { SCOPE_LABELS as OLD_SCOPE } from "../src/decide/select.ts";
 import { TYPE_LABELS } from "../src/labels/set.ts";
-import { PLUGIN_LABEL as OLD_PLUGIN } from "../src/labels/plan.ts";
 import { NOW, itemFacts, prFacts } from "./world.ts";
 
 type Over = Parameters<typeof itemFacts>[0];
@@ -15,9 +14,9 @@ type Row = { name: string; facts: Over; expect: { state: string; actions?: strin
 const tokens = (p: ItemPlan): string[] => p.actions.map((a) => a.kind).sort();
 const T = "2026-11-04";
 const basal = (o: Partial<{ at: string; changed: boolean; unsure: boolean }> = {}) => ({ at: `${T}T08:00:00.000Z`, changed: false, unsure: false, ...o });
-const disagree = (o: Over = {}): Over => ({ classification: { status: "disagree", label: null, basalLabel: "bugfix", haikuLabel: "infra", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false }, ...(o?.classification ?? {}) } });
-const scopeDisagree: Over = { classification: { status: "disagree", label: null, basalLabel: "missing feature", haikuLabel: "small extra", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } } };
-const needsDecision: Over = { classification: { flags: ["needs decision"] }, labels: { existing: ["bugfix", "needs decision"] } };
+const disagree = (o: Over = {}): Over => ({ classification: { status: "disagree", label: null, basalLabel: "bug", haikuLabel: "chore", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false }, ...(o?.classification ?? {}) } });
+const scopeDisagree: Over = { classification: { status: "disagree", label: null, basalLabel: "new feature", haikuLabel: "enhancement", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } } };
+const needsDecision: Over = { classification: { flags: ["needs decision"] }, labels: { existing: ["bug", "needs-owner"] } };
 const att = (state: string, o: Partial<{ textChanged: boolean; headDone: boolean; baseDone: boolean }> = {}) => ({ state, textChanged: false, headDone: false, baseDone: true, ...o });
 const fixable = (o: Over = {}): Over => ({ ...o, fix: { impact: "P2", ...(o?.fix ?? {}) } });
 const closed = (o: Partial<{ decisionId: string; kind: "scope" | "close" | "duplicate" | "merge"; security: boolean; action: string | null }> = {}) => ({ decisionId: "d1", kind: "close" as const, security: false, action: null, ...o });
@@ -41,7 +40,7 @@ const rows: Row[] = [
   // ---- referee and disagreement
   { name: "labels disagree, Sonnet has not answered", facts: disagree(), expect: { state: "referee-due", actions: ["referee"], next: "Referee: waiting for Sonnet" } },
   { name: "labels disagree, Sonnet was unsure: Opus is due", facts: disagree({ classification: { referee: { sure: false, final: false } } }), expect: { state: "referee-due", actions: ["referee"], next: "Referee: waiting for Opus" } },
-  { name: "Sonnet sure: settled with its label", facts: { classification: { status: "settled", label: "infra", referee: { sure: true, final: false }, basalLabel: "bugfix", haikuLabel: "infra", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } }, labels: { existing: ["infra"] } }, expect: { state: "classified", actions: [] } },
+  { name: "Sonnet sure: settled with its label", facts: { classification: { status: "settled", label: "chore", referee: { sure: true, final: false }, basalLabel: "bug", haikuLabel: "chore", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } }, labels: { existing: ["chore"] } }, expect: { state: "classified", actions: [] } },
   { name: "a draft is not refereed", facts: { ...disagree(), draft: true }, expect: { state: "referee-due", actions: [], wait: "the label referee" } },
   { name: "a held item is not refereed", facts: { ...disagree(), held: "backlog" }, expect: { state: "held-backlog", actions: [] } },
   { name: "scope-vs-scope disagreement goes to Decide, not to the referee", facts: scopeDisagree, expect: { state: "scope-due", actions: ["decide"], next: "Decide" } },
@@ -68,7 +67,6 @@ const rows: Row[] = [
   { name: "needs-decision flag, nobody asked", facts: needsDecision, expect: { state: "scope-due", actions: ["decide"], next: "Decide" } },
   { name: "a scope decision is open", facts: { ...needsDecision, scope: { open: true, covered: true } }, expect: { state: "scope-open", actions: [], next: "Decide: waiting for a scope answer", wait: "a scope answer" } },
   { name: "a scope decision was answered: covered", facts: { ...needsDecision, scope: { covered: true, answer: "take" } }, expect: { state: "classified", actions: [] } },
-  { name: "a PR settled as plugin candidate stays open with its label", facts: { kind: "pr", classification: { label: "plugin candidate" }, labels: { existing: ["plugin candidate"] } }, expect: { state: "classified", actions: [], wait: "stays open as a plugin candidate", next: "Stays open as a plugin candidate" } },
   { name: "a scope disagreement on a labelled item is asked", facts: scopeDisagree, expect: { state: "scope-due", actions: ["decide"] } },
   { name: "a failed Opus call is not repeated within the backoff", facts: disagree({ classification: { referee: { sure: false, final: false, failedAt: new Date(NOW - 60_000).toISOString() } } }), expect: { state: "referee-due", actions: [], wait: "the label referee" } },
   { name: "a decision covers the item", facts: { ...needsDecision, scope: { covered: true } }, expect: { state: "classified", actions: [] } },
@@ -82,11 +80,13 @@ const rows: Row[] = [
 
   // ---- labels
   { name: "a settled type label is missing on GitHub", facts: { labels: { existing: [] } }, expect: { state: "classified", actions: ["label"] } },
-  { name: "flags are added next to the type", facts: { classification: { flags: ["security"] }, labels: { existing: ["bugfix"] } }, expect: { state: "classified", actions: ["label", "fixissue"] } },
-  { name: "another type label is on the item: conflict, nothing added", facts: { labels: { existing: ["infra"] } }, expect: { state: "classified", actions: [] } },
-  { name: "label match ignores case", facts: { labels: { existing: ["Bugfix"] } }, expect: { state: "classified", actions: [] } },
-  { name: "an operator's plugin answer decides the type", facts: { labels: { existing: [], pluginAnswer: true } }, expect: { state: "classified", actions: ["label"] } },
-  { name: "the previous pass already added them", facts: { labels: { existing: [], labeledNote: "added: bugfix" } }, expect: { state: "classified", actions: [] } },
+  { name: "flags are added next to the type", facts: { classification: { flags: ["security"] }, labels: { existing: ["bug"] } }, expect: { state: "classified", actions: ["label", "fixissue"] } },
+  { name: "another type label is on the item: conflict, nothing added", facts: { labels: { existing: ["chore"] } }, expect: { state: "classified", actions: [] } },
+  { name: "label match ignores case", facts: { labels: { existing: ["Bug"] } }, expect: { state: "classified", actions: [] } },
+  { name: "an issue AutoCraft labelled bugfix before the split gets no bug label too", facts: { labels: { existing: ["bugfix"] } }, expect: { state: "classified", actions: [] } },
+  { name: "a PR settled as bug that has the bugfix label needs nothing", facts: { kind: "pr", labels: { existing: ["bugfix"] } }, expect: { state: "classified", actions: [] } },
+  { name: "a PR with an issue's bug label is not labelled bugfix too", facts: { kind: "pr", labels: { existing: ["bug"] } }, expect: { state: "classified", actions: [] } },
+  { name: "the previous pass already added them", facts: { labels: { existing: [], labeledNote: "added: bug" } }, expect: { state: "classified", actions: [] } },
   { name: "labelling approval is a fact: gates() applies it, not decideItem", facts: { labels: { existing: [] }, repoFacts: { labelsApproved: false } }, expect: { state: "classified", actions: ["label"] } },
   { name: "a Backlog hold stops labelling", facts: { labels: { existing: [] }, held: "backlog" }, expect: { state: "held-backlog", actions: [] } },
   { name: "a duplicate hold does not stop labelling", facts: { labels: { existing: [] }, held: "duplicate" }, expect: { state: "held-duplicate", actions: ["label"] } },
@@ -110,13 +110,13 @@ const rows: Row[] = [
   { name: "the review is of an older head: not asked", facts: { kind: "pr", closeReview: { head: "h0", atHead: false, asked: false } }, expect: { state: "classified", actions: [] } },
 
   // ---- fix issue
-  { name: "a settled bugfix issue is a fix candidate", facts: fixable(), expect: { state: "classified", actions: ["fixissue"], next: "Fix" } },
+  { name: "a settled bug issue is a fix candidate", facts: fixable(), expect: { state: "classified", actions: ["fixissue"], next: "Fix" } },
   { name: "approval is a fact: gates() applies it", facts: fixable({ repoFacts: { fixIssueApproved: false } }), expect: { state: "classified", actions: ["fixissue"] } },
   { name: "P4 priority is backlog", facts: fixable({ fix: { impact: "P4" } }), expect: { state: "classified", actions: [] } },
-  { name: "a security flag lifts P4 to P3", facts: fixable({ fix: { impact: "P4" }, classification: { flags: ["security"] }, labels: { existing: ["bugfix", "security"] } }), expect: { state: "classified", actions: ["fixissue"] } },
+  { name: "a security flag lifts P4 to P3", facts: fixable({ fix: { impact: "P4" }, classification: { flags: ["security"] }, labels: { existing: ["bug", "security"] } }), expect: { state: "classified", actions: ["fixissue"] } },
   { name: "no priority row yet: a candidate", facts: fixable({ fix: { impact: null } }), expect: { state: "classified", actions: ["fixissue"] } },
   { name: "a PR is never a fix candidate", facts: fixable({ kind: "pr" }), expect: { state: "classified", actions: [] } },
-  { name: "not a bugfix", facts: fixable({ classification: { label: "infra" }, labels: { existing: ["infra"] } }), expect: { state: "classified", actions: [] } },
+  { name: "not a bug", facts: fixable({ classification: { label: "chore" }, labels: { existing: ["chore"] } }), expect: { state: "classified", actions: [] } },
   { name: "private repo", facts: fixable({ fix: { buildableRepo: false } }), expect: { state: "classified", actions: [] } },
   { name: "repo without a Rust workspace", facts: fixable({ fix: { notRust: true } }), expect: { state: "classified", actions: [] } },
   { name: "an open PR closes the issue", facts: fixable({ fix: { openPr: { number: 7, closes: true } } }), expect: { state: "classified", actions: [], wait: "open PR #7" } },
@@ -144,7 +144,7 @@ const rows: Row[] = [
   // ---- next-step text of issues
   { name: "issue with a passed fix attempt", facts: { fix: { attempt: att("passed") } }, expect: { state: "classified", next: "Fix: pull request opened" } },
   { name: "issue with a failed fix attempt", facts: { fix: { attempt: att("failed") } }, expect: { state: "classified", next: "Needs a person" } },
-  { name: "issue that is not a bugfix", facts: { classification: { label: "infra" }, labels: { existing: ["infra"] } }, expect: { state: "classified", next: "Triage by a person" } },
+  { name: "issue that is not a bug", facts: { classification: { label: "chore" }, labels: { existing: ["chore"] } }, expect: { state: "classified", next: "Triage by a person" } },
 ];
 
 for (const r of rows) {
@@ -175,5 +175,15 @@ test("a PR without a review is next to be reviewed; with a take-fix review, fix-
 test("the constants copied into core equal the old modules'", () => {
   assert.deepEqual(SCOPE_LABELS, [...OLD_SCOPE]);
   assert.deepEqual(TYPE_LABEL_NAMES, TYPE_LABELS.map((l) => l.name));
-  assert.equal(PLUGIN_LABEL, OLD_PLUGIN);
+});
+
+test("labelsToAdd writes GitHub names: bug is bugfix on a PR, the needs-decision flag is needs-owner, other labels stay", () => {
+  const s = (type: string, o: Partial<{ security: boolean; needsDecision: boolean }> = {}) => ({ type, security: false, needsDecision: false, ...o });
+  assert.deepEqual(labelsToAdd(s("bug"), "issue", []), ["bug"]);
+  assert.deepEqual(labelsToAdd(s("bug"), "pr", []), ["bugfix"]);
+  assert.deepEqual(labelsToAdd(s("bug", { security: true, needsDecision: true }), "pr", []), ["bugfix", "security", "needs-owner"]);
+  assert.deepEqual(labelsToAdd(s("enhancement", { needsDecision: true }), "issue", ["needs-owner"]), ["enhancement"]);
+  // An item with another type label is left alone; a label AutoCraft does not manage is no type label.
+  assert.equal(labelsToAdd(s("chore"), "pr", ["documentation"]), null);
+  assert.deepEqual(labelsToAdd(s("gtm"), "issue", ["roadmap", "infra"]), ["gtm"]);
 });

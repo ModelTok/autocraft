@@ -178,7 +178,7 @@ export function world() {
       db.prepare(`INSERT INTO items (repo, number, kind, state, title, author, author_id, additions, deletions, head_oid, head_ref, created_at, updated_at)
         VALUES ('app', ?, 'pr', 'OPEN', ?, ?, ?, ?, 0, ?, ?, ?, ?)`).run(n, `PR ${n}`, author, o.authorId !== undefined ? o.authorId : author === "regular" ? REGULAR_ID : null, o.lines ?? 20, head, `fix-${n}`, T0, T0);
       db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'basal', 'r1', ?, ?, ?, '{"top":0.95}')`)
-        .run(n, T0, o.label ?? "bugfix", JSON.stringify(o.flags ?? []));
+        .run(n, T0, o.label ?? "bug", JSON.stringify(o.flags ?? []));
       db.prepare(`INSERT INTO pr_checks (repo, number, head_oid, state, is_draft, overall, checks, mergeable, maintainer_can_modify, fetched_at)
         VALUES ('app', ?, ?, 'OPEN', 0, ?, ?, ?, ?, ?)`).run(n, head, o.ci ?? "success", o.ci === "failure" ? JSON.stringify([{ name: CHECK, state: "failure" }]) : "[]", o.mergeable ?? "MERGEABLE", o.canModify === false ? 0 : 1, T1);
       live.set(n, { head, state: "OPEN", mergeable: o.mergeable ?? "MERGEABLE", ci: o.ci ?? "success", authors: [o.author ?? "regular"], assignees: [] });
@@ -196,7 +196,7 @@ export function world() {
       db.prepare("INSERT INTO items (repo, number, kind, state, title, body, author, created_at, updated_at) VALUES ('app', ?, 'issue', 'OPEN', ?, ?, 'someone', ?, ?)")
         .run(n, o.title ?? "Panic when the slice is empty", o.body ?? "first() indexes element 0.", T0, T0);
       db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'basal', 'r1', ?, ?, ?, ?)`)
-        .run(n, T0, o.label ?? "bugfix", JSON.stringify(o.flags ?? []), JSON.stringify({ top: 0.97, ...(o.flags?.includes("needs decision") ? { needs_decision: 0.9 } : {}) }));
+        .run(n, T0, o.label ?? "bug", JSON.stringify(o.flags ?? []), JSON.stringify({ top: 0.97, ...(o.flags?.includes("needs decision") ? { needs_decision: 0.9 } : {}) }));
       if (o.impact) db.prepare("INSERT INTO item_priority (repo, number, text_hash, impact, score, model, at) VALUES ('app', ?, 'h', ?, 0, 'basal', ?)").run(n, o.impact, T0);
       live.set(n, { head: "", state: "OPEN", mergeable: "UNKNOWN", ci: "success", authors: [], assignees: [] });
       return w;
