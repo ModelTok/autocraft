@@ -43,20 +43,20 @@ test("a diff is stored only for the head it was fetched at, and read again for a
 test("a private-org member's PR is pushable once the author's permission is read, and is waiting before", async () => {
   const db = connect(join(dir, "perm.db"));
   db.prepare("INSERT INTO repos (name, default_branch) VALUES ('app', 'main')").run();
-  db.prepare("INSERT INTO items (repo, number, kind, state, author, author_association, head_repo, head_ref) VALUES ('app', 9, 'pr', 'OPEN', 'ana', 'CONTRIBUTOR', 'storytold/app', 'ana/fix')").run();
+  db.prepare("INSERT INTO items (repo, number, kind, state, author, author_association, head_repo, head_ref) VALUES ('app', 9, 'pr', 'OPEN', 'ana', 'CONTRIBUTOR', 'ModelTok/app', 'ana/fix')").run();
   assert.equal(authorWrites(db, "app", 9), "unknown");
   let reads = 0;
   const read = async (_repo: string, login: string) => { reads++; return login === "ana" ? "write" : "read"; };
-  assert.equal(await ensureAuthorWrites(db, "app", 9, "storytold/app", read), "yes");
-  assert.equal(await ensureAuthorWrites(db, "app", 9, "storytold/app", read), "yes");
+  assert.equal(await ensureAuthorWrites(db, "app", 9, "ModelTok/app", read), "yes");
+  assert.equal(await ensureAuthorWrites(db, "app", 9, "ModelTok/app", read), "yes");
   assert.equal(reads, 1);
   // An entry over a day old is read again.
   db.prepare("UPDATE author_permissions SET checked_at = '2020-01-01T00:00:00.000Z'").run();
-  await ensureAuthorWrites(db, "app", 9, "storytold/app", async () => "read");
+  await ensureAuthorWrites(db, "app", 9, "ModelTok/app", async () => "read");
   assert.equal(authorWrites(db, "app", 9), "no");
   // An author whose permission cannot be read waits, then counts as unable to write after three failed reads.
-  db.prepare("INSERT INTO items (repo, number, kind, state, author, head_repo, head_ref) VALUES ('app', 10, 'pr', 'OPEN', 'bo', 'storytold/app', 'bo/x')").run();
-  for (const want of ["unknown", "unknown", "no"]) assert.equal(await ensureAuthorWrites(db, "app", 10, "storytold/app", async () => null), want);
+  db.prepare("INSERT INTO items (repo, number, kind, state, author, head_repo, head_ref) VALUES ('app', 10, 'pr', 'OPEN', 'bo', 'ModelTok/app', 'bo/x')").run();
+  for (const want of ["unknown", "unknown", "no"]) assert.equal(await ensureAuthorWrites(db, "app", 10, "ModelTok/app", async () => null), want);
 });
 
 test("a PR aimed at a non-default branch is planned as a single merge only", () => {

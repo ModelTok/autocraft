@@ -28,7 +28,7 @@ export type ConversationParams = {
   onHandled?: (n: number) => void;
   cancelled?: () => boolean;
   log: (line: string) => void;
-  /** The Jev and Haiku calls of the semantic reference check; absent: the real ones. */
+  /** The basal and Haiku calls of the semantic reference check; absent: the real ones. */
   semantic?: SemanticDeps;
 };
 

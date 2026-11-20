@@ -4,7 +4,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { audit } from "./dash/audit.ts";
 import { connect } from "./db.ts";
 import { execFile } from "node:child_process";
-import { DEFAULT_OWNER, loadOwners, OWNER, splitSlug } from "./owners.ts";
+import { DEFAULT_OWNER, isDefaultOwner, loadOwners, OWNER, splitSlug } from "./owners.ts";
 import { appCoverage, githubIdentity, setGithubIdentityChecked } from "./github/identity.ts";
 import { readAppSecrets } from "./github/install-token.ts";
 import { PilotError, setRepoPipeline } from "./pilot.ts";
@@ -20,7 +20,7 @@ export const isTracked = (db: DatabaseSync, name: string): boolean =>
 
 const NAME = /^[A-Za-z0-9._-]{1,100}$/;
 
-/** Tracks `name` (a storytold repo) or `owner/name`. Repo names are unique across owners. */
+/** Tracks `name` (a repo of the default owner) or `owner/name`. Repo names are unique across owners. */
 export function trackRepo(db: DatabaseSync, by: string, input: string): boolean {
   const { owner, name } = splitSlug(input);
   if (!NAME.test(name)) throw new RepoError("Not a repo name.");
@@ -53,12 +53,12 @@ export const ghRepoExists: RepoExists = async (owner, name) => {
 
 /**
  * trackRepo for an operator's input: a repo of another owner is tracked only when GitHub confirms it
- * and storytold has no repo of that name (names are unique across owners).
+ * and the default owner has no repo of that name (names are unique across owners).
  */
 export async function trackRepoChecked(db: DatabaseSync, by: string, input: string, exists: RepoExists = ghRepoExists, mint?: (owner: string, repo: string) => Promise<string>): Promise<boolean> {
   const { owner, name } = splitSlug(input);
   const known = NAME.test(name) && db.prepare("SELECT 1 FROM main.repos WHERE name = ?").get(name) !== undefined;
-  if (input.includes("/") && owner.toLowerCase() !== DEFAULT_OWNER && OWNER.test(owner) && NAME.test(name) && !known) {
+  if (input.includes("/") && !isDefaultOwner(owner) && OWNER.test(owner) && NAME.test(name) && !known) {
     if (await exists(DEFAULT_OWNER, name)) throw new RepoError(`${DEFAULT_OWNER}/${name} exists; repo names are unique across owners.`);
     if (!(await exists(owner, name))) throw new RepoError(`${owner}/${name} was not found or is not readable.`);
   }
@@ -109,9 +109,9 @@ export function listAll(db: DatabaseSync): RepoRow[] {
            (SELECT COUNT(*) FROM main.items i WHERE i.repo = r.name) AS rows
     FROM main.repos r
     UNION ALL
-    SELECT t.name, 'storytold', 1, t.pipeline, NULL, NULL, NULL, (SELECT COUNT(*) FROM main.items i WHERE i.repo = t.name)
+    SELECT t.name, ?, 1, t.pipeline, NULL, NULL, NULL, (SELECT COUNT(*) FROM main.items i WHERE i.repo = t.name)
     FROM main.tracked_repos t WHERE t.name NOT IN (SELECT name FROM main.repos)
-    ORDER BY 3 DESC, 1`).all() as RepoRow[];
+    ORDER BY 3 DESC, 1`).all(DEFAULT_OWNER as never) as RepoRow[];
 }
 
 // Temp views that shadow the mirror and work tables on this connection, so every

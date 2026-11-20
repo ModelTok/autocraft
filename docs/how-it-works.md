@@ -12,7 +12,7 @@ Finds items that report the same bug or request as another item. It compares eac
 
 ## Classify
 
-Gives each item one type (bugfix, performance, missing feature, small extra, plugin candidate or infra) and two flags: security and needs decision. Jev answers first. Haiku gives a second opinion when Jev is unsure. If they disagree on a scope label, a person decides.
+Gives each item one type (bugfix, performance, missing feature, small extra, plugin candidate or infra) and two flags: security and needs decision. Basal answers first. Haiku gives a second opinion when basal is unsure. If they disagree on a scope label, a person decides.
 
 ## Priority
 

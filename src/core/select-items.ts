@@ -51,10 +51,10 @@ export function plannedItems(db: DatabaseSync, kind: ActionKind, opts: PlannedOp
   const updatedDesc: Cmp = (a, b) => str(keys.get(b)!.updated, keys.get(a)!.updated);
   let cmp: Cmp;
   switch (kind) {
-    // Items without a Jev verdict first, then changed ones; newest first within each. Haiku: the newest Jev verdicts first.
+    // Items without a basal verdict first, then changed ones; newest first within each. Haiku: the newest basal verdicts first.
     case "classify":
-      cmp = then((a, b) => (a.facts.classification.jev ? 1 : 0) - (b.facts.classification.jev ? 1 : 0),
-        (a, b) => (a.action.params?.source === "haiku" ? str(b.facts.classification.jev?.at ?? "", a.facts.classification.jev?.at ?? "") : updatedDesc(a, b)), byRef);
+      cmp = then((a, b) => (a.facts.classification.basal ? 1 : 0) - (b.facts.classification.basal ? 1 : 0),
+        (a, b) => (a.action.params?.source === "haiku" ? str(b.facts.classification.basal?.at ?? "", a.facts.classification.basal?.at ?? "") : updatedDesc(a, b)), byRef);
       break;
     case "referee": case "decide": cmp = then(score, prFirst, created, byRef); break;
     // Items without a priority row first, then changed ones; pull requests first, newest first.

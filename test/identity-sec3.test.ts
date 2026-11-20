@@ -21,8 +21,8 @@ const fresh = () => {
   return connect(join(mkdtempSync(join(SCRATCH, "identity-")), "m.db"));
 };
 const issue = (number: number, login: string, id: number) => ({
-  __typename: "Issue", number, state: "OPEN", title: "t", body: "", url: `https://github.com/storytold/r/issues/${number}`,
-  author: { __typename: "User", login, databaseId: id }, authorAssociation: "NONE", createdAt: T0, updatedAt: T0, closedAt: null, stateReason: null, repository: { name: "r", owner: { login: "storytold" } },
+  __typename: "Issue", number, state: "OPEN", title: "t", body: "", url: `https://github.com/ModelTok/r/issues/${number}`,
+  author: { __typename: "User", login, databaseId: id }, authorAssociation: "NONE", createdAt: T0, updatedAt: T0, closedAt: null, stateReason: null, repository: { name: "r", owner: { login: "ModelTok" } },
 });
 
 test("history and an allow count only for their own account, and the pipeline's own PR only at a head it pushed", async () => {
@@ -53,7 +53,7 @@ test("history and an allow count only for their own account, and the pipeline's 
   const w = (current = world().repo());
   w.db.prepare("INSERT INTO settings (key, value) VALUES ('pipeline_login', 'pipeline-bot')").run();
   w.pr(9, { author: "pipeline-bot", head: "a".repeat(40) }).review(9, { verdict: "take", head: "a".repeat(40) });
-  w.db.prepare("INSERT INTO fix_attempts (repo, number, main_sha, text_hash, state, created_at, updated_at, pr_url) VALUES ('app', 3, 'm', 'h', 'pr-opened', ?, ?, 'https://github.com/storytold/app/pull/9')").run(T0, T0);
+  w.db.prepare("INSERT INTO fix_attempts (repo, number, main_sha, text_hash, state, created_at, updated_at, pr_url) VALUES ('app', 3, 'm', 'h', 'pr-opened', ?, ?, 'https://github.com/ModelTok/app/pull/9')").run(T0, T0);
   const prTier = () => loadPrFact(w.db, "app", 9)?.tier;
   assert.equal(prTier(), "not", "no record that the pipeline pushed this head");
   w.db.prepare("INSERT INTO own_commits (repo, sha, action, at) VALUES ('app', ?, 'fixissue-push', ?)").run("a".repeat(40), T0);

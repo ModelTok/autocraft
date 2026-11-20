@@ -14,9 +14,9 @@ type Row = { name: string; facts: Over; expect: { state: string; actions?: strin
 
 const tokens = (p: ItemPlan): string[] => p.actions.map((a) => a.kind).sort();
 const T = "2026-11-04";
-const jev = (o: Partial<{ at: string; changed: boolean; unsure: boolean }> = {}) => ({ at: `${T}T08:00:00.000Z`, changed: false, unsure: false, ...o });
-const disagree = (o: Over = {}): Over => ({ classification: { status: "disagree", label: null, jevLabel: "bugfix", haikuLabel: "infra", jev: jev({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false }, ...(o?.classification ?? {}) } });
-const scopeDisagree: Over = { classification: { status: "disagree", label: null, jevLabel: "missing feature", haikuLabel: "small extra", jev: jev({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } } };
+const basal = (o: Partial<{ at: string; changed: boolean; unsure: boolean }> = {}) => ({ at: `${T}T08:00:00.000Z`, changed: false, unsure: false, ...o });
+const disagree = (o: Over = {}): Over => ({ classification: { status: "disagree", label: null, basalLabel: "bugfix", haikuLabel: "infra", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false }, ...(o?.classification ?? {}) } });
+const scopeDisagree: Over = { classification: { status: "disagree", label: null, basalLabel: "missing feature", haikuLabel: "small extra", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } } };
 const needsDecision: Over = { classification: { flags: ["needs decision"] }, labels: { existing: ["bugfix", "needs decision"] } };
 const att = (state: string, o: Partial<{ textChanged: boolean; headDone: boolean; baseDone: boolean }> = {}) => ({ state, textChanged: false, headDone: false, baseDone: true, ...o });
 const fixable = (o: Over = {}): Over => ({ ...o, fix: { impact: "P2", ...(o?.fix ?? {}) } });
@@ -27,21 +27,21 @@ const rows: Row[] = [
   { name: "a classified, labelled, embedded issue has nothing due", facts: {}, expect: { state: "classified", actions: [], next: "Fix", wait: "an open request for a person to pick up" } },
 
   // ---- classify
-  { name: "no verdict in the run: Jev is due", facts: { classification: { status: "unclassified", label: null, jevLabel: null, jev: null } }, expect: { state: "unclassified", actions: ["classify"], next: "Classify" } },
-  { name: "no classification run yet: nothing to classify", facts: { run: null, classification: { status: "unclassified", label: null, jevLabel: null, jev: null } }, expect: { state: "unclassified", actions: [] } },
-  { name: "the item's text changed since Jev's verdict", facts: { classification: { jev: jev({ changed: true }) } }, expect: { state: "classified", actions: ["classify"] } },
-  { name: "Haiku classified it alone at the current text: not due for Jev", facts: { classification: { status: "settled", jev: null, haiku: { at: `${T}T08:00:00.000Z`, aloneCurrent: true } } }, expect: { state: "classified", actions: [] } },
-  { name: "Jev unsure, no Haiku verdict: Haiku is due", facts: { classification: { status: "waiting", label: null, jev: jev({ unsure: true }) } }, expect: { state: "waiting-haiku", actions: ["classify"], next: "Classify" } },
-  { name: "Haiku older than Jev: Haiku is due again", facts: { classification: { status: "waiting", label: null, jev: jev({ unsure: true }), haiku: { at: `${T}T07:00:00.000Z`, aloneCurrent: false } } }, expect: { state: "waiting-haiku", actions: ["classify"] } },
-  { name: "Haiku as new as Jev's verdict: not due", facts: { classification: { status: "settled", jev: jev({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } } }, expect: { state: "classified", actions: [] } },
-  { name: "an item out of scope is not classified", facts: { inScope: false, classification: { status: "unclassified", label: null, jev: null } }, expect: { state: "unclassified", wait: "not in scope" } },
-  { name: "our own integration PR is not classified", facts: { kind: "pr", integration: true, classification: { status: "unclassified", label: null, jev: null } }, expect: { state: "unclassified", actions: [] } },
-  { name: "a held item is still classified", facts: { held: "duplicate", classification: { status: "unclassified", label: null, jev: null } }, expect: { state: "held-duplicate", actions: ["classify"], next: "Held: waiting for a Duplicate? answer" } },
+  { name: "no verdict in the run: Basal is due", facts: { classification: { status: "unclassified", label: null, basalLabel: null, basal: null } }, expect: { state: "unclassified", actions: ["classify"], next: "Classify" } },
+  { name: "no classification run yet: nothing to classify", facts: { run: null, classification: { status: "unclassified", label: null, basalLabel: null, basal: null } }, expect: { state: "unclassified", actions: [] } },
+  { name: "the item's text changed since basal's verdict", facts: { classification: { basal: basal({ changed: true }) } }, expect: { state: "classified", actions: ["classify"] } },
+  { name: "Haiku classified it alone at the current text: not due for basal", facts: { classification: { status: "settled", basal: null, haiku: { at: `${T}T08:00:00.000Z`, aloneCurrent: true } } }, expect: { state: "classified", actions: [] } },
+  { name: "Basal unsure, no Haiku verdict: Haiku is due", facts: { classification: { status: "waiting", label: null, basal: basal({ unsure: true }) } }, expect: { state: "waiting-haiku", actions: ["classify"], next: "Classify" } },
+  { name: "Haiku older than basal: Haiku is due again", facts: { classification: { status: "waiting", label: null, basal: basal({ unsure: true }), haiku: { at: `${T}T07:00:00.000Z`, aloneCurrent: false } } }, expect: { state: "waiting-haiku", actions: ["classify"] } },
+  { name: "Haiku as new as basal's verdict: not due", facts: { classification: { status: "settled", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } } }, expect: { state: "classified", actions: [] } },
+  { name: "an item out of scope is not classified", facts: { inScope: false, classification: { status: "unclassified", label: null, basal: null } }, expect: { state: "unclassified", wait: "not in scope" } },
+  { name: "our own integration PR is not classified", facts: { kind: "pr", integration: true, classification: { status: "unclassified", label: null, basal: null } }, expect: { state: "unclassified", actions: [] } },
+  { name: "a held item is still classified", facts: { held: "duplicate", classification: { status: "unclassified", label: null, basal: null } }, expect: { state: "held-duplicate", actions: ["classify"], next: "Held: waiting for a Duplicate? answer" } },
 
   // ---- referee and disagreement
   { name: "labels disagree, Sonnet has not answered", facts: disagree(), expect: { state: "referee-due", actions: ["referee"], next: "Referee: waiting for Sonnet" } },
   { name: "labels disagree, Sonnet was unsure: Opus is due", facts: disagree({ classification: { referee: { sure: false, final: false } } }), expect: { state: "referee-due", actions: ["referee"], next: "Referee: waiting for Opus" } },
-  { name: "Sonnet sure: settled with its label", facts: { classification: { status: "settled", label: "infra", referee: { sure: true, final: false }, jevLabel: "bugfix", haikuLabel: "infra", jev: jev({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } }, labels: { existing: ["infra"] } }, expect: { state: "classified", actions: [] } },
+  { name: "Sonnet sure: settled with its label", facts: { classification: { status: "settled", label: "infra", referee: { sure: true, final: false }, basalLabel: "bugfix", haikuLabel: "infra", basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } }, labels: { existing: ["infra"] } }, expect: { state: "classified", actions: [] } },
   { name: "a draft is not refereed", facts: { ...disagree(), draft: true }, expect: { state: "referee-due", actions: [], wait: "the label referee" } },
   { name: "a held item is not refereed", facts: { ...disagree(), held: "backlog" }, expect: { state: "held-backlog", actions: [] } },
   { name: "scope-vs-scope disagreement goes to Decide, not to the referee", facts: scopeDisagree, expect: { state: "scope-due", actions: ["decide"], next: "Decide" } },
@@ -90,7 +90,7 @@ const rows: Row[] = [
   { name: "labelling approval is a fact: gates() applies it, not decideItem", facts: { labels: { existing: [] }, repoFacts: { labelsApproved: false } }, expect: { state: "classified", actions: ["label"] } },
   { name: "a Backlog hold stops labelling", facts: { labels: { existing: [] }, held: "backlog" }, expect: { state: "held-backlog", actions: [] } },
   { name: "a duplicate hold does not stop labelling", facts: { labels: { existing: [] }, held: "duplicate" }, expect: { state: "held-duplicate", actions: ["label"] } },
-  { name: "an unsettled item is not labelled", facts: { classification: { status: "waiting", label: null, jev: jev({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } }, labels: { existing: [] } }, expect: { state: "waiting-haiku", actions: [] } },
+  { name: "an unsettled item is not labelled", facts: { classification: { status: "waiting", label: null, basal: basal({ unsure: true }), haiku: { at: `${T}T09:00:00.000Z`, aloneCurrent: false } }, labels: { existing: [] } }, expect: { state: "waiting-haiku", actions: [] } },
 
   // ---- act
   { name: "an answered close decision is acted on", facts: { answeredClose: [closed()] }, expect: { state: "classified", actions: ["act"] } },
@@ -98,7 +98,7 @@ const rows: Row[] = [
   { name: "a done action row is final", facts: { answeredClose: [closed({ action: "done" })] }, expect: { state: "classified", actions: [] } },
   { name: "a skipped action row is final", facts: { answeredClose: [closed({ action: "skipped" })] }, expect: { state: "classified", actions: [] } },
   { name: "an item already closed on GitHub keeps its unapplied answered close (the Act step records it as already closed)", facts: { open: false, answeredClose: [closed()] }, expect: { state: "classified", actions: ["act"] } },
-  { name: "a closed item gets nothing else: no classify, embed, prioritize or label", facts: { open: false, priorityHash: null, embeddedHash: null, classification: { status: "unclassified", label: null, jev: null }, answeredClose: [closed()] }, expect: { state: "unclassified", actions: ["act"] } },
+  { name: "a closed item gets nothing else: no classify, embed, prioritize or label", facts: { open: false, priorityHash: null, embeddedHash: null, classification: { status: "unclassified", label: null, basal: null }, answeredClose: [closed()] }, expect: { state: "unclassified", actions: ["act"] } },
   { name: "a closed item whose answered close is final has nothing due", facts: { open: false, embeddedHash: null, answeredClose: [closed({ action: "skipped" })] }, expect: { state: "classified", actions: [] } },
   { name: "a failed action row is tried again", facts: { answeredClose: [closed({ action: "failed" })] }, expect: { state: "classified", actions: ["act"] } },
   { name: "an out-of-scope item is not acted on", facts: { inScope: false, answeredClose: [closed()] }, expect: { state: "classified", actions: [] } },

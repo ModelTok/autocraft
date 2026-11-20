@@ -1,4 +1,4 @@
-// Comparison report for a classification run: Jev against Haiku, and both against reference labels.
+// Comparison report for a classification run: Basal against Haiku, and both against reference labels.
 import { readFileSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
 import { LABELS } from "./rules.ts";
@@ -46,7 +46,7 @@ function confusion(title: string, pairs: [string, string][], rowName: string, co
     LABELS.map((a) => [short(a), ...LABELS.map((b) => cell.get(`${a}|${b}`) ?? 0)]));
 }
 
-export type Pair = { r: Row; jev: Row; haiku: Row; ref?: string };
+export type Pair = { r: Row; basal: Row; haiku: Row; ref?: string };
 
 export function pairUp(rows: Row[], reference: Map<string, string>): Pair[] {
   const by = new Map<string, Record<string, Row>>();
@@ -56,7 +56,7 @@ export function pairUp(rows: Row[], reference: Map<string, string>): Pair[] {
     by.set(ref(r), e);
   }
   const out: Pair[] = [];
-  for (const e of by.values()) if (e.jev && e.haiku) out.push({ r: e.jev, jev: e.jev, haiku: e.haiku, ref: reference.get(ref(e.jev)) });
+  for (const e of by.values()) if (e.basal && e.haiku) out.push({ r: e.basal, basal: e.basal, haiku: e.haiku, ref: reference.get(ref(e.basal)) });
   return out.sort((a, b) => ref(a.r).localeCompare(ref(b.r), "en", { numeric: true }));
 }
 
@@ -71,43 +71,43 @@ export const bandIndex = (p: number): number => BANDS.findIndex((b) => p >= b.lo
 export const band = (p: number | null) => (p === null ? "<0.7" : p >= 0.9 ? "≥0.9" : p >= 0.7 ? "0.7–0.9" : "<0.7");
 
 export function compareReport(pairs: Pair[]): string {
-  const agree = (ps: Pair[]) => ps.filter((p) => p.jev.type_label === p.haiku.type_label).length;
+  const agree = (ps: Pair[]) => ps.filter((p) => p.basal.type_label === p.haiku.type_label).length;
   const out: string[] = [];
   const prs = pairs.filter((p) => p.r.kind === "pr"), issues = pairs.filter((p) => p.r.kind === "issue");
   out.push(`Items classified by both: ${pairs.length} (${prs.length} PRs, ${issues.length} issues).\n`);
 
-  out.push("### Jev vs Haiku, type label\n");
+  out.push("### basal vs Haiku, type label\n");
   out.push(table(["Group", "Agreement"], [["all", frac(agree(pairs), pairs.length)], ["PRs", frac(agree(prs), prs.length)], ["issues", frac(agree(issues), issues.length)]]));
-  out.push("\nBy Jev's label:\n");
-  out.push(table(["Jev label", "Items", "Agreement with Haiku"], LABELS.map((l) => {
-    const ps = pairs.filter((p) => p.jev.type_label === l);
+  out.push("\nBy basal's label:\n");
+  out.push(table(["Basal label", "Items", "Agreement with Haiku"], LABELS.map((l) => {
+    const ps = pairs.filter((p) => p.basal.type_label === l);
     return [l, ps.length, frac(agree(ps), ps.length)];
   })));
 
   const withRef = pairs.filter((p) => p.ref);
   out.push(`\n### Against the reference labels (${withRef.length} PRs)\n`);
-  const ok = (c: "jev" | "haiku", ps: Pair[]) => ps.filter((p) => p[c].type_label === p.ref).length;
-  out.push(table(["Classifier", "Agreement with reference"], [["Jev", frac(ok("jev", withRef), withRef.length)], ["Haiku", frac(ok("haiku", withRef), withRef.length)]]));
+  const ok = (c: "basal" | "haiku", ps: Pair[]) => ps.filter((p) => p[c].type_label === p.ref).length;
+  out.push(table(["Classifier", "Agreement with reference"], [["Basal", frac(ok("basal", withRef), withRef.length)], ["Haiku", frac(ok("haiku", withRef), withRef.length)]]));
   out.push("\nPer reference label:\n");
-  out.push(table(["Reference label", "Items", "Jev", "Haiku"], LABELS.map((l) => {
+  out.push(table(["Reference label", "Items", "Basal", "Haiku"], LABELS.map((l) => {
     const ps = withRef.filter((p) => p.ref === l);
-    return [l, ps.length, frac(ok("jev", ps), ps.length), frac(ok("haiku", ps), ps.length)];
+    return [l, ps.length, frac(ok("basal", ps), ps.length), frac(ok("haiku", ps), ps.length)];
   })));
 
   out.push("\n### Confusion tables\n");
-  out.push(confusion("Jev vs Haiku, all items", pairs.map((p) => [p.jev.type_label, p.haiku.type_label]), "Jev", "Haiku"));
-  out.push("\n" + confusion("Reference vs Jev", withRef.map((p) => [p.ref!, p.jev.type_label]), "reference", "Jev"));
+  out.push(confusion("Basal vs Haiku, all items", pairs.map((p) => [p.basal.type_label, p.haiku.type_label]), "Basal", "Haiku"));
+  out.push("\n" + confusion("Reference vs basal", withRef.map((p) => [p.ref!, p.basal.type_label]), "reference", "Basal"));
   out.push("\n" + confusion("Reference vs Haiku", withRef.map((p) => [p.ref!, p.haiku.type_label]), "reference", "Haiku"));
 
-  out.push("\n### Jev by confidence (probability of its top label)\n");
+  out.push("\n### basal by confidence (probability of its top label)\n");
   out.push(table(["Band", "Share of items", "Agrees with Haiku", "Agrees with reference"], ["≥0.9", "0.7–0.9", "<0.7"].map((b) => {
-    const ps = pairs.filter((p) => band(p.jev.top) === b), rs = ps.filter((p) => p.ref);
-    return [b, frac(ps.length, pairs.length), frac(agree(ps), ps.length), frac(ok("jev", rs), rs.length)];
+    const ps = pairs.filter((p) => band(p.basal.top) === b), rs = ps.filter((p) => p.ref);
+    return [b, frac(ps.length, pairs.length), frac(agree(ps), ps.length), frac(ok("basal", rs), rs.length)];
   })));
 
-  out.push("\n### Flags, Jev vs Haiku\n");
-  out.push(table(["Flag", "Agreement", "Both true", "Only Jev", "Only Haiku"], ["security", "needs decision"].map((f) => {
-    const j = (p: Pair) => p.jev.flags.includes(f), h = (p: Pair) => p.haiku.flags.includes(f);
+  out.push("\n### Flags, basal vs Haiku\n");
+  out.push(table(["Flag", "Agreement", "Both true", "Only basal", "Only Haiku"], ["security", "needs decision"].map((f) => {
+    const j = (p: Pair) => p.basal.flags.includes(f), h = (p: Pair) => p.haiku.flags.includes(f);
     return [f, frac(pairs.filter((p) => j(p) === h(p)).length, pairs.length), pairs.filter((p) => j(p) && h(p)).length, pairs.filter((p) => j(p) && !h(p)).length, pairs.filter((p) => !j(p) && h(p)).length];
   })));
   return out.join("\n");

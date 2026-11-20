@@ -7,8 +7,8 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fillClassHashes, fillEmbedHashes } from "./itemhash.ts";
 import { BOOKKEEPING_COLUMNS, liveSql } from "./live.ts";
-import { JEV_USD_PER_INPUT_TOKEN } from "./prompts/index.ts";
-import { JEV_NEEDS_DECISION_YES, JEV_SECURITY_YES } from "./classify/parse.ts";
+import { LEGACY_JEV_USD_PER_INPUT_TOKEN } from "./prompts/index.ts";
+import { BASAL_NEEDS_DECISION_YES, BASAL_SECURITY_YES } from "./classify/parse.ts";
 import { envVar } from "./env.ts";
 import { repoHasNoCi } from "./merge/no-ci.ts";
 import { fixupEditable } from "./fixup/patch.ts";
@@ -16,6 +16,21 @@ import { mentionNames } from "./github/slugs.ts";
 import { SIM_THRESHOLD } from "./dupes/scan.ts";
 
 export const DEFAULT_DB = join(homedir(), ".local/share/autocraft/mirror.db");
+
+// Repos a new database tracks before any operator has chosen: `AUTOCRAFT_SEED_REPOS`, comma-separated bare names of the
+// default owner. Unset, a new database tracks nothing; an operator tracks repos with `repos track` or on the Repos page.
+const SEED_REPOS = (process.env.AUTOCRAFT_SEED_REPOS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+
+/** Seeds the tracked repos once; the flag keeps the seed from returning after an operator empties the list. */
+function seedTracked(db: DatabaseSync): void {
+  if (db.prepare("SELECT 1 FROM settings WHERE key = 'tracked_seeded'").get()) return;
+  if (!db.prepare("SELECT 1 FROM tracked_repos LIMIT 1").get()) {
+    const at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+    const put = db.prepare("INSERT OR IGNORE INTO tracked_repos (name, added_by, added_at) VALUES (?, 'seed', ?)");
+    for (const name of SEED_REPOS) put.run(name, at);
+  }
+  db.prepare("INSERT OR IGNORE INTO settings VALUES ('tracked_seeded', '1')").run();
+}
 
 export function dbPath(): string {
   return envVar("DB") ?? DEFAULT_DB;
@@ -35,7 +50,7 @@ const ADDED_COLUMNS: [table: string, column: string, type: string][] = [
   ["user_token_revocations", "kind", "TEXT NOT NULL DEFAULT 'grant'"],
   ["user_token_revocations", "aad", "TEXT"],
   ["user_token_revocations", "attempts", "INTEGER NOT NULL DEFAULT 0"],
-  ["repos", "owner", "TEXT NOT NULL DEFAULT 'storytold'"],
+  ["repos", "owner", "TEXT NOT NULL DEFAULT 'ModelTok'"],
   ["security_calls", "agent_run_id", "INTEGER"],
   ["security_calls", "resumed", "INTEGER NOT NULL DEFAULT 0"],
   ["security_findings", "fix_patch", "TEXT"],
@@ -292,13 +307,24 @@ const ADDED_INDEXES = [
 // Columns removed after their first release.
 const DROPPED_COLUMNS: [table: string, column: string][] = [["classifications", "topics"], ["classifications", "area"], ["mcp_tokens", "cooloff_until"]];
 
+/** The name the basal provider had before basal-serve replaced the hosted model (Jev); older databases still hold it. */
+const OLD_PROVIDER = "jev";
+
+// Columns renamed after their first release: the provider rename (OLD_PROVIDER to basal). Renamed before the schema runs, so
+// an existing table keeps its values under the new name instead of getting an empty column.
+const RENAMED_COLUMNS: [table: string, from: string, to: string][] = [
+  ["item_priority", `${OLD_PROVIDER}_impact`, "basal_impact"],
+  ["item_priority", `${OLD_PROVIDER}_p`, "basal_p"],
+  ["duplicate_pairs", `${OLD_PROVIDER}_p`, "basal_p"],
+];
+
 /** Appends the stored review rows that the history does not hold yet. */
 export const HISTORY_COPY_SQL = `INSERT INTO main.opus_review_history (repo, number, head_oid, at, model, mode, verdict, sure, reason, risks, fixes, summary, why, public_review, claims, blocked_by, trigger, job_id)
   SELECT repo, number, head_oid, at, model, mode, verdict, sure, reason, risks, fixes, summary, why, public_review, claims, blocked_by, NULL, NULL FROM main.opus_reviews o
   WHERE NOT EXISTS (SELECT 1 FROM main.opus_review_history h WHERE h.repo = o.repo AND h.number = o.number AND h.head_oid = o.head_oid AND h.at = o.at)`;
 
 // Bump when migrateValues() or backfill() change what they do.
-const MIGRATION_VERSION = 18;
+const MIGRATION_VERSION = 19;
 
 // Rows written before their column existed.
 function backfill(db: DatabaseSync): void {
@@ -356,18 +382,18 @@ function backfill(db: DatabaseSync): void {
       answer_note = CASE WHEN (SELECT state FROM main.items i WHERE i.repo = decisions.repo AND i.number = decisions.number) = 'MERGED' THEN 'the PR merged' ELSE 'the PR is closed' END
     WHERE kind = 'merge' AND answer IS NULL AND EXISTS (SELECT 1 FROM main.items i WHERE i.repo = decisions.repo AND i.number = decisions.number AND i.state IN ('MERGED', 'CLOSED'))`).run({ at: now });
   db.exec("UPDATE main.jobs SET repo = json_extract(params, '$.repo') WHERE repo IS NULL AND json_valid(params) AND json_type(params, '$.repo') = 'text'");
-  // Jev's stored flags follow the yes thresholds of src/classify/parse.ts; only rows whose flags differ are written.
+  // Basal's stored flags follow the yes thresholds of src/classify/parse.ts; only rows whose flags differ are written.
   db.prepare(`UPDATE main.classifications SET flags = CASE
       WHEN json_extract(probs, '$.security') >= :sec AND json_extract(probs, '$.needs_decision') >= :nd THEN '["security","needs decision"]'
       WHEN json_extract(probs, '$.security') >= :sec THEN '["security"]'
       WHEN json_extract(probs, '$.needs_decision') >= :nd THEN '["needs decision"]'
       ELSE '[]' END
-    WHERE classifier = 'jev' AND json_valid(probs) AND json_type(probs, '$.security') IN ('integer', 'real') AND json_type(probs, '$.needs_decision') IN ('integer', 'real')
+    WHERE classifier = 'basal' AND json_valid(probs) AND json_type(probs, '$.security') IN ('integer', 'real') AND json_type(probs, '$.needs_decision') IN ('integer', 'real')
       AND flags IS NOT CASE
       WHEN json_extract(probs, '$.security') >= :sec AND json_extract(probs, '$.needs_decision') >= :nd THEN '["security","needs decision"]'
       WHEN json_extract(probs, '$.security') >= :sec THEN '["security"]'
       WHEN json_extract(probs, '$.needs_decision') >= :nd THEN '["needs decision"]'
-      ELSE '[]' END`).run({ sec: JEV_SECURITY_YES, nd: JEV_NEEDS_DECISION_YES });
+      ELSE '[]' END`).run({ sec: BASAL_SECURITY_YES, nd: BASAL_NEEDS_DECISION_YES });
 }
 
 /**
@@ -408,6 +434,54 @@ function addColumns(db: DatabaseSync): void {
       have.set(table, cols);
     }
     if (!cols.has(column)) db.exec(`ALTER TABLE main.${table} ADD COLUMN ${column} ${type}`);
+  }
+}
+
+function renameColumns(db: DatabaseSync): void {
+  for (const [table, from, to] of RENAMED_COLUMNS) {
+    const cols = (db.prepare(`PRAGMA main.table_info(${table})`).all() as { name: string }[]).map((c) => c.name);
+    if (!cols.includes(from) || cols.includes(to)) continue;
+    // The live-change triggers name the column; connect() recreates them after this.
+    for (const t of db.prepare("SELECT name FROM main.sqlite_master WHERE type = 'trigger' AND tbl_name = ? AND name LIKE 'live\\_%' ESCAPE '\\'").all(table) as { name: string }[]) db.exec(`DROP TRIGGER main.${t.name}`);
+    db.exec(`ALTER TABLE main.${table} RENAME COLUMN ${from} TO ${to}`);
+  }
+}
+
+/**
+ * Stored values of the provider rename (OLD_PROVIDER to basal): the settings keys, classifier and area sources, run and
+ * wait providers, prompt ids, usage agent names, priority models and the `source` of planned and queued classify
+ * actions. The `model` of old usage and run rows stays as recorded, since it names the hosted model that answered (and
+ * prices those rows). Runs once; a row that already exists under the new name wins over its old twin.
+ */
+function renameProvider(db: DatabaseSync): void {
+  const done = "provider_renamed_basal";
+  if (db.prepare("SELECT 1 FROM main.settings WHERE key = ?").get(done)) return;
+  const o = OLD_PROVIDER;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (!db.prepare("SELECT 1 FROM main.settings WHERE key = ?").get(done)) {
+      for (const k of ["enabled", "unavailable", "parallel"]) {
+        db.prepare("INSERT OR IGNORE INTO main.settings (key, value) SELECT ?, value FROM main.settings WHERE key = ?").run(`basal_${k}`, `${o}_${k}`);
+        db.prepare("DELETE FROM main.settings WHERE key = ?").run(`${o}_${k}`);
+      }
+      db.prepare("UPDATE OR IGNORE main.classifications SET classifier = 'basal' WHERE classifier = ?").run(o);
+      db.prepare("DELETE FROM main.classifications WHERE classifier = ?").run(o);
+      db.prepare("UPDATE main.item_areas SET source = 'basal' WHERE source = ?").run(o);
+      db.prepare("UPDATE main.item_priority SET model = 'basal' || substr(model, ?) WHERE model = ? OR model = ?").run(o.length + 1, o, `${o}-unsure`);
+      for (const t of ["agent_runs", "model_waits"]) db.prepare(`UPDATE main.${t} SET provider = 'basal' WHERE provider = ?`).run(o);
+      for (const t of ["agent_runs", "remote_calls"]) db.prepare(`UPDATE main.${t} SET prompt_id = substr(prompt_id, 1, length(prompt_id) - ?) || 'basal' WHERE prompt_id LIKE ?`).run(o.length, `%.${o}`);
+      for (const prefix of ["", "areas-"]) {
+        db.prepare("UPDATE OR IGNORE main.token_usage SET agent = ? || 'basal-' || substr(agent, ?) WHERE agent LIKE ?").run(prefix, prefix.length + o.length + 2, `${prefix}${o}-%`);
+      }
+      const was = `"source":"${o}"`, now = '"source":"basal"';
+      db.prepare("UPDATE main.item_plans SET actions = replace(actions, ?, ?) WHERE instr(actions, ?) > 0").run(was, now, was);
+      db.prepare("UPDATE main.jobs SET params = replace(params, ?, ?) WHERE state = 'queued' AND instr(params, ?) > 0").run(was, now, was);
+      db.prepare("INSERT INTO main.settings (key, value) VALUES (?, '1')").run(done);
+    }
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
   }
 }
 
@@ -477,9 +551,9 @@ function migrateValues(db: DatabaseSync): void {
   if (db.prepare("SELECT 1 FROM main.access WHERE role = 'admin'").get())db.exec("UPDATE main.access SET role = 'operator' WHERE role = 'admin'");
   // Priority rows written with the impact names (critical, high, normal, low) become levels.
   const OLD = "('critical', 'high', 'normal', 'low')";
-  if (db.prepare(`SELECT 1 FROM main.item_priority WHERE impact IN ${OLD} OR jev_impact IN ${OLD} OR haiku_impact IN ${OLD} LIMIT 1`).get()) {
+  if (db.prepare(`SELECT 1 FROM main.item_priority WHERE impact IN ${OLD} OR basal_impact IN ${OLD} OR haiku_impact IN ${OLD} LIMIT 1`).get()) {
     const lv = (c: string) => `CASE ${c} WHEN 'critical' THEN 'P0' WHEN 'high' THEN 'P1' WHEN 'normal' THEN 'P2' WHEN 'low' THEN 'P3' ELSE ${c} END`;
-    db.exec(`UPDATE main.item_priority SET impact = ${lv("impact")}, jev_impact = ${lv("jev_impact")}, haiku_impact = ${lv("haiku_impact")}`);
+    db.exec(`UPDATE main.item_priority SET impact = ${lv("impact")}, basal_impact = ${lv("basal_impact")}, haiku_impact = ${lv("haiku_impact")}`);
   }
   // Scope recommendations written by the old label mapping (no model behind them) are dropped from open decisions.
   const MECHANICAL = "kind = 'scope' AND answer IS NULL AND recommended IS NOT NULL AND recommended_by IS NULL";
@@ -538,11 +612,12 @@ function migrateValues(db: DatabaseSync): void {
   db.exec("DROP TABLE IF EXISTS main.repo_directions; DROP TABLE IF EXISTS main.direction_proposals");
   db.prepare("DELETE FROM main.settings WHERE key = 'direction_proposals_since'").run();
   if (!db.prepare("SELECT 1 FROM main.settings WHERE key = 'ci_first_done'").get()) ciFirst(db);
-  // Jev usage saved without a cost is priced from its input tokens.
-  const JEV_UNPRICED = "model LIKE 'jev%' AND cost_usd IS NULL AND input_tokens IS NOT NULL";
-  if (db.prepare(`SELECT 1 FROM main.token_usage WHERE ${JEV_UNPRICED} LIMIT 1`).get()) {
-    db.prepare(`UPDATE main.token_usage SET cost_usd = input_tokens * ? WHERE ${JEV_UNPRICED}`).run(JEV_USD_PER_INPUT_TOKEN);
+  // Usage of the hosted model basal replaced, saved without a cost, is priced from its input tokens.
+  const HOSTED_UNPRICED = `model LIKE '${OLD_PROVIDER}%' AND cost_usd IS NULL AND input_tokens IS NOT NULL`;
+  if (db.prepare(`SELECT 1 FROM main.token_usage WHERE ${HOSTED_UNPRICED} LIMIT 1`).get()) {
+    db.prepare(`UPDATE main.token_usage SET cost_usd = input_tokens * ? WHERE ${HOSTED_UNPRICED}`).run(LEGACY_JEV_USD_PER_INPUT_TOKEN);
   }
+  renameProvider(db);
 }
 
 // Upstream CI is the check for PRs and batches in repos that have it: queued `tests` verifications are settled as
@@ -666,7 +741,7 @@ function buildDecisionItems(db: DatabaseSync): void {
 
 /** Identifies the schema this code expects; the database stores the stamp it was last migrated with. */
 function schemaStamp(sql: string): string {
-  return createHash("sha256").update(sql).update(JSON.stringify([ADDED_COLUMNS, DROPPED_COLUMNS, ADDED_INDEXES, MIGRATION_VERSION, liveSql(), BOOKKEEPING_COLUMNS])).digest("hex").slice(0, 16);
+  return createHash("sha256").update(sql).update(JSON.stringify([ADDED_COLUMNS, DROPPED_COLUMNS, RENAMED_COLUMNS, ADDED_INDEXES, MIGRATION_VERSION, liveSql(), BOOKKEEPING_COLUMNS])).digest("hex").slice(0, 16);
 }
 
 function stampOf(db: DatabaseSync): string | null {
@@ -707,7 +782,9 @@ function open(path: string): DatabaseSync {
     loadOwners(db);
     return db;
   }
+  renameColumns(db);
   db.exec(schema);
+  seedTracked(db);
   addColumns(db);
   dropColumns(db);
   for (const ix of ADDED_INDEXES) db.exec(ix);

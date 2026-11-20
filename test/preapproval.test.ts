@@ -318,7 +318,7 @@ describe("add to merge queue (a pre-approved merge without a fix-up)", () => {
     }
     // An open scope question still refuses it, also behind a label that gets no review.
     assert.throws(() => preapproveMerge(w.db, { repo: "app", number: 18, by: OPERATOR }), /scope question is still open/);
-    w.db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', 17, 'jev', 'r1', ?, 'plugin candidate', '[]', '{\"top\":0.95}')").run(T0);
+    w.db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', 17, 'basal', 'r1', ?, 'plugin candidate', '[]', '{\"top\":0.95}')").run(T0);
     w.review(17, { head: "sha17" });
     settle(w);
     assert.equal(preapprovalOf(w.db, "app", 17)?.state, "ci");
@@ -388,7 +388,7 @@ describe("queue items: who may add", () => {
     assert.equal(preapprovalOf(w.db, "app", 51)?.state, "review");
     assert.equal(preapprovalOf(w.db, "app", 51)?.by, "maint");
     // An operator needs write access on the repo too, as for answering (src/settlers.ts, settleRefusal).
-    await assert.rejects(queueAdd(w.db, req(52, OPERATOR, "operator", false)), (e: Error & { status?: number }) => e.status === 403 && /no write access to storytold\/app/.test(e.message));
+    await assert.rejects(queueAdd(w.db, req(52, OPERATOR, "operator", false)), (e: Error & { status?: number }) => e.status === 403 && /no write access to ModelTok\/app/.test(e.message));
     assert.equal(preapprovalOf(w.db, "app", 52), null);
     await queueAdd(w.db, req(52, OPERATOR, "operator"));
     assert.equal(preapprovalOf(w.db, "app", 52)?.by, OPERATOR);

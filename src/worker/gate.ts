@@ -7,7 +7,9 @@ import { DEFAULT_OWNER, slugOf } from "../owners.ts";
 // handles only what the gate call and gate.yml use (nested maps, quoted and plain scalars,
 // block scalars); there is no YAML dependency.
 
-const GATE_USES = /^storytold\/craft-common-actions\/\.github\/workflows\/gate\.yml@([A-Za-z0-9._/-]+)$/;
+// The suite's shared gate workflow lives in the default owner's craft-common-actions repo; a repo whose CI does not
+// call it gets no gate environment.
+const GATE_USES = new RegExp(`^${DEFAULT_OWNER}/craft-common-actions/\\.github/workflows/gate\\.yml@([A-Za-z0-9._/-]+)$`, "i");
 const PACKAGE = /^[a-z0-9][a-z0-9+.-]{0,99}$/;
 const SHA = /^[0-9a-f]{40}$/;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,99}$/;

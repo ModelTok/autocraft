@@ -1,5 +1,5 @@
-// Fixtures for the Classifiers and Run and cost pages: a Jev vs Haiku run
-// shaped like the real pilot (Jev's confidence tracks its agreement with Haiku).
+// Fixtures for the Classifiers and Run and cost pages: a basal vs Haiku run
+// shaped like the real pilot (Basal's confidence tracks its agreement with Haiku).
 import type {
   ClassifierReport, ClassifierRun, CostReport, Disagreement, DisagreementFilter, DisagreementList, UsageTotals,
 } from "../types";
@@ -13,8 +13,8 @@ export const BANDS: [string, number, number][] = [
 ];
 const RUN = "pilot-1102";
 const RUNS: ClassifierRun[] = [
-  { id: RUN, at: "2026-11-02T09:12:00Z", pairs: [{ a: "jev", b: "haiku", items: 0 }, { a: "jev", b: "sonnet", items: 600 }, { a: "haiku", b: "sonnet", items: 600 }] },
-  { id: "pilot-1029", at: "2026-10-29T14:03:00Z", pairs: [{ a: "jev", b: "haiku", items: 300 }] },
+  { id: RUN, at: "2026-11-02T09:12:00Z", pairs: [{ a: "basal", b: "haiku", items: 0 }, { a: "basal", b: "sonnet", items: 600 }, { a: "haiku", b: "sonnet", items: 600 }] },
+  { id: "pilot-1029", at: "2026-10-29T14:03:00Z", pairs: [{ a: "basal", b: "haiku", items: 300 }] },
 ];
 
 type Row = Disagreement & { agree: boolean };
@@ -59,7 +59,7 @@ export function classifierReport(sel: { run?: string; a?: string; b?: string }):
   const runs = RUNS.map((x) => ({ ...x, pairs: x.pairs.map((p) => (p.items ? p : { ...p, items: data().length })) }));
   const run = runs.find((x) => x.id === sel.run) ?? runs[0]!;
   const pair = run.pairs.find((p) => p.a === sel.a && p.b === sel.b) ?? run.pairs[0]!;
-  const rs = pair.a === "jev" && pair.b === "haiku" && run.id === RUN ? data() : data().slice(0, pair.items).filter((_, i) => i % 7 !== 0);
+  const rs = pair.a === "basal" && pair.b === "haiku" && run.id === RUN ? data() : data().slice(0, pair.items).filter((_, i) => i % 7 !== 0);
   const overall = ag(), pr = ag(), issue = ag();
   const byLabel = new Map(LABELS.map((l) => [l, ag()])), byRepo = new Map(REPOS.map((x) => [x, ag()]));
   const confusion = LABELS.map(() => LABELS.map(() => 0));
@@ -110,7 +110,7 @@ export function costReport(run = ""): CostReport {
   const s = (u: UsageTotals): UsageTotals => ({ ...u, calls: Math.round(u.calls * k), items: Math.round(u.items * k), input: Math.round(u.input * k), output: Math.round(u.output * k), cacheRead: Math.round(u.cacheRead * k), cacheWrite: Math.round(u.cacheWrite * k), usd: u.usd === null ? null : u.usd * k, wallSeconds: Math.round(u.wallSeconds * k) });
   const stages = [
     { stage: "classify", model: "haiku", ...s(t(420, 21000, 1_700_000, 4_500_000, 2_000_000, 27_700_000, 7.8, 6300)) },
-    { stage: "classify", model: "jev-latest", ...s(t(21000, 21000, 30_400_000, 2_100_000, 0, 0, null, 920)) },
+    { stage: "classify", model: "basal", ...s(t(21000, 21000, 30_400_000, 2_100_000, 0, 0, null, 920)) },
     { stage: "review", model: "opus", ...s(t(1650, 1650, 3_200_000, 1_400_000, 41_000_000, 6_800_000, 58.4, 14200)) },
     { stage: "fix", model: "sonnet", ...s(t(210, 210, 900_000, 700_000, 22_000_000, 3_100_000, 29.9, 21000)) },
   ];

@@ -31,7 +31,7 @@ export type DupesParams = {
 };
 export type DupesDeps = { index: VectorIndex; check: CheckDeps };
 export type DupesSummary = {
-  scanned: number; pairsAdded: number; checked: number; jev: number; haiku: number; verdicts: Record<string, number>;
+  scanned: number; pairsAdded: number; checked: number; basal: number; haiku: number; verdicts: Record<string, number>;
   unanswered: number; asked: string[]; answersApplied: number; dryRun: boolean;
 };
 
@@ -47,7 +47,7 @@ function scanItems(db: DatabaseSync, model: string, max: number): ScanItem[] {
 
 /**
  * Unchecked pairs of the items the Plans send to the pair check, most similar first. Pairs of a repo no Task Runner takes are
- * left out: their Haiku half could not run, so Jev is not asked either and they stay for a later job.
+ * left out: their Haiku half could not run, so basal is not asked either and they stay for a later job.
  */
 function pairsToCheck(db: DatabaseSync, model: string, limit: number): PairKey[] {
   const refs = new Set(plannedItems(db, "dupes", { model }).filter((p) => (p.action.params?.pairs as number) > 0).map((p) => `${p.facts.repo}#${p.facts.number}`));
@@ -59,7 +59,7 @@ export async function runDupes(db: DatabaseSync, params: DupesParams = {}, log: 
   if (params.limit !== undefined && !(Number.isInteger(params.limit) && params.limit >= 0)) throw new Error("limit must be a whole number ≥ 0");
   const limit = params.limit ?? DEFAULT_LIMIT;
   const d = deps ?? defaultDeps(db);
-  const s: DupesSummary = { scanned: 0, pairsAdded: 0, checked: 0, jev: 0, haiku: 0, verdicts: {}, unanswered: 0, asked: [], answersApplied: 0, dryRun: !!params.dryRun };
+  const s: DupesSummary = { scanned: 0, pairsAdded: 0, checked: 0, basal: 0, haiku: 0, verdicts: {}, unanswered: 0, asked: [], answersApplied: 0, dryRun: !!params.dryRun };
   const at = () => d.check.now();
   const model = d.index.embedder.id;
   if (!params.dryRun) fillEmbedHashes(db); // planning writes nothing; a row whose hash was cleared by an edit outside sync would drop out of the scan and its pairs
@@ -81,9 +81,9 @@ export async function runDupes(db: DatabaseSync, params: DupesParams = {}, log: 
   const keys = pairsToCheck(db, model, limit);
   if (keys.length) {
     const c = await checkPairs(db, keys, d.check, params.onHandled);
-    Object.assign(s, { checked: c.checked, jev: c.jev, haiku: c.haiku, verdicts: c.verdicts, unanswered: c.unanswered });
-    log(`dupes: ${keys.length} pairs sent (${c.jev} to Jev, ${c.haiku} answered by Haiku): ${Object.entries(c.verdicts).map(([k, n]) => `${n} ${k}`).join(", ") || "no verdicts"}`);
-    if (c.haikuAlone) log(`dupes: Jev unavailable: Haiku decided ${c.haikuAlone} pairs`);
+    Object.assign(s, { checked: c.checked, basal: c.basal, haiku: c.haiku, verdicts: c.verdicts, unanswered: c.unanswered });
+    log(`dupes: ${keys.length} pairs sent (${c.basal} to basal, ${c.haiku} answered by Haiku): ${Object.entries(c.verdicts).map(([k, n]) => `${n} ${k}`).join(", ") || "no verdicts"}`);
+    if (c.haikuAlone) log(`dupes: Basal unavailable: Haiku decided ${c.haikuAlone} pairs`);
   }
   const when = at().toISOString();
   s.asked = askGroupDecisions(db, undefined, when);
@@ -104,7 +104,7 @@ function parseArgs(args: string[]): DupesParams {
 
 export const commands = {
   dupes: {
-    summary: "dupes [--limit N] [--dry-run]: find duplicate issues and PRs (Jev, then Haiku); the dupe-compare step compares each group and asks its decision",
+    summary: "dupes [--limit N] [--dry-run]: find duplicate issues and PRs (Basal, then Haiku); the dupe-compare step compares each group and asks its decision",
     async run(args: string[]): Promise<void> {
       const db = connect();
       const r = await runDupes(db, parseArgs(args), (l) => console.error(l));

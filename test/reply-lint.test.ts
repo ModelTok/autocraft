@@ -1,5 +1,5 @@
 // Reply lint and the fix turn: problems of a parsed reply go back to the model as one follow-up message on the same
-// session; what is still wrong afterwards falls back to leaving the text out. Model and Jev calls are fakes.
+// session; what is still wrong afterwards falls back to leaving the text out. Model and basal calls are fakes.
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -40,9 +40,9 @@ describe("review.opus lint", () => {
 });
 
 describe("semantic reference check", () => {
-  const deps = (jev: number | null, haiku: boolean | null, usable = true) => {
-    const calls = { jev: 0, haiku: 0 };
-    const d: SemanticDeps = { async jev() { calls.jev++; return jev; }, async haiku() { calls.haiku++; return haiku; }, jevUsable: () => usable };
+  const deps = (basal: number | null, haiku: boolean | null, usable = true) => {
+    const calls = { basal: 0, haiku: 0 };
+    const d: SemanticDeps = { async basal() { calls.basal++; return basal; }, async haiku() { calls.haiku++; return haiku; }, basalUsable: () => usable };
     return { d, calls };
   };
 });

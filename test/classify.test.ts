@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { renderJev } from "../src/prompts/index.ts";
-import { itemInput, jevVerdict, parseHaikuReply, parseRefereeReply, type Item } from "../src/classify/parse.ts";
+import { renderBasal } from "../src/prompts/index.ts";
+import { itemInput, basalVerdict, parseHaikuReply, parseRefereeReply, type Item } from "../src/classify/parse.ts";
 
 const refs = ["a#1", "a#2", "a#3"];
 
@@ -23,29 +23,29 @@ describe("haiku reply", () => {
   });
 });
 
-describe("jev", () => {
+describe("basal", () => {
   const answers = {
     type: { choice: "performance", confidence: 0.8, probabilities: { performance: 0.8, bugfix: 0.2 } },
     security: { noul: 0.95 }, needs_decision: { noul: 0.1 },
   };
   test("maps an answer to a classification row with probabilities kept", () => {
-    const v = jevVerdict("a#1", answers)!;
+    const v = basalVerdict("a#1", answers)!;
     assert.equal(v.type_label, "performance");
     assert.equal(v.security, true);
     assert.equal(v.needs_decision, false);
     assert.equal(JSON.parse(v.probs!).top, 0.8);
   });
   test("drops an answer with an unknown label or a missing question", () => {
-    assert.equal(jevVerdict("a#1", { ...answers, type: { choice: "other" } }), null);
-    assert.equal(jevVerdict("a#1", { type: answers.type }), null);
+    assert.equal(basalVerdict("a#1", { ...answers, type: { choice: "other" } }), null);
+    assert.equal(basalVerdict("a#1", { type: answers.type }), null);
   });
   test("item text goes in the state as data, cut to 4000 characters", () => {
     const item: Item = { repo: "a", number: 1, kind: "pr", title: "t", body: "x".repeat(5000), lines_changed: 10, files_changed: 2, author_association: "NONE" };
     assert.equal((itemInput(item).body as string).length, 4000);
-    const req = JSON.parse(renderJev("classify.jev", item)) as { state: string };
+    const req = JSON.parse(renderBasal("classify.basal", item)) as { state: string };
     assert.equal(JSON.parse(req.state).files_changed, 2);
   });
 });
 
-describe("settle without Jev", () => {
+describe("settle without basal", () => {
 });

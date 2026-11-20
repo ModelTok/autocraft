@@ -46,7 +46,7 @@ export type OpusDeps = {
   fetchDiff: DiffFetcher; fetchDelta: DeltaFetcher; model: string; maxChars: number;
   /** Host directory with a read-only checkout of the PR head for a sandboxed call, or null to ask without tools. Absent: no tools. */
   checkout?: (repo: string, number: number, head: string) => Promise<string | null>;
-  /** The Jev and Haiku calls of the semantic reference check; absent: the real ones. */
+  /** The basal and Haiku calls of the semantic reference check; absent: the real ones. */
   semantic?: SemanticDeps;
 };
 export type OpusSummary = {

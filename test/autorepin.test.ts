@@ -35,7 +35,7 @@ const [SHA, STRAY] = (() => {
   git(work, "push", "-q", LIBS_GIT, `${stray}:refs/heads/elsewhere`);
   return [sha, stray];
 })();
-const LIBS = "https://github.com/storytold/libs";
+const LIBS = "https://github.com/ModelTok/libs";
 const MANIFEST = `[workspace]\nmembers = ["app"]\n\n[workspace.dependencies]\ncraft-ui = { git = "${LIBS}", rev = "${OLD}" }\nserde = "1"\n`;
 const CRATES = 'source = "registry+https://github.com/rust-lang/crates.io-index"';
 const lockOf = (rev: string, extra = ""): string =>
@@ -43,8 +43,8 @@ const lockOf = (rev: string, extra = ""): string =>
 
 describe("the autorepin command", () => {
   test("names the pull request by slug, bare repo name or URL; off drops it", () => {
-    const ref = { owner: "storytold", name: "libs", number: 12 };
-    assert.deepEqual(parseCommand(`@${SLUG} autorepin storytold/libs#12`, SLUG), { command: "autorepin", ref });
+    const ref = { owner: "ModelTok", name: "libs", number: 12 };
+    assert.deepEqual(parseCommand(`@${SLUG} autorepin ModelTok/libs#12`, SLUG), { command: "autorepin", ref });
     assert.deepEqual(parseCommand(`thanks!\n@${SLUG} auto-repin ${LIBS}/pull/12`, SLUG), { command: "autorepin", ref });
     assert.deepEqual(parseCommand(`@${SLUG} autorepin libs#12`, SLUG), { command: "autorepin", ref: { ...ref, owner: null } });
     assert.deepEqual(parseCommand(`@${SLUG} autorepin OFF`, SLUG), { command: "autorepin", ref: null });
@@ -56,17 +56,17 @@ describe("the autorepin command", () => {
 
 describe("repinManifest", () => {
   test("moves every rev on the repository, in inline and section tables, and nothing else", () => {
-    const text = `[dependencies]\ncraft-ui = { git = "${LIBS}.git", rev = "${OLD}" } # ui\nother = { git = "https://github.com/storytold/elsewhere", rev = "2222222" }\n\n[dev-dependencies.craft-test]\ngit = "${LIBS}"\nrev = '${OLD}'\n`;
-    const r = repinManifest(text, "storytold/libs", SHA);
+    const text = `[dependencies]\ncraft-ui = { git = "${LIBS}.git", rev = "${OLD}" } # ui\nother = { git = "https://github.com/ModelTok/elsewhere", rev = "2222222" }\n\n[dev-dependencies.craft-test]\ngit = "${LIBS}"\nrev = '${OLD}'\n`;
+    const r = repinManifest(text, "ModelTok/libs", SHA);
     assert.ok(r.ok);
     assert.deepEqual(r.from, [OLD]);
     assert.equal(r.text, text.replace(`"${OLD}"`, `"${SHA}"`).replace(`'${OLD}'`, `"${SHA}"`));
   });
   test("a manifest already at the commit, or with no rev on the repository, comes back unchanged", () => {
     const at = MANIFEST.replace(OLD, SHA);
-    const same = repinManifest(at, "storytold/libs", SHA);
+    const same = repinManifest(at, "ModelTok/libs", SHA);
     assert.ok(same.ok && same.text === at && same.from.length === 0 && same.pinned === 1);
-    const branch = repinManifest(`[dependencies]\ncraft-ui = { git = "${LIBS}", branch = "wip" }\n`, "storytold/libs", SHA);
+    const branch = repinManifest(`[dependencies]\ncraft-ui = { git = "${LIBS}", branch = "wip" }\n`, "ModelTok/libs", SHA);
     assert.ok(branch.ok && branch.from.length === 0 && branch.pinned === 0 && branch.unpinned === 1);
   });
   test("a git and rev outside the dependency tables are not a dependency", () => {
@@ -83,20 +83,20 @@ craft-ui = { git = "${LIBS}", rev = "${OLD}" }
 [patch.crates-io]
 craft-io = { git = "${LIBS}", rev = "${OLD}" }
 `;
-    const r = repinManifest(text, "storytold/libs", SHA);
+    const r = repinManifest(text, "ModelTok/libs", SHA);
     // Refused, not rewritten: the metadata's rev is the same text, so the edit cannot leave it alone.
     assert.ok(!r.ok);
-    const apart = repinManifest(text.replace(`rev = "${OLD}"`, 'rev = "2222222"'), "storytold/libs", SHA);
+    const apart = repinManifest(text.replace(`rev = "${OLD}"`, 'rev = "2222222"'), "ModelTok/libs", SHA);
     assert.ok(apart.ok && apart.pinned === 2 && apart.text.includes('rev = "2222222"') && !apart.text.includes(OLD));
   });
   test("is refused when the rewrite would also change another repository's rev", () => {
-    const r = repinManifest(`[dependencies]\ncraft-ui = { git = "${LIBS}", rev = "${OLD}" }\nother = { git = "https://github.com/else/where", rev = "${OLD}" }\n`, "storytold/libs", SHA);
+    const r = repinManifest(`[dependencies]\ncraft-ui = { git = "${LIBS}", rev = "${OLD}" }\nother = { git = "https://github.com/else/where", rev = "${OLD}" }\n`, "ModelTok/libs", SHA);
     assert.ok(!r.ok);
   });
 });
 
 describe("lockRefusal", () => {
-  const ok = (after: string) => lockRefusal(lockOf(OLD), after, "storytold/libs", SHA);
+  const ok = (after: string) => lockRefusal(lockOf(OLD), after, "ModelTok/libs", SHA);
   test("accepts the dependency at the commit, with new crates.io packages", () => {
     assert.equal(ok(lockOf(SHA, `\n[[package]]\nname = "itoa"\nversion = "1.0.0"\n${CRATES}\nchecksum = "bb"\n`)), null);
   });
@@ -166,18 +166,18 @@ function setup(o: { lock?: boolean; off?: Parameters<World["repo"]>[0] } = {}): 
     if (cmd === "gh") {
       if (args[0] === "api") return { code: 0, stdout: JSON.stringify({ login: "pipeline-bot", id: 42, node_id: "U42" }), stderr: "" };
       s.comments.push(String(opts.input ?? ""));
-      return { code: 0, stdout: "https://github.com/storytold/app/pull/1#issuecomment-9", stderr: "" };
+      return { code: 0, stdout: "https://github.com/ModelTok/app/pull/1#issuecomment-9", stderr: "" };
     }
     if (args.includes("push")) s.pushes++;
     const net = args.some((a) => a.startsWith("https://github.com/"));
-    const local = args.map((a) => (a.startsWith("https://github.com/storytold/libs") ? LIBS_GIT : a.startsWith("https://github.com/") ? fork : a)).filter((a, i, all) => !(a === "-c" && all[i + 1] === "protocol.file.allow=never") && a !== "protocol.file.allow=never");
+    const local = args.map((a) => (a.startsWith("https://github.com/ModelTok/libs") ? LIBS_GIT : a.startsWith("https://github.com/") ? fork : a)).filter((a, i, all) => !(a === "-c" && all[i + 1] === "protocol.file.allow=never") && a !== "protocol.file.allow=never");
     return exec("git", net ? local : args, { ...opts });
   };
   s.deps = { querier, exec: run, root: join(root, "cache"), permission: async () => "ok" };
   return s;
 }
 
-const set = (s: Setup) => requestRepin(s.w.db, { login: OPERATOR, githubId: 101, role: "operator", canWrite: true, repo: "app", number: 1, pr: true, ref: { owner: "storytold", name: "libs", number: 12 } });
+const set = (s: Setup) => requestRepin(s.w.db, { login: OPERATOR, githubId: 101, role: "operator", canWrite: true, repo: "app", number: 1, pr: true, ref: { owner: "ModelTok", name: "libs", number: 12 } });
 const merged = (s: Setup, state = "MERGED") => s.w.db.prepare("UPDATE items SET state = ? WHERE repo = 'libs' AND number = 12").run(state);
 const row = (s: Setup) => ({ ...s.w.db.prepare("SELECT state, tries, to_head, result, notice FROM autorepins").get() }) as { state: string; tries: number; to_head: string | null; result: string | null; notice: string | null };
 const task = (s: Setup) => s.w.db.prepare("SELECT id, patch, plan, head_sha FROM build_tasks WHERE step = 'autorepin' ORDER BY id DESC").get() as { id: number; patch: string; plan: string; head_sha: string } | undefined;
@@ -194,7 +194,7 @@ function locked(s: Setup, lock: string | null, state = "done"): void {
 /** Delivers a comment on app#1 holding `body` and carries it out; `now`: the comment's text when the runner reads it again. */
 async function comment(s: Setup, body: string, now = body): Promise<void> {
   const raw = Buffer.from(JSON.stringify({
-    action: "created", repository: { full_name: "storytold/app", name: "app" }, issue: { number: 1, pull_request: { url: "x" } },
+    action: "created", repository: { full_name: "ModelTok/app", name: "app" }, issue: { number: 1, pull_request: { url: "x" } },
     comment: { id: 5000, body, created_at: new Date().toISOString(), user: { login: OPERATOR, id: 101, type: "User" } },
   }));
   handleDelivery(s.w.db, "secret", { event: "issue_comment", signature: signatureOf("secret", raw) }, raw, safeEqual, SLUG);
@@ -208,9 +208,9 @@ async function comment(s: Setup, body: string, now = body): Promise<void> {
 describe("autorepin", () => {
   test("a comment sets it, and nothing happens while the dependency's pull request is open", async () => {
     const s = setup();
-    await comment(s, `@${SLUG} autorepin storytold/libs#12`);
+    await comment(s, `@${SLUG} autorepin ModelTok/libs#12`);
     assert.equal(s.comments.length, 1);
-    assert.match(s.comments[0]!, new RegExp(`@${OPERATOR} Autorepin set: once storytold/libs#12 is merged`));
+    assert.match(s.comments[0]!, new RegExp(`@${OPERATOR} Autorepin set: once ModelTok/libs#12 is merged`));
     assert.equal(row(s).state, "waiting");
     assert.equal(anyRepinDue(s.w.db), false);
     assert.equal(await drainRepins(s.w.db, s.deps), 0);
@@ -240,7 +240,7 @@ describe("autorepin", () => {
     assert.equal(s.at("Cargo.lock"), lockOf(SHA).trim());
     assert.deepEqual(git(s.fork, "diff-tree", "-r", "--name-only", s.head, r.to_head!).split("\n").sort(), ["Cargo.lock", "Cargo.toml"]);
     assert.equal(s.comments.length, 1);
-    assert.ok(s.comments[0]!.includes(`@${OPERATOR} Repinned storytold/libs`), s.comments[0]);
+    assert.ok(s.comments[0]!.includes(`@${OPERATOR} Repinned ModelTok/libs`), s.comments[0]);
     assert.equal(await drainRepins(s.w.db, s.deps), 0, "done once");
     assert.equal(s.pushes, 1);
   });
@@ -278,7 +278,7 @@ describe("autorepin", () => {
     assert.equal(row(s).state, "failed");
     assert.equal(s.pushes, 0);
     assert.equal(s.branch(), s.head);
-    assert.match(s.comments[0]!, /Autorepin of storytold\/libs failed: .*evil/);
+    assert.match(s.comments[0]!, /Autorepin of ModelTok\/libs failed: .*evil/);
   });
 
   test("a head that moved while the lockfile was written starts over instead of pushing", async () => {
@@ -363,7 +363,7 @@ describe("autorepin", () => {
   test("is refused while the repo is outside the pipeline's scope and the pull request is not fast-tracked, since no worker would take its task", async () => {
     const s = setup();
     s.w.db.prepare("UPDATE tracked_repos SET pipeline = 0 WHERE name = 'app'").run();
-    await assert.rejects(set(s), /pipeline is off for storytold\/app/);
+    await assert.rejects(set(s), /pipeline is off for ModelTok\/app/);
     assert.equal(s.w.db.prepare("SELECT COUNT(*) AS n FROM autorepins").get()!.n, 0);
   });
 
@@ -404,7 +404,7 @@ describe("autorepin", () => {
   test("a comment edited to name another pull request before it is carried out sets nothing", async () => {
     const s = setup();
     s.w.db.prepare("INSERT INTO items (repo, number, kind, state, title, created_at, updated_at) VALUES ('libs', 13, 'pr', 'OPEN', 'other change', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')").run();
-    await comment(s, `@${SLUG} autorepin storytold/libs#12`, `@${SLUG} autorepin storytold/libs#13`);
+    await comment(s, `@${SLUG} autorepin ModelTok/libs#12`, `@${SLUG} autorepin ModelTok/libs#13`);
     assert.equal(s.w.db.prepare("SELECT COUNT(*) AS n FROM autorepins").get()!.n, 0);
     assert.equal(s.w.db.prepare("SELECT state FROM github_commands").get()!.state, "ignored");
   });

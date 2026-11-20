@@ -6,7 +6,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { AccountAuth, AccountInput, ClaudeAccount } from "../../web/src/api/types.ts";
 import { audit } from "../dash/audit.ts";
-import { JEV_PARALLEL_DEFAULT } from "../prompts/index.ts";
+import { BASAL_PARALLEL_DEFAULT } from "../prompts/index.ts";
 import { loginInfo } from "./login.ts";
 import { credentialsNearExpiry, tokenView } from "./token.ts";
 import { boxAccounts, iso, readUsage, type BoxAccount, type Reading } from "./box.ts";
@@ -211,21 +211,21 @@ export function freeSlots(db: DatabaseSync, nowMs: number = Date.now()): number 
   return free;
 }
 
-export const JEV_PARALLEL_KEY = "jev_parallel";
-export { JEV_PARALLEL_DEFAULT };
-export const JEV_PARALLEL_MAX = 100;
+export const BASAL_PARALLEL_KEY = "basal_parallel";
+export { BASAL_PARALLEL_DEFAULT };
+export const BASAL_PARALLEL_MAX = 100;
 
-/** Jev calls at once (Jev has no accounts, so no slots limit it). */
-export function jevParallel(db: DatabaseSync): number {
-  const v = Number((db.prepare("SELECT value FROM settings WHERE key = ?").get(JEV_PARALLEL_KEY) as { value: string } | undefined)?.value);
-  return Number.isInteger(v) && v >= 1 && v <= JEV_PARALLEL_MAX ? v : JEV_PARALLEL_DEFAULT;
+/** Basal calls at once (Basal has no accounts, so no slots limit it). */
+export function basalParallel(db: DatabaseSync): number {
+  const v = Number((db.prepare("SELECT value FROM settings WHERE key = ?").get(BASAL_PARALLEL_KEY) as { value: string } | undefined)?.value);
+  return Number.isInteger(v) && v >= 1 && v <= BASAL_PARALLEL_MAX ? v : BASAL_PARALLEL_DEFAULT;
 }
 
-export function setJevParallel(db: DatabaseSync, n: unknown, by: string): number {
-  if (typeof n !== "number" || !Number.isInteger(n) || n < 1 || n > JEV_PARALLEL_MAX) throw new AccountError(400, `Jev calls at once must be a whole number from 1 to ${JEV_PARALLEL_MAX}`);
-  const was = jevParallel(db);
-  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(JEV_PARALLEL_KEY, String(n));
-  if (n !== was) audit(db, by, "account-change", "jev", { jevParallel: n, was });
+export function setBasalParallel(db: DatabaseSync, n: unknown, by: string): number {
+  if (typeof n !== "number" || !Number.isInteger(n) || n < 1 || n > BASAL_PARALLEL_MAX) throw new AccountError(400, `Basal calls at once must be a whole number from 1 to ${BASAL_PARALLEL_MAX}`);
+  const was = basalParallel(db);
+  db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(BASAL_PARALLEL_KEY, String(n));
+  if (n !== was) audit(db, by, "account-change", "basal", { basalParallel: n, was });
   return n;
 }
 

@@ -25,7 +25,7 @@ afterEach(() => current?.close());
 
 const payload = (o: { body: string; number?: number; login?: string; id?: number; comment?: number; action?: string; type?: string; pr?: boolean; repo?: string; created?: Date }) => ({
   action: o.action ?? "created",
-  repository: { full_name: o.repo ?? "storytold/app", name: "app" },
+  repository: { full_name: o.repo ?? "ModelTok/app", name: "app" },
   issue: { number: o.number ?? 1, ...(o.pr === false ? {} : { pull_request: { url: "x" } }) },
   comment: { id: o.comment ?? 5000, body: o.body, created_at: (o.created ?? new Date()).toISOString(), user: { login: o.login ?? OPERATOR, id: o.id ?? OP_ID, type: o.type ?? "User" } },
 });
@@ -40,7 +40,7 @@ function ghFake(code = 0) {
   const posted: { args: string[]; body: string }[] = [];
   const exec: Exec = async (_cmd, args, opts) => {
     posted.push({ args, body: String(opts?.input ?? "") });
-    return { code, stdout: code ? "" : "https://github.com/storytold/app/pull/1#issuecomment-9", stderr: code ? "boom" : "" };
+    return { code, stdout: code ? "" : "https://github.com/ModelTok/app/pull/1#issuecomment-9", stderr: code ? "boom" : "" };
   };
   return { posted, exec };
 }
@@ -128,7 +128,7 @@ describe("drainCommands", () => {
     assert.equal(r!.state, "done");
     assert.equal(r!.reply, "posted");
     assert.equal(gh.posted.length, 1);
-    assert.deepEqual(gh.posted[0]!.args.slice(0, 5), ["pr", "comment", "1", "--repo", "storytold/app"]);
+    assert.deepEqual(gh.posted[0]!.args.slice(0, 5), ["pr", "comment", "1", "--repo", "ModelTok/app"]);
     assert.match(gh.posted[0]!.body, /^_Automated reply_\n\n@op Added to the merge queue; .*Fast-tracked with weight 7, 1 of 1\.$/);
     const audit = w.db.prepare("SELECT action, login, details FROM audit WHERE action IN ('preapproval', 'fasttrack-add', 'github-command', 'github-command-reply') ORDER BY rowid").all() as { action: string; login: string; details: string }[];
     assert.deepEqual(audit.map((a) => [a.action, a.login]), [["preapproval", OPERATOR], ["fasttrack-add", OPERATOR], ["github-command", OPERATOR], ["github-command-reply", OPERATOR]]);
@@ -243,7 +243,7 @@ describe("drainCommands", () => {
     const bodies = gh.posted.map((p) => p.body);
     assert.equal(bodies.length, 2);
     assert.match(bodies[0]!, /@maint Not added to the merge queue: only an operator, or a maintainer with write access where the app acts for them, queues items on app\.$/);
-    assert.match(bodies[1]!, /@op Not added to the merge queue: no write access to storytold\/app/);
+    assert.match(bodies[1]!, /@op Not added to the merge queue: no write access to ModelTok\/app/);
     assert.equal((w.db.prepare("SELECT github_id FROM access WHERE login = 'newop'").get() as { github_id: number | null }).github_id, null, "a comment never binds an id");
   });
 

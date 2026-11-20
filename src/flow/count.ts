@@ -37,7 +37,7 @@ const ref = (r: { repo: string; number: number }) => `${r.repo}#${r.number}`;
 export const SCOPE_ANSWERS = ["take", "small-extra", "plugin", "close", "need-info", "backlog"] as const;
 export const VERDICTS = ["take", "take-fix", "hold", "close"] as const;
 
-type OpenRow = { repo: string; number: number; kind: string; status: string | null; referee_sure: number | null; jev_label: string | null; haiku_label: string | null };
+type OpenRow = { repo: string; number: number; kind: string; status: string | null; referee_sure: number | null; basal_label: string | null; haiku_label: string | null };
 
 /** What the node counters share for one repo (or all repos) on one connection. */
 export class Ctx {
@@ -81,7 +81,7 @@ export class Ctx {
   open(): OpenRow[] {
     if (!this.openRows) {
       settledTable(this.db, this.run);
-      this.openRows = this.db.prepare(`SELECT i.repo, i.number, i.kind, s.status, s.referee_sure, s.jev_label, s.haiku_label FROM items i
+      this.openRows = this.db.prepare(`SELECT i.repo, i.number, i.kind, s.status, s.referee_sure, s.basal_label, s.haiku_label FROM items i
         LEFT JOIN temp.item_settled s ON s.repo = i.repo AND s.number = i.number
         WHERE i.state = 'OPEN' ${this.andRepo("i.repo")}`).all(this.rp) as OpenRow[];
     }
@@ -121,13 +121,13 @@ function classify(c: Ctx): NodeCount {
   const by: Counts = { settled: 0, waiting: 0, referee: 0, disagree: 0, unclassified: 0 };
   for (const r of c.open()) {
     // A label disagreement waits on the referee (Sonnet, then Opus when Sonnet is unsure); scope-vs-scope goes to Decide.
-    const toReferee = r.status === "disagree" && !(isScope(r.jev_label) && isScope(r.haiku_label));
+    const toReferee = r.status === "disagree" && !(isScope(r.basal_label) && isScope(r.haiku_label));
     const k = toReferee ? "referee" : (r.status ?? "unclassified");
     by[k]!++;
     members.get(`classify.${k}`)!.add(ref(r));
   }
   const run = c.run;
-  const recent = run ? c.n(`SELECT COUNT(*) AS n FROM main.classifications INDEXED BY classifications_run WHERE run_id = :run AND (classifier = 'jev' OR (classifier = 'haiku' AND input_hash IS NOT NULL)) AND at >= :since
+  const recent = run ? c.n(`SELECT COUNT(*) AS n FROM main.classifications INDEXED BY classifications_run WHERE run_id = :run AND (classifier = 'basal' OR (classifier = 'haiku' AND input_hash IS NOT NULL)) AND at >= :since
       AND repo IN (SELECT name FROM main.tracked_repos) ${c.andRepo()}`, { run, since: c.since }) : 0;
   return {
     counts: {
@@ -326,7 +326,7 @@ function dupes(c: Ctx): NodeCount {
 /** Priority scores (src/priority) and the work rank (src/rank) of the open, embedded items. */
 function priority(c: Ctx): NodeCount {
   const members = new Map<string, Refs>(["scored", "todo", "unsure"].map((k) => [`priority.${k}`, new Set()]));
-  const rows = c.db.prepare(`SELECT i.repo, i.number, CASE WHEN p.repo IS NULL OR p.text_hash <> i.embed_hash THEN 'todo' WHEN p.model = 'jev-unsure' THEN 'unsure' ELSE 'scored' END AS s
+  const rows = c.db.prepare(`SELECT i.repo, i.number, CASE WHEN p.repo IS NULL OR p.text_hash <> i.embed_hash THEN 'todo' WHEN p.model = 'basal-unsure' THEN 'unsure' ELSE 'scored' END AS s
     FROM main.items i LEFT JOIN main.item_priority p ON p.repo = i.repo AND p.number = i.number
     WHERE i.state = 'OPEN' AND i.embed_hash IS NOT NULL ${c.tracked("i.repo")}`).all(c.rp) as { repo: string; number: number; s: string }[];
   for (const r of rows) members.get(`priority.${r.s}`)!.add(ref(r));

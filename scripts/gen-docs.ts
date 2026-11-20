@@ -13,7 +13,7 @@ const table = (head: string[], rows: string[][]) =>
 
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
-const MODEL_NAMES: Record<StageDef["models"][number]["model"], string> = { jev: "Jev", haiku: "Haiku", sonnet: "Sonnet", opus: "Opus", local: "Local embedding model" };
+const MODEL_NAMES: Record<StageDef["models"][number]["model"], string> = { basal: "Basal", haiku: "Haiku", sonnet: "Sonnet", opus: "Opus", local: "Local embedding model" };
 
 function stageList(): string {
   return stagesInOrder().map((s) => `${s.order}. ${s.docSection}: ${s.description}`).join("\n");

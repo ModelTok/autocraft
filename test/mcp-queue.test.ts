@@ -76,7 +76,7 @@ describe("merge queue tools", () => {
     const noWrite: McpEnv = { ...envOf(w, "operator"), user: () => ({ login: OPERATOR, role: "operator", canWrite: async () => false, canRead: async () => true }) };
     const r = await call(noWrite, "queue_pr", { item: "app#1" });
     assert.equal(r.isError, true);
-    assert.match(r.text, /no write access to storytold\/app/);
+    assert.match(r.text, /no write access to ModelTok\/app/);
     assert.equal(preapprovalOf(w.db, "app", 1), null);
     const op = envOf(w, "operator");
     await call(op, "queue_pr", { item: "app#1" });
@@ -160,7 +160,7 @@ describe("merge queue tools", () => {
     assert.equal(preapprovalOf(w.db, "app", 1)?.by, OPERATOR);
     assert.deepEqual(weights(w), [[1, 8]]);
     // The default weight; a URL works as the item too.
-    assert.equal((await call(op, "queue_pr", { item: "https://github.com/storytold/app/pull/2" })).isError, false);
+    assert.equal((await call(op, "queue_pr", { item: "https://github.com/ModelTok/app/pull/2" })).isError, false);
     assert.deepEqual(weights(w), [[1, 8], [2, 5]]);
     // Queued twice: the pre-approval's own refusal comes back.
     const again = await call(op, "queue_pr", { item: "app#1" });

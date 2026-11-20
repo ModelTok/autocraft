@@ -1,6 +1,6 @@
-ArtCraft brand assets
+ModelTok brand assets
 
-web/public/artcraft-mark.svg and web/public/artcraft-mark.png are the ArtCraft mark, owned by the
-ArtCraft Team. They are trademarks and are not covered by this repository's license. They are
-included, unmodified, only to identify this AutoCraft instance as the ArtCraft team's tool. Forks
-and other deployments must remove or replace them.
+web/public/modeltok-mark.svg, web/public/modeltok-mark.png and the mark drawn in
+web/src/ui/atoms/Logo.tsx are the ModelTok mark. They are trademarks of ModelTok and are not covered
+by this repository's license. They identify this AutoCraft instance as ModelTok's tool. Forks and
+other deployments must remove or replace them.

@@ -8,16 +8,16 @@ export const at = (minAgo: number) => new Date(NOW - minAgo * 60_000).toISOStrin
 const H1 = "3f2a9c1d0e8b7a6f5e4d3c2b1a0f9e8d7c6b5a49";
 const H2 = "9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c";
 
-/** The reference lint of one review: one call per text of the review (ten for Jev, one for Haiku), all in job 55. */
+/** The reference lint of one review: one call per text of the review (ten for basal, one for Haiku), all in job 55. */
 const LINT: TraceEvent[] = [
   ...Array.from({ length: 11 }, (_, i): TraceEvent => {
     const haiku = i === 7;
     return {
-      id: `run:${950 + i}`, kind: "model-call", at: at(12.9 - i * 0.07), head: H2, actor: { type: "model", name: haiku ? "haiku" : "jev" },
+      id: `run:${950 + i}`, kind: "model-call", at: at(12.9 - i * 0.07), head: H2, actor: { type: "model", name: haiku ? "haiku" : "basal" },
       summary: `Reference lint: ${haiku ? "clean" : i % 4 === 3 ? "refers to documentation" : "clean"}`, ref: { runId: 950 + i, jobId: 55 },
       call: {
-        promptId: haiku ? "lint.reference.haiku" : "lint.reference.jev", step: "Review pull requests", model: haiku ? "haiku" : "jev", provider: haiku ? "claude" : "jev",
-        account: haiku ? "Team account A" : "Jev", state: "done", inputTokens: haiku ? 1_100 : 900, outputTokens: haiku ? 40 : 12, costUsd: haiku ? 0.003 : 0, toolCalls: 0, endedAt: at(12.9 - i * 0.07 - 0.02),
+        promptId: haiku ? "lint.reference.haiku" : "lint.reference.basal", step: "Review pull requests", model: haiku ? "haiku" : "basal", provider: haiku ? "claude" : "basal",
+        account: haiku ? "Team account A" : "Basal", state: "done", inputTokens: haiku ? 1_100 : 900, outputTokens: haiku ? 40 : 12, costUsd: haiku ? 0.003 : 0, toolCalls: 0, endedAt: at(12.9 - i * 0.07 - 0.02),
       },
     };
   }),
@@ -64,8 +64,8 @@ const ISSUE_EVENTS: TraceEvent[] = [
   { id: "gh:opened", kind: "github", at: at(2 * 1440), head: null, actor: { type: "person", name: "wren-h" }, summary: "Opened issue on GitHub by wren-h", ref: {} },
   { id: "run:810", kind: "model-call", at: at(2 * 1440 - 3), head: null, actor: { type: "model", name: "haiku" }, summary: "Classify items: bugfix", ref: { runId: 810, jobId: 41 },
     call: { model: "haiku", provider: "claude", account: "Team account A", state: "done", inputTokens: 1_900, outputTokens: 60, costUsd: 0.002, toolCalls: 0, endedAt: at(2 * 1440 - 4) } },
-  { id: "run:811", kind: "model-call", at: at(2 * 1440 - 3.5), head: null, actor: { type: "model", name: "jev" }, summary: "Classify items: bugfix", ref: { runId: 811, jobId: 41 },
-    call: { model: "jev", provider: "jev", account: "Jev", state: "done", inputTokens: 1_800, outputTokens: 40, costUsd: 0, toolCalls: 0, endedAt: at(2 * 1440 - 4) } },
+  { id: "run:811", kind: "model-call", at: at(2 * 1440 - 3.5), head: null, actor: { type: "model", name: "basal" }, summary: "Classify items: bugfix", ref: { runId: 811, jobId: 41 },
+    call: { model: "basal", provider: "basal", account: "Basal", state: "done", inputTokens: 1_800, outputTokens: 40, costUsd: 0, toolCalls: 0, endedAt: at(2 * 1440 - 4) } },
   { id: "decision:dup:asked", kind: "decision", at: at(2 * 1440 - 20), head: null, actor: { type: "step", name: "Ask decisions" }, summary: "Asked: Is this a duplicate?", ref: {} },
   { id: "comment:i1", kind: "github", at: at(900), head: null, actor: { type: "person", name: "wren-h" }, summary: "Posted a comment, 120 characters", ref: { commentId: "i1" },
     body: "Same seams on a second machine. They only show up on 16-bit files, not on 8-bit ones." },
@@ -75,8 +75,8 @@ const OFF_EVENTS: TraceEvent[] = [
   { id: "gh:merged", kind: "github", at: at(180), head: null, actor: { type: "person", name: "maintainer" }, summary: "Merged on GitHub by maintainer", ref: {} },
   { id: "run:801", kind: "model-call", at: at(1380), head: null, actor: { type: "model", name: "haiku" }, summary: "Classify items: bugfix", ref: { runId: 801, jobId: 40 },
     call: { model: "haiku", provider: "claude", account: "Team account A", state: "done", inputTokens: 1_900, outputTokens: 60, costUsd: 0.002, toolCalls: 0, endedAt: at(1379) } },
-  { id: "run:800", kind: "model-call", at: at(1385), head: null, actor: { type: "model", name: "jev" }, summary: "Classify items: bugfix", ref: { runId: 800, jobId: 40 },
-    call: { model: "jev", provider: "jev", account: "Jev", state: "done", inputTokens: 1_800, outputTokens: 40, costUsd: 0, toolCalls: 0, endedAt: at(1384) } },
+  { id: "run:800", kind: "model-call", at: at(1385), head: null, actor: { type: "model", name: "basal" }, summary: "Classify items: bugfix", ref: { runId: 800, jobId: 40 },
+    call: { model: "basal", provider: "basal", account: "Basal", state: "done", inputTokens: 1_800, outputTokens: 40, costUsd: 0, toolCalls: 0, endedAt: at(1384) } },
   { id: "gh:opened", kind: "github", at: at(1440), head: null, actor: { type: "person", name: "contributor" }, summary: "Opened pull request on GitHub by contributor", ref: {} },
 ] as TraceEvent[];
 const OFF_TRACE: Omit<ItemTrace, "events" | "nextCursor"> = {

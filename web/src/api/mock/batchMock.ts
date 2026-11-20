@@ -18,15 +18,15 @@ function rich(): BatchDetail {
   }));
   return {
     id: 98, repo: "designcraft", branch: "integration-designcraft-20261103-2", fork: "pipeline-bot/designcraft", state: "open", baseSha: "7c1e9a04b3d5a9f1c2e4078615a4d3b2",
-    commitSha: "e41f0a92c7d83b5a6190fe2d4c8b7a35", parentId: 96, childIds: [], prNumber: 2201, prUrl: "https://github.com/storytold/designcraft/pull/2201", summary: null,
+    commitSha: "e41f0a92c7d83b5a6190fe2d4c8b7a35", parentId: 96, childIds: [], prNumber: 2201, prUrl: "https://github.com/ModelTok/designcraft/pull/2201", summary: null,
     createdAt: iso(190), updatedAt: iso(12), mergedAt: null, taskId: 41, buildState: "passed", buildTries: 1, buildSkipped: null, mergeSha: null,
     ci: {
       state: "pending", fetchedAt: iso(3), checks: [
-        { name: "gate / fmt", state: "success", url: "https://github.com/storytold/designcraft/pull/2201/checks" },
-        { name: "gate / clippy", state: "success", url: "https://github.com/storytold/designcraft/pull/2201/checks" },
-        { name: "gate / test (linux)", state: "pending", url: "https://github.com/storytold/designcraft/pull/2201/checks" },
-        { name: "gate / test (windows)", state: "pending", url: "https://github.com/storytold/designcraft/pull/2201/checks" },
-        { name: "SonarCloud", state: "skipped", url: "https://github.com/storytold/designcraft/pull/2201/checks" },
+        { name: "gate / fmt", state: "success", url: "https://github.com/ModelTok/designcraft/pull/2201/checks" },
+        { name: "gate / clippy", state: "success", url: "https://github.com/ModelTok/designcraft/pull/2201/checks" },
+        { name: "gate / test (linux)", state: "pending", url: "https://github.com/ModelTok/designcraft/pull/2201/checks" },
+        { name: "gate / test (windows)", state: "pending", url: "https://github.com/ModelTok/designcraft/pull/2201/checks" },
+        { name: "SonarCloud", state: "skipped", url: "https://github.com/ModelTok/designcraft/pull/2201/checks" },
       ],
     },
     members,

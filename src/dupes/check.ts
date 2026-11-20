@@ -1,12 +1,12 @@
-// The pair check: Jev for every pair, accepted at 0.9 either way; Haiku for the
-// pairs Jev is not sure about, and for every pair while Jev is unavailable.
+// The pair check: Basal for every pair, accepted at 0.9 either way; Haiku for the
+// pairs basal is not sure about, and for every pair while basal is unavailable.
 import type { DatabaseSync } from "node:sqlite";
-import { jevParallel } from "../agents/accounts.ts";
+import { basalParallel } from "../agents/accounts.ts";
 import { poolRoom, repoBatches } from "../agents/call.ts";
-import { jevAvailable } from "../agents/jev.ts";
+import { basalAvailable } from "../agents/basal-availability.ts";
 import { askClaude, pool } from "../classify/run.ts";
 import { runModelStep } from "../agents/step.ts";
-import { DUPES_HAIKU, DUPES_JEV } from "../agents/steps.ts";
+import { DUPES_HAIKU, DUPES_BASAL } from "../agents/steps.ts";
 import { CLAUDE_PROMPTS } from "../prompts/index.ts";
 import { pickCanonical } from "./canonical.ts";
 import { pairRef, settlePair, type DupePair, type PairVerdict } from "./pair.ts";
@@ -36,35 +36,35 @@ export function pairInput(db: DatabaseSync, k: PairKey): DupePair {
 }
 
 export type CheckDeps = {
-  /** Jev's yes-probability that the pair is one bug or request; null when it gave no valid answer. */
-  jev(pair: DupePair): Promise<number | null>;
+  /** Basal's yes-probability that the pair is one bug or request; null when it gave no valid answer. */
+  basal(pair: DupePair): Promise<number | null>;
   /** Haiku's reply text for a batch of pairs; null when there was none. */
   haiku(pairs: DupePair[]): Promise<string | null>;
-  /** False while Jev is unavailable: Haiku then decides the pairs alone. Absent means available. */
-  jevUsable?(): boolean;
+  /** False while basal is unavailable: Haiku then decides the pairs alone. Absent means available. */
+  basalUsable?(): boolean;
   now(): Date;
 };
 
 export function defaultCheckDeps(db: DatabaseSync): CheckDeps {
   return {
-    async jev(pair) {
-      const r = await runModelStep(db, DUPES_JEV, pair);
+    async basal(pair) {
+      const r = await runModelStep(db, DUPES_BASAL, pair);
       return r.ok ? r.value : null;
     },
     async haiku(pairs) {
       return (await askClaude("dupes.haiku", HAIKU.models[0]!, pairs, db))?.text ?? null;
     },
-    jevUsable: () => jevAvailable(db),
+    basalUsable: () => basalAvailable(db),
     now: () => new Date(),
   };
 }
 
-export type CheckCounts = { checked: number; jev: number; haiku: number; haikuAlone: number; verdicts: Record<string, number>; unanswered: number };
+export type CheckCounts = { checked: number; basal: number; haiku: number; haikuAlone: number; verdicts: Record<string, number>; unanswered: number };
 
-function store(db: DatabaseSync, k: PairKey, jev: number | null, haiku: PairVerdict | null, verdict: PairVerdict, at: string): void {
+function store(db: DatabaseSync, k: PairKey, basal: number | null, haiku: PairVerdict | null, verdict: PairVerdict, at: string): void {
   const canonical = verdict === "duplicate" ? pickCanonical(db, k.repo, [k.a, k.b]).number : null;
-  db.prepare(`UPDATE duplicate_pairs SET jev_p = ?, haiku = ?, verdict = ?, canonical = ?, checked_at = ?
-    WHERE repo = ? AND a = ? AND b = ? AND a_hash = ? AND b_hash = ?`).run(jev, haiku, verdict, canonical, at, k.repo, k.a, k.b, k.a_hash, k.b_hash);
+  db.prepare(`UPDATE duplicate_pairs SET basal_p = ?, haiku = ?, verdict = ?, canonical = ?, checked_at = ?
+    WHERE repo = ? AND a = ? AND b = ? AND a_hash = ? AND b_hash = ?`).run(basal, haiku, verdict, canonical, at, k.repo, k.a, k.b, k.a_hash, k.b_hash);
 }
 
 /**
@@ -72,29 +72,29 @@ function store(db: DatabaseSync, k: PairKey, jev: number | null, haiku: PairVerd
  * batch the pool skipped (no Task Runner took it) are taken off again, so a job whose only work was skipped counts as idle.
  */
 export async function checkPairs(db: DatabaseSync, keys: PairKey[], deps: CheckDeps, onHandled?: (n: number) => void): Promise<CheckCounts> {
-  const c: CheckCounts = { checked: 0, jev: 0, haiku: 0, haikuAlone: 0, verdicts: {}, unanswered: 0 };
-  const jevP = new Map<string, number | null>();
-  /** Pairs Jev could not be asked because it is unavailable. */
+  const c: CheckCounts = { checked: 0, basal: 0, haiku: 0, haikuAlone: 0, verdicts: {}, unanswered: 0 };
+  const basalP = new Map<string, number | null>();
+  /** Pairs basal could not be asked because it is unavailable. */
   const alone = new Set<string>();
   const pairs = new Map(keys.map((k) => [pairRef(k.repo, k.a, k.b), { k, pair: pairInput(db, k) }]));
   let handled = 0, skipped = 0;
   await pool([...pairs.entries()].map(([ref, e]) => async () => {
-    const usable = deps.jevUsable?.() ?? true;
-    const p = usable ? await deps.jev(e.pair) : null;
-    jevP.set(ref, p);
-    if (p === null && !(deps.jevUsable?.() ?? true)) alone.add(ref);
-    else c.jev++;
+    const usable = deps.basalUsable?.() ?? true;
+    const p = usable ? await deps.basal(e.pair) : null;
+    basalP.set(ref, p);
+    if (p === null && !(deps.basalUsable?.() ?? true)) alone.add(ref);
+    else c.basal++;
     onHandled?.(++handled);
-  }), jevParallel(db));
+  }), basalParallel(db));
   const at = deps.now().toISOString();
   const done = (ref: string, haiku: PairVerdict | null, verdict: PairVerdict) => {
-    store(db, pairs.get(ref)!.k, jevP.get(ref) ?? null, haiku, verdict, at);
+    store(db, pairs.get(ref)!.k, basalP.get(ref) ?? null, haiku, verdict, at);
     c.checked++;
     c.verdicts[verdict] = (c.verdicts[verdict] ?? 0) + 1;
   };
   const second: string[] = [];
   for (const ref of pairs.keys()) {
-    const v = alone.has(ref) ? null : settlePair(jevP.get(ref) ?? null, null);
+    const v = alone.has(ref) ? null : settlePair(basalP.get(ref) ?? null, null);
     if (v) done(ref, null, v);
     else second.push(ref);
   }
@@ -110,7 +110,7 @@ export async function checkPairs(db: DatabaseSync, keys: PairKey[], deps: CheckD
       c.haiku += answers.length;
       for (const a of answers) {
         if (alone.has(a.ref)) c.haikuAlone++;
-        done(a.ref, a.verdict, settlePair(jevP.get(a.ref) ?? null, a.verdict, alone.has(a.ref)) ?? "unsure");
+        done(a.ref, a.verdict, settlePair(basalP.get(a.ref) ?? null, a.verdict, alone.has(a.ref)) ?? "unsure");
       }
     }
     const todo = r.ok ? (r.rest ?? []) : input;

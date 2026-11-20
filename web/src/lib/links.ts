@@ -3,9 +3,9 @@
 import type { Decision, ItemKind } from "../api/types.ts";
 
 /** The owner of repos the API does not list as owned by someone else. */
-export const GITHUB_ORG = "storytold";
+export const GITHUB_ORG = "ModelTok";
 
-// Owners of the repos that are not storytold's, from `/api/repos/owners`, set before the app renders and after a repo is tracked. Repo names are unique across owners.
+// Owners of the repos that are not the default owner's, from `/api/repos/owners`, set before the app renders and after a repo is tracked. Repo names are unique across owners.
 let owners: Record<string, string> = {};
 export const setRepoOwners = (next: Record<string, string>): void => { owners = next; };
 export const ownerOfRepo = (repo: string): string => (repo.includes("/") ? repo.slice(0, repo.indexOf("/")) : owners[repo] ?? GITHUB_ORG);
@@ -25,7 +25,7 @@ export const itemPath = (repo: string, number: number): string => `/items/${enco
 export const batchPath = (id: number): string => `/batches/${id}`;
 
 /**
- * `photocraft#15343` for a GitHub issue or PR link such as `https://github.com/storytold/photocraft/pull/15343/files#r1`,
+ * `photocraft#15343` for a GitHub issue or PR link such as `https://github.com/ModelTok/photocraft/pull/15343/files#r1`,
  * so a pasted link searches like a typed ref. Anything else comes back unchanged.
  */
 export function githubUrlToRef(text: string): string {

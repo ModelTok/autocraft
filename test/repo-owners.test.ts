@@ -1,4 +1,4 @@
-// Repos of other owners: tracking owner/name, the owner each write and query uses, storytold's repos unchanged.
+// Repos of other owners: tracking owner/name, the owner each write and query uses, ModelTok's repos unchanged.
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
@@ -12,14 +12,14 @@ import { RepoError, trackRepo, trackRepoChecked } from "../src/repos.ts";
 import { G } from "./guarded.ts";
 import { SCRATCH } from "./scratch.ts";
 
-test("a tracked repo of another owner is written to under its own owner; storytold repos are unchanged", async () => {
+test("a tracked repo of another owner is written to under its own owner; ModelTok repos are unchanged", async () => {
   resetOwners();
   const db = connect(join(mkdtempSync(join(SCRATCH, "owners-")), "o.db"));
   assert.ok(trackRepo(db, "t", "example-org/autocraft-sandbox"));
   trackRepo(db, "t", "designcraft");
   assert.equal(ownerOf("autocraft-sandbox"), "example-org");
-  assert.equal(ownerOf("designcraft"), "storytold");
-  assert.deepEqual(trackedOwners(db), ["example-org", "storytold"]);
+  assert.equal(ownerOf("designcraft"), "ModelTok");
+  assert.deepEqual(trackedOwners(db), ["ModelTok", "example-org"]);
   assert.throws(() => trackRepo(db, "t", "other/designcraft"), RepoError);
   assert.throws(() => trackRepo(db, "t", "bad owner/x"), RepoError);
 
@@ -29,9 +29,9 @@ test("a tracked repo of another owner is written to under its own owner; storyto
   await ghClosePr(w, G("autocraft-sandbox"), exec, { repo: "autocraft-sandbox", number: 3 }, { by: "fixed" }, "x");
   await ghClosePr(w, G("designcraft"), exec, { repo: "designcraft", number: 4 }, { by: "fixed" }, "x");
   assert.equal(seen[0]![seen[0]!.indexOf("--repo") + 1], "example-org/autocraft-sandbox");
-  assert.equal(seen[1]![seen[1]!.indexOf("--repo") + 1], "storytold/designcraft");
+  assert.equal(seen[1]![seen[1]!.indexOf("--repo") + 1], "ModelTok/designcraft");
 
-  assert.deepEqual(mainCiVars(["autocraft-sandbox", "designcraft"]), { o0: "example-org", o1: "storytold" });
+  assert.deepEqual(mainCiVars(["autocraft-sandbox", "designcraft"]), { o0: "example-org", o1: "ModelTok" });
   assert.match(mainCiQuery(["a", "b"]), /^query\(\$o0: String!, \$o1: String!\)/);
 });
 
@@ -54,13 +54,13 @@ const opts = { only: [], all: false, full: false, perRepo: false };
 
 test("a search node of another owner's same-named repo is skipped", async () => {
   const db = syncDb();
-  const nodes = [item("designcraft", "example-org", 1), item("designcraft", "storytold", 2)];
+  const nodes = [item("designcraft", "example-org", 1), item("designcraft", "ModelTok", 2)];
   const client = { spent: 0, remaining: 4000 as number | null, async query() { return { search: { issueCount: 2, pageInfo: { hasNextPage: false, endCursor: null }, nodes } }; } };
   await runSync(db, client, opts, new Date("2026-11-02T10:05:00Z"));
   assert.deepEqual(db.prepare("SELECT number FROM items WHERE repo = 'designcraft'").all().map((r) => r.number), [2]);
 });
 
-test("a failing fetch of another owner's repo leaves the storytold sync working", async () => {
+test("a failing fetch of another owner's repo leaves the ModelTok sync working", async () => {
   const db = syncDb();
   const exists = async (o: string, n: string) => o === "example-org" && n === "sandbox";
   await trackRepoChecked(db, "t", "example-org/sandbox", exists);
@@ -73,7 +73,7 @@ test("a failing fetch of another owner's repo leaves the storytold sync working"
     async query(q: string, v: Record<string, unknown>) {
       if (v.owner === "example-org") throw new Error("HTTP 502");
       assert.ok(q.includes("search("));
-      return { search: { issueCount: 1, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [item("designcraft", "storytold", 5)] } };
+      return { search: { issueCount: 1, pageInfo: { hasNextPage: false, endCursor: null }, nodes: [item("designcraft", "ModelTok", 5)] } };
     },
   };
   const r = await runSync(db, client, opts, new Date("2026-11-02T10:05:00Z"));

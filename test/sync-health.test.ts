@@ -34,12 +34,12 @@ test("a repo that no longer resolves is skipped and recorded; failures and recov
   assert.equal(r.mode, "search");
   assert.equal(await reconcileNext(db, client, new Date("2026-11-02T10:05:00Z"), () => {}), "a");
   const err = db.prepare("SELECT repo, kind, moved_to FROM sync_repo_errors").all();
-  assert.deepEqual(err.map((e) => ({ ...e })), [{ repo: "a", kind: "not-found", moved_to: "elsewhere/a-9" }]);
+  assert.deepEqual(err.map((e) => ({ ...e })), [{ repo: "a", kind: "not-found", moved_to: "elsewhere/a-8" }]);
   // The failing repo gives up its place at the front of the daily reconcile, so repo b is next.
   assert.equal((db.prepare("SELECT reconciled_at AS t FROM repos WHERE name = 'a'").get() as { t: string }).t, "2026-11-02T10:05:00Z");
   const check = computeChecks(db, Date.parse("2026-11-02T10:06:00Z")).find((c) => c.id === "sync-repo:a");
   assert.equal(check?.state, "warn");
-  assert.match(check!.text, /storytold\/a no longer resolves on GitHub \(moved to elsewhere\/a-9\)/);
+  assert.match(check!.text, /ModelTok\/a no longer resolves on GitHub \(moved to elsewhere\/a-8\)/);
 });
 
 const issue = (repo: string, number: number, updatedAt: string) => ({
@@ -114,7 +114,7 @@ test("GET /healthz/checks answers 503 with a stale worker and shows no repo name
     assert.deepEqual(body.checks.find((c) => c.id === "sync-repos"), { id: "sync-repos", state: "warn" });
     const staff = await (await fetch(url, { headers: { "x-staff": "1" } })).json() as typeof body;
     assert.equal(staff.checks.find((c) => c.id === "sync-repos")?.count, 1);
-    assert.ok(!JSON.stringify(staff).includes("storytold/a") && !JSON.stringify(staff).includes("sandbox"));
+    assert.ok(!JSON.stringify(staff).includes("ModelTok/a") && !JSON.stringify(staff).includes("sandbox"));
     db.prepare("UPDATE build_envs SET last_seen_at = ?").run(at(10_000));
     assert.equal((await fetch(url)).status, 200);
   } finally {

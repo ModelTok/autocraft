@@ -50,15 +50,15 @@ function findings(): FindingView[] {
     }),
     f(5, { title: "Image decoder copies palette entries without a count check", severity: "medium", state: "backlog", area: "images", decidedBy: "ana-p", refs: [{ path: "crates/images/src/png.rs", line: 301, claim: "" }] }),
     f(6, { title: "Deep link handler passes the path query to the file opener", severity: "low", state: "dismissed", area: "ipc", reason: "Needs a local attacker who can already write to the user's files.", decidedBy: "kiri-n", refs: [{ path: "crates/ipc/src/deeplink.rs", line: 39, claim: "" }] }),
-    f(7, { title: "Release workflow checks out pull request code with write token", severity: "high", state: "advisory", area: "ci", decidedBy: "kiri-n", ghsaId: "GHSA-xxxx-xxxx-xxxx", advisoryUrl: "https://github.com/storytold/designcraft/security/advisories/GHSA-xxxx-xxxx-xxxx", fixPr: 2418, fixPrUrl: "https://github.com/storytold/designcraft-ghsa-xxxx-xxxx-xxxx/pull/2", refs: [{ path: ".github/workflows/release.yml", line: 14, claim: "" }] }),
+    f(7, { title: "Release workflow checks out pull request code with write token", severity: "high", state: "advisory", area: "ci", decidedBy: "kiri-n", ghsaId: "GHSA-xxxx-xxxx-xxxx", advisoryUrl: "https://github.com/ModelTok/designcraft/security/advisories/GHSA-xxxx-xxxx-xxxx", fixPr: 2418, fixPrUrl: "https://github.com/ModelTok/designcraft-ghsa-xxxx-xxxx-xxxx/pull/2", refs: [{ path: ".github/workflows/release.yml", line: 14, claim: "" }] }),
     f(9, {
       title: "Archive extractor writes entries outside the target folder", severity: "critical", urgent: true, state: "awaiting-admin", area: "bundles", decidedBy: "kiri-n", ghsaId: "GHSA-9f2q-7mrc-h4xw",
-      advisoryUrl: "https://github.com/storytold/designcraft/security/advisories/GHSA-9f2q-7mrc-h4xw", fixPr: 3, fixPrUrl: "https://github.com/storytold/designcraft-ghsa-9f2q-7mrc-h4xw/pull/3",
+      advisoryUrl: "https://github.com/ModelTok/designcraft/security/advisories/GHSA-9f2q-7mrc-h4xw", fixPr: 3, fixPrUrl: "https://github.com/ModelTok/designcraft-ghsa-9f2q-7mrc-h4xw/pull/3",
       note: "A repository admin merges the fix pull request on the advisory page.", refs: [{ path: "crates/bundle/src/unpack.rs", line: 77, claim: "" }],
       fixDiff: "--- a/crates/bundle/src/unpack.rs\n+++ b/crates/bundle/src/unpack.rs\n@@ -75,3 +75,6 @@\n-    let out = target.join(entry.name());\n+    let out = target.join(entry.name());\n+    if !out.starts_with(target) {\n+        return Err(Error::OutsideTarget);\n+    }\n",
     }),
     f(10, {
-      title: "Template importer reads referenced files from any folder", severity: "high", state: "landing", note: "Waiting for the pull request's checks.", area: "templates", decidedBy: "kiri-n", fixPr: 2431, fixPrUrl: "https://github.com/storytold/designcraft/pull/2431",
+      title: "Template importer reads referenced files from any folder", severity: "high", state: "landing", note: "Waiting for the pull request's checks.", area: "templates", decidedBy: "kiri-n", fixPr: 2431, fixPrUrl: "https://github.com/ModelTok/designcraft/pull/2431",
       refs: [{ path: "crates/templates/src/import.rs", line: 54, claim: "" }],
       fixDiff: "--- a/crates/templates/src/import.rs\n+++ b/crates/templates/src/import.rs\n@@ -52,3 +52,5 @@\n-    let data = fs::read(base.join(rel))?;\n+    let path = base.join(rel).canonicalize()?;\n+    let data = fs::read(path)?;\n",
     }),
@@ -67,7 +67,7 @@ function findings(): FindingView[] {
       title: "Recent-files list opens paths without checking the file type", severity: "high", state: "new", area: "ipc", refs: [{ path: "crates/ipc/src/recent.rs", line: 33, claim: "" }],
       note: "Round 3 failed: the regression test passes without the fix, so it does not show the defect.",
     }),
-    f(8, { title: "Cloud sync client does not verify the server certificate chain length", severity: "low", state: "landed", area: "cloud", decidedBy: "kiri-n", fixPr: 2402, fixPrUrl: "https://github.com/storytold/designcraft/pull/2402", refs: [{ path: "crates/cloud/src/tls.rs", line: 120, claim: "" }] }),
+    f(8, { title: "Cloud sync client does not verify the server certificate chain length", severity: "low", state: "landed", area: "cloud", decidedBy: "kiri-n", fixPr: 2402, fixPrUrl: "https://github.com/ModelTok/designcraft/pull/2402", refs: [{ path: "crates/cloud/src/tls.rs", line: 120, claim: "" }] }),
   ];
 }
 
@@ -179,8 +179,8 @@ export function createSecurityMock(me: User, changed: () => void): Pick<Api, "se
         const f = find(repo, n);
         f.state = NEXT[action]!;
         f.note = null;
-        if (action === "land") Object.assign(f, { state: "landing", fixPr: 2440, fixPrUrl: "https://github.com/storytold/designcraft/pull/2440" });
-        if (action === "advisory") Object.assign(f, { ghsaId: "GHSA-4c8m-2xvp-q7hj", advisoryUrl: "https://github.com/storytold/designcraft/security/advisories/GHSA-4c8m-2xvp-q7hj", fixPr: 1, fixPrUrl: "https://github.com/storytold/designcraft-ghsa-4c8m-2xvp-q7hj/pull/1", note: "A repository admin merges the fix pull request on the advisory page." });
+        if (action === "land") Object.assign(f, { state: "landing", fixPr: 2440, fixPrUrl: "https://github.com/ModelTok/designcraft/pull/2440" });
+        if (action === "advisory") Object.assign(f, { ghsaId: "GHSA-4c8m-2xvp-q7hj", advisoryUrl: "https://github.com/ModelTok/designcraft/security/advisories/GHSA-4c8m-2xvp-q7hj", fixPr: 1, fixPrUrl: "https://github.com/ModelTok/designcraft-ghsa-4c8m-2xvp-q7hj/pull/1", note: "A repository admin merges the fix pull request on the advisory page." });
         f.reason = action === "dismiss" ? (reason ?? null) : null;
         f.decidedBy = me.login;
         f.updatedAt = new Date(NOW).toISOString();

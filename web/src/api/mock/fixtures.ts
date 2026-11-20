@@ -81,7 +81,7 @@ export const REPO_OPEN: [string, number][] = [
   ["font-preview-service", 39],
 ];
 export const REPOS = REPO_OPEN.map(([r]) => r);
-/** Repos owned by someone other than storytold. */
+/** Repos owned by someone other than ModelTok. */
 export const MOCK_REPO_OWNERS: Record<string, string> = { "font-preview-service": "example-org" };
 
 /** Signed-in user per mock role; pick one with `?as=` or the user menu. */
@@ -202,7 +202,7 @@ const SEEDS: Seed[] = [
     ageH: 5,
     author: "rhea-m",
     size: [270412, 96, 41],
-    cls: [["haiku", "missing feature", "yes"], ["jev", "missing feature", "yes"]],
+    cls: [["haiku", "missing feature", "yes"], ["basal", "missing feature", "yes"]],
     comments: [["kiri-n", 150, "The pack is the better source; I checked that the patterns match."]],
     opinions: [["saltmarsh-ink", "changes", "Ask them to load the pack. 270k lines of data is too much to carry.", 160]],
   },
@@ -229,7 +229,7 @@ const SEEDS: Seed[] = [
     author: "pixel-wrangler",
     size: [412, 18, 6],
     reference: "Filter › Distort › Wave",
-    cls: [["haiku", "missing feature", "yes"], ["jev", "missing feature", "yes"], ["sonnet", "missing feature", "yes"]],
+    cls: [["haiku", "missing feature", "yes"], ["basal", "missing feature", "yes"], ["sonnet", "missing feature", "yes"]],
     comments: [
       ["kiri-n", 5 * H, "Preview shader matches the reference output at default settings. Checked against three test images."],
       ["mosswood", 3 * H, "Fine by me. The CPU path is slow above 8K but that's true of every distort filter we have."],
@@ -253,13 +253,13 @@ const SEEDS: Seed[] = [
     ],
     question: "Animated WebP export goes beyond the reference app. Keep it or send it to a plugin?",
     context: ["The reference app exports static images only.", "The PR adds an encoder dependency (libwebp-sys, 1.4 MB)."],
-    facts: ["+1,288 −40 · 19 files", "author: 3 merged, override allow", "new dependency: libwebp-sys", "CI passing · mergeable", "haiku: small extra · jev: plugin"],
+    facts: ["+1,288 −40 · 19 files", "author: 3 merged, override allow", "new dependency: libwebp-sys", "CI passing · mergeable", "haiku: small extra · basal: plugin"],
     ...spread(scopeOpts("plugin")),
     ageH: 52,
     author: "lumen-ops",
     size: [1288, 40, 19],
     reference: "none: reference app exports static frames only",
-    cls: [["haiku", "small extra", "unclear"], ["jev", "plugin candidate", "no"], ["sonnet", "plugin candidate", "unclear"]],
+    cls: [["haiku", "small extra", "unclear"], ["basal", "plugin candidate", "no"], ["sonnet", "plugin candidate", "unclear"]],
     claim: ["kiri-n", 3],
     comments: [["kiri-n", 40 * M, "Looking at this now. The encoder could live behind a feature flag instead."]],
   },
@@ -316,7 +316,7 @@ const SEEDS: Seed[] = [
     ageH: 2,
     author: "onion3130",
     size: [64, 8, 2],
-    cls: [["haiku", "bugfix", "yes"], ["jev", "bugfix", "yes"]],
+    cls: [["haiku", "bugfix", "yes"], ["basal", "bugfix", "yes"]],
   },
   {
     kind: "duplicate",
@@ -336,7 +336,7 @@ const SEEDS: Seed[] = [
     ageH: 30,
     author: "brushstroke42",
     size: [88, 12, 3],
-    cls: [["haiku", "bugfix", "yes"], ["jev", "bugfix", "yes"]],
+    cls: [["haiku", "bugfix", "yes"], ["basal", "bugfix", "yes"]],
     related: [{ repo: "filmcraft", number: 3302, relation: "duplicate-of", title: "Audio slowly drifts out of sync on long timelines", state: "open", kind: "issue" }],
   },
   {
@@ -383,7 +383,7 @@ const SEEDS: Seed[] = [
     ageH: 26,
     author: "nadir-k",
     size: [9412, 3870, 38],
-    cls: [["haiku", "performance", "unclear"], ["jev", "infra", "no"]],
+    cls: [["haiku", "performance", "unclear"], ["basal", "infra", "no"]],
   },
   {
     kind: "hold",
@@ -402,7 +402,7 @@ const SEEDS: Seed[] = [
     ageH: 5,
     author: "quill-m",
     size: [214, 38, 6],
-    cls: [["haiku", "bugfix", "unclear"], ["jev", "bugfix", "no"]],
+    cls: [["haiku", "bugfix", "unclear"], ["basal", "bugfix", "no"]],
   },
   {
     kind: "merge",
@@ -423,7 +423,7 @@ const SEEDS: Seed[] = [
     author: "quietgrid",
     size: [2104, 310, 14],
     reference: "Formulas › Array formulas",
-    cls: [["haiku", "missing feature", "yes"], ["jev", "missing feature", "yes"], ["sonnet", "missing feature", "yes"]],
+    cls: [["haiku", "missing feature", "yes"], ["basal", "missing feature", "yes"], ["sonnet", "missing feature", "yes"]],
   },
   {
     kind: "split",
@@ -442,7 +442,7 @@ const SEEDS: Seed[] = [
     ageH: 20,
     author: "ferrous-owl",
     size: [3340, 512, 27],
-    cls: [["haiku", "missing feature", "yes"], ["jev", "missing feature", "unclear"]],
+    cls: [["haiku", "missing feature", "yes"], ["basal", "missing feature", "unclear"]],
   },
   {
     kind: "scope",
@@ -458,7 +458,7 @@ const SEEDS: Seed[] = [
     author: "rhea-m",
     size: [620, 44, 8],
     reference: "Toolbar › Curvature tool",
-    cls: [["haiku", "missing feature", "yes"], ["jev", "missing feature", "yes"]],
+    cls: [["haiku", "missing feature", "yes"], ["basal", "missing feature", "yes"]],
   },
   {
     kind: "other",
@@ -477,7 +477,7 @@ const SEEDS: Seed[] = [
     ageH: 5,
     author: "moth-and-lamp",
     size: [14, 3, 2],
-    cls: [["haiku", "small extra", "unclear"], ["jev", "small extra", "no"]],
+    cls: [["haiku", "small extra", "unclear"], ["basal", "small extra", "no"]],
   },
   {
     kind: "duplicate",
@@ -495,7 +495,7 @@ const SEEDS: Seed[] = [
     publicText: "Thanks for the report. This is the same seam issue as #4098; follow that one for the fix in #4102.",
     ageH: 3,
     author: "okapi-codes",
-    cls: [["haiku", "bugfix", "yes"], ["jev", "bugfix", "yes"]],
+    cls: [["haiku", "bugfix", "yes"], ["basal", "bugfix", "yes"]],
     related: [
       { repo: "photocraft", number: 4098, relation: "duplicate-of", title: "Healing brush: seams at tile edges in 16-bit mode", state: "open", kind: "issue" },
       { repo: "photocraft", number: 4102, relation: "links", title: "Fix tile-edge blending in healing brush (16-bit)", state: "open", kind: "pr" },
@@ -544,7 +544,7 @@ const SEEDS: Seed[] = [
     ageH: 15,
     author: "sable-ui",
     size: [930, 22, 11],
-    cls: [["haiku", "small extra", "yes"], ["jev", "plugin candidate", "unclear"]],
+    cls: [["haiku", "small extra", "yes"], ["basal", "plugin candidate", "unclear"]],
   },
   {
     kind: "scope",
@@ -558,7 +558,7 @@ const SEEDS: Seed[] = [
     ageH: 60,
     author: "saltmarsh-ink",
     size: [2870, 95, 21],
-    cls: [["haiku", "missing feature", "unclear"], ["jev", "plugin candidate", "unclear"]],
+    cls: [["haiku", "missing feature", "unclear"], ["basal", "plugin candidate", "unclear"]],
   },
   {
     kind: "close",
@@ -578,7 +578,7 @@ const SEEDS: Seed[] = [
     ageH: 82,
     author: "vt100kid",
     size: [4018, 0, 31],
-    cls: [["haiku", "missing feature", "unclear"], ["jev", "infra", "no"]],
+    cls: [["haiku", "missing feature", "unclear"], ["basal", "infra", "no"]],
   },
   {
     kind: "scope",
@@ -592,7 +592,7 @@ const SEEDS: Seed[] = [
     ageH: 2,
     author: "larkspur-dev",
     size: [344, 61, 5],
-    cls: [["haiku", "missing feature", "yes"], ["jev", "missing feature", "yes"]],
+    cls: [["haiku", "missing feature", "yes"], ["basal", "missing feature", "yes"]],
   },
   // answered, the GitHub write waits or failed
   {
@@ -651,7 +651,7 @@ const SEEDS: Seed[] = [
     ageH: 8,
     author: "larkspur-dev",
     answer: ["merge", "kiri-n", 2, false],
-    exec: ["waiting-permission", "You have no write access to storytold/filmcraft"],
+    exec: ["waiting-permission", "You have no write access to ModelTok/filmcraft"],
   },
   {
     kind: "scope",
@@ -832,11 +832,11 @@ function fillerSeed(i: number): Seed {
   const ci = r() > 0.2 ? "CI passing · mergeable" : "CI failing · mergeable";
   const facts = [`+${add.toLocaleString("en")} −${del} · ${files} files`, `author: ${merged} merged, ${tierWord}`, ci];
   if (kind === "scope")
-    return { ...base, kind, question: `Is this feature in scope for ${repo}?`, context: [], facts, ...spread(scopeOpts(r() > 0.5 ? "take" : "small-extra")), cls: [["haiku", "missing feature", "yes"], ["jev", r() > 0.5 ? "small extra" : "missing feature", "unclear"]] };
+    return { ...base, kind, question: `Is this feature in scope for ${repo}?`, context: [], facts, ...spread(scopeOpts(r() > 0.5 ? "take" : "small-extra")), cls: [["haiku", "missing feature", "yes"], ["basal", r() > 0.5 ? "small extra" : "missing feature", "unclear"]] };
   if (kind === "duplicate")
-    return { ...base, kind, question: `Close as a duplicate of ${repo}#${n - 17}?`, context: [], facts, options: [{ key: "close-dup", label: "Close as duplicate" }, { key: "keep", label: "Not a duplicate" }], recommended: "close-dup", cls: [["haiku", "bugfix", "yes"], ["jev", "bugfix", "yes"]] };
+    return { ...base, kind, question: `Close as a duplicate of ${repo}#${n - 17}?`, context: [], facts, options: [{ key: "close-dup", label: "Close as duplicate" }, { key: "keep", label: "Not a duplicate" }], recommended: "close-dup", cls: [["haiku", "bugfix", "yes"], ["basal", "bugfix", "yes"]] };
   if (kind === "close")
-    return { ...base, kind, question: "Close as out of scope?", context: [], facts, options: [{ key: "close", label: "Close with note" }, { key: "hold", label: "Hold" }], recommended: "close", cls: [["haiku", "plugin candidate", "no"], ["jev", "plugin candidate", "no"]] };
+    return { ...base, kind, question: "Close as out of scope?", context: [], facts, options: [{ key: "close", label: "Close with note" }, { key: "hold", label: "Hold" }], recommended: "close", cls: [["haiku", "plugin candidate", "no"], ["basal", "plugin candidate", "no"]] };
   if (kind === "merge")
     return { ...base, kind, question: "Reviewed and green. Merge now?", context: [], facts, options: [{ key: "merge", label: "Merge" }, { key: "hold", label: "Hold" }], recommended: "merge", recommendedReason: "Small fix in one module; CI and Verify passed and the author has merged PRs before.", cls: [["sonnet", "bugfix", "yes"]] };
   return { ...base, kind, question: `${title}?`, context: [], facts, options: [{ key: "yes", label: "Yes" }, { key: "no", label: "No" }, { key: "discuss", label: "Discuss" }], recommended: "no", cls: [["haiku", "small extra", "unclear"]] };
@@ -845,7 +845,7 @@ function fillerSeed(i: number): Seed {
 function classification(c: [string, string, string], s: Seed, i: number): Classification {
   const reasons: Record<string, string> = {
     haiku: "Matches a documented reference-app feature; one topic.",
-    jev: "Feature request phrased as an extension of an existing tool.",
+    basal: "Feature request phrased as an extension of an existing tool.",
     sonnet: "Code reviewed: self-contained, follows existing module layout, tests cover the new path.",
     owner: "Owner override.",
   };
@@ -994,7 +994,7 @@ function stagesFor(s: Seed, d: Decision): StageEntry[] {
   const t = s.ageH * H;
   const st: StageEntry[] = [
     { stage: "classified", at: iso(t + 3 * H), by: "haiku", note: null },
-    { stage: "classified", at: iso(t + 2 * H), by: "jev", note: null },
+    { stage: "classified", at: iso(t + 2 * H), by: "basal", note: null },
   ];
   if (s.cls?.some((c) => c[0] === "sonnet")) st.push({ stage: "reviewed", at: iso(t + 50 * M), by: "opus", note: "No blocking issues" });
   st.push({ stage: d.number === null ? "batched" : "needs-decision", at: iso(t), by: d.askedBy, note: d.kind });
@@ -1020,7 +1020,7 @@ export function itemFor(repo: string, number: number): Item {
       ageH: 10 + (number % 90),
       author: AUTHORS[number % AUTHORS.length][0],
       size: [20 + (number % 400), number % 37, 1 + (number % 7)],
-      cls: [["haiku", "bugfix", "yes"], ["jev", "bugfix", "yes"]],
+      cls: [["haiku", "bugfix", "yes"], ["basal", "bugfix", "yes"]],
     } as Seed);
   const d = toDecision(s);
   const [author, tier, merged, closedUn] = authorInfo(s.author ?? "nadir-k");
@@ -1068,7 +1068,7 @@ export function itemFor(repo: string, number: number): Item {
     comments: [],
     decisionIds: seed ? [d.id] : [],
     // mockApi fills this in from itemsFixtures
-    settled: { status: "unclassified", label: null, source: null, confidence: null, jevLabel: null, haikuLabel: null, flags: [], referee: null },
+    settled: { status: "unclassified", label: null, source: null, confidence: null, basalLabel: null, haikuLabel: null, flags: [], referee: null },
     verification: null,
     fixups: [],
     preapproval: PREAPPROVALS[`${repo}#${number}`] ?? null,

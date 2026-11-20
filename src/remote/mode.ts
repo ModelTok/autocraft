@@ -1,6 +1,6 @@
 // The instance's inference mode. `server`: Claude model calls run on this host with the registered accounts.
 // `user-local`: they are queued as remote calls that maintainers' helpers claim, run on their own machines and
-// submit (src/remote/calls.ts). Jev calls and embeddings run on this host in both modes.
+// submit (src/remote/calls.ts). Basal calls and embeddings run on this host in both modes.
 import type { DatabaseSync } from "node:sqlite";
 import { prep } from "../sql-cache.ts";
 import { audit } from "../dash/audit.ts";

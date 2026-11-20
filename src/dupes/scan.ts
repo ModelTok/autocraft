@@ -8,7 +8,7 @@ import type { VectorIndex } from "../embed/vectors.ts";
 
 /**
  * Cosine similarity of the embedding model (bge-small) from which a neighbour becomes a candidate pair. The same bug in other
- * words can score in the 0.7s, and the pair check that follows is cheap; below 0.75 Jev finds almost no duplicates.
+ * words can score in the 0.7s, and the pair check that follows is cheap; below 0.75 basal finds almost no duplicates.
  * Changing it rescans every item once (src/db.ts).
  */
 export const SIM_THRESHOLD = 0.75;

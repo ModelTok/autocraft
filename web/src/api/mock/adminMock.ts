@@ -105,9 +105,9 @@ function buildRepos(): TrackedRepo[] {
     const prs = Math.round(open * (0.3 + r() * 0.2));
     const toAdd = Math.round(prs * (0.4 + r() * 0.3));
     const labels = { approved: false, approvedBy: null, approvedAt: null, toAdd, skipped: Math.round(prs * 0.2), conflicts: r() < 0.3 ? Math.floor(r() * 4) : 0 };
-    return { name, owner: MOCK_REPO_OWNERS[name] ?? "storytold", tracked: true, openPrs: prs, openIssues: open - prs, mirrored: Math.round(open * (3.5 + r())), syncedAt: iso((2 + r() * 40) * 60_000), labels, merging: { approved: false, approvedBy: null, approvedAt: null }, pushing: { approved: false, approvedBy: null, approvedAt: null }, commenting: { approved: false, approvedBy: null, approvedAt: null }, fixing: { approved: false, approvedBy: null, approvedAt: null }, mainFixing: { approved: false, approvedBy: null, approvedAt: null }, ciApproving: { approved: false, approvedBy: null, approvedAt: null }, optionalChecks: name === "designcraft" ? ["sonarcloud / SonarCloud Scan"] : [], seenChecks: ["gate / test", "gate / lint", "sonarcloud / SonarCloud Scan", "docs / link-check"], pipeline: name === "designcraft" };
+    return { name, owner: MOCK_REPO_OWNERS[name] ?? "ModelTok", tracked: true, openPrs: prs, openIssues: open - prs, mirrored: Math.round(open * (3.5 + r())), syncedAt: iso((2 + r() * 40) * 60_000), labels, merging: { approved: false, approvedBy: null, approvedAt: null }, pushing: { approved: false, approvedBy: null, approvedAt: null }, commenting: { approved: false, approvedBy: null, approvedAt: null }, fixing: { approved: false, approvedBy: null, approvedAt: null }, mainFixing: { approved: false, approvedBy: null, approvedAt: null }, ciApproving: { approved: false, approvedBy: null, approvedAt: null }, optionalChecks: name === "designcraft" ? ["sonarcloud / SonarCloud Scan"] : [], seenChecks: ["gate / test", "gate / lint", "sonarcloud / SonarCloud Scan", "docs / link-check"], pipeline: name === "designcraft" };
   });
-  const rest = UNTRACKED.map((name) => ({ name, owner: "storytold", tracked: false, openPrs: Math.floor(r() * 30), openIssues: Math.floor(r() * 80), mirrored: name === "craft-docs-archive" ? 412 : 0, syncedAt: name === "craft-docs-archive" ? iso(12 * D) : null, labels: null, merging: null, pushing: null, commenting: null, fixing: null, mainFixing: null, ciApproving: null, optionalChecks: [], seenChecks: [], pipeline: false as const }));
+  const rest = UNTRACKED.map((name) => ({ name, owner: "ModelTok", tracked: false, openPrs: Math.floor(r() * 30), openIssues: Math.floor(r() * 80), mirrored: name === "craft-docs-archive" ? 412 : 0, syncedAt: name === "craft-docs-archive" ? iso(12 * D) : null, labels: null, merging: null, pushing: null, commenting: null, fixing: null, mainFixing: null, ciApproving: null, optionalChecks: [], seenChecks: [], pipeline: false as const }));
   return [...tracked, ...rest];
 }
 
@@ -177,10 +177,10 @@ export function createAdminMock(me: User, changed: () => void): AdminApi {
   const repos = buildRepos();
   const access = structuredClone(ACCESS);
   const setupLinks: GithubSetupLink[] = [
-    { id: "l1", org: "storytold", createdBy: me.login, createdAt: new Date(NOW - 2 * H).toISOString(), expiresAt: new Date(NOW + 7 * D - 2 * H).toISOString() },
+    { id: "l1", org: "ModelTok", createdBy: me.login, createdAt: new Date(NOW - 2 * H).toISOString(), expiresAt: new Date(NOW + 7 * D - 2 * H).toISOString() },
     { id: "l2", org: "glasswing", createdBy: me.login, createdAt: new Date(NOW - 3 * D).toISOString(), expiresAt: new Date(NOW + 4 * D).toISOString() },
   ];
-  /** The mock app: registered unless removed (?unregistered shows the registration form), installed on storytold for two repos. */
+  /** The mock app: registered unless removed (?unregistered shows the registration form), installed on ModelTok for two repos. */
   const appStatus = (): GithubAppStatus => {
     const registered = !appRemoved && (typeof location === "undefined" || !location.search.includes("unregistered"));
     return {
@@ -189,7 +189,7 @@ export function createAdminMock(me: User, changed: () => void): AdminApi {
       links: [...setupLinks],
       installations: registered ? [
         { owner: "glasswing", selection: "selected", repos: ["glasswing/photocraft", "glasswing/designcraft", "glasswing/filmcraft"] },
-        { owner: "storytold", selection: "selected", repos: ["storytold/filmcraft", "storytold/designcraft"] },
+        { owner: "ModelTok", selection: "selected", repos: ["ModelTok/filmcraft", "ModelTok/designcraft"] },
       ] : [],
       error: null,
     };
@@ -301,7 +301,7 @@ export function createAdminMock(me: User, changed: () => void): AdminApi {
       },
       async track(name) {
         requireOperator("manage tracked repos");
-        const [owner, bare] = name.includes("/") ? name.split("/") as [string, string] : ["storytold", name];
+        const [owner, bare] = name.includes("/") ? name.split("/") as [string, string] : ["ModelTok", name];
         if (!/^[A-Za-z0-9._-]{1,100}$/.test(bare)) throw new Error("Not a repo name.");
         let r = repos.find((x) => x.name === bare);
         if (r?.tracked) throw new Error(`${name} is already tracked`);

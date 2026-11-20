@@ -220,7 +220,7 @@ export function githubOf(r: RealItem): GithubSide {
   return {
     description: clean(it.body ?? ""), events, checks, commits,
     files: (it.files ?? []).map((f: Json) => ({ path: f.path, additions: f.additions, deletions: f.deletions })),
-    url: `https://github.com/storytold/${r.repo}/${kind}/${r.number}`,
+    url: `https://github.com/ModelTok/${r.repo}/${kind}/${r.number}`,
     syncedAt: null,
   };
 }

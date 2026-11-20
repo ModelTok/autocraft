@@ -10,7 +10,7 @@ import { createSign } from "node:crypto";
 import type { AppOwner, AppSecrets } from "../dash/server/config.ts";
 
 export const GITHUB_API = "https://api.github.com";
-export const REPO_URL = "https://github.com/storytold/autocraft";
+export const REPO_URL = "https://github.com/ModelTok/autocraft";
 const UA = "autocraft-dashboard";
 
 /** `status` is the HTTP status of a failed GitHub call, 0 for other failures. */

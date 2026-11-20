@@ -57,7 +57,7 @@ async function collect(perDay?: number) {
   if (perDay !== undefined) db.prepare("INSERT OR REPLACE INTO stage_limits (step, per_day) VALUES ('fixissue', ?)").run(perDay);
   for (const n of [5, 6]) {
     db.prepare("INSERT INTO items (repo, number, kind, state, title, body, author, created_at, updated_at) VALUES ('app', ?, 'issue', 'OPEN', ?, 'b', 'someone', ?, ?)").run(n, `Panic ${n}`, T0, T0);
-    db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'jev', 'r1', ?, 'bugfix', '[]', '{\"top\":0.97}')").run(n, T0);
+    db.prepare("INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'basal', 'r1', ?, 'bugfix', '[]', '{\"top\":0.97}')").run(n, T0);
     db.prepare(`INSERT INTO fix_attempts (repo, number, main_sha, text_hash, state, round, patch, files, crate, crate_dir, size, created_at, updated_at)
       VALUES ('app', ?, ?, 'h', 'passed', 1, ?, ?, 'app', 'crates/app', 'S', ?, ?)`).run(n, sha, patchFor(n), JSON.stringify([LIB]), T0, T0);
   }
@@ -78,14 +78,14 @@ async function collect(perDay?: number) {
         if (++arrived === 2 || perDay !== undefined) release();
         // No clock: if the second PR is never opened at the same time this deadlocks and the test timeout reports it.
         await both;
-        return out("https://github.com/storytold/app/pull/12\n");
+        return out("https://github.com/ModelTok/app/pull/12\n");
       }
       if (args[0] === "issue") return out("");
       return out("", 1);
     }
     const urlAt = args.findIndex((a) => a.startsWith("https://github.com/"));
     if (urlAt >= 0) {
-      const target = args[urlAt]!.includes("/storytold/") ? upstream : fork;
+      const target = args[urlAt]!.includes("/ModelTok/") ? upstream : fork;
       const a2 = args.map((a, i) => (i === urlAt ? target : a)).filter((a, i, all) => !(a === "-c" && all[i + 1] === "protocol.file.allow=never") && a !== "protocol.file.allow=never");
       return exec("git", a2, opt);
     }

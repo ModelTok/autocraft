@@ -134,7 +134,7 @@ export const hiddenSql = (hidden: HiddenRepos): string => (filtered(hidden) ? ` 
 export const hiddenArgs = (hidden: HiddenRepos): string[] => (filtered(hidden) ? hiddenTest("x.repo", hidden).args : []);
 
 /** Prompts whose calls are named by what they do, not by the step that makes them. */
-const PROMPT_TITLES: Record<string, string> = { "lint.reference.jev": "Reference lint", "lint.reference.haiku": "Reference lint" };
+const PROMPT_TITLES: Record<string, string> = { "lint.reference.basal": "Reference lint", "lint.reference.haiku": "Reference lint" };
 
 export const RUN_COLUMNS = `r.id, r.step, r.prompt_id, r.model, r.provider, r.state, r.started_at, r.ended_at, r.input_tokens, r.output_tokens, r.cost_usd, r.summary, r.job_id, r.user_login, r.harness, r.reported_model,
        COALESCE(a.label, r.account_id) AS label, (SELECT COUNT(*) FROM agent_run_tools t WHERE t.run_id = r.id) AS tools`;

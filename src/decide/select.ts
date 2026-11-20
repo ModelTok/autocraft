@@ -1,5 +1,5 @@
 // What a scope decision is about. Which open items become scope decisions is the Plans' (core/decide-item.ts): an item is a
-// candidate when its settled classification carries the "needs decision" flag, or Jev and Haiku chose different scope labels
+// candidate when its settled classification carries the "needs decision" flag, or basal and Haiku chose different scope labels
 // (missing feature, small extra, plugin candidate), and no decision or later stage covers it.
 import type { DatabaseSync } from "node:sqlite";
 import { type Settled } from "../classify/settled.ts";

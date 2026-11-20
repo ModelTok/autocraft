@@ -1,6 +1,6 @@
 # Operations reference
 
-Local mirror of every storytold issue and PR, the triage pipeline's state, and the backlog dashboard.
+Local mirror of every issue and PR of the tracked repos (the default owner is ModelTok, or `AUTOCRAFT_OWNER`), the triage pipeline's state, and the backlog dashboard.
 
 - `autocraft-server sync` fills a SQLite mirror (`~/.local/share/autocraft/mirror.db`, or `$AUTOCRAFT_DB`) from GitHub GraphQL. Agents and scripts query the mirror instead of calling `gh`.
 - `autocraft-server whitelist` shows and edits which contributors' PRs may merge on green CI without a decision.
@@ -24,11 +24,11 @@ Each run stores `sync_points_last_run` (a full run: `sync_full_points_last_run`)
 
 #### Tracked repos
 
-`autocraft-server repos track <name>` tracks a storytold repo; `autocraft-server repos track <owner/name>` tracks one of another owner. The name keeps the casing given, and sync compares names case-sensitively, so use the casing GitHub shows.
+`autocraft-server repos track <name>` tracks a repo of the default owner; `autocraft-server repos track <owner/name>` tracks one of another owner. The name keeps the casing given, and sync compares names case-sensitively, so use the casing GitHub shows.
 
-- Repo names are unique across owners. Tracking `owner/name` is refused when the name is known under another owner, or when it is new and storytold has a repo of that name. A known bare name means its recorded owner.
+- Repo names are unique across owners. Tracking `owner/name` is refused when the name is known under another owner, or when it is new and the default owner has a repo of that name. A known bare name means its recorded owner.
 - The repo must exist and be readable. With the GitHub App identity, the app's installation must cover it.
-- Sync refreshes the repo list from storytold first, so the GitHub App must be installed on storytold too. An app installed only on the other owner lets tracking succeed and sync fail.
+- Sync refreshes the repo list from the default owner first, so the GitHub App must be installed on that owner too. An app installed only on the other owner lets tracking succeed and sync fail.
 
 #### Webhooks
 
@@ -94,7 +94,7 @@ The GitHub OAuth App needs no scopes, and expiring user tokens are supported: th
 
 ### Images
 
-`GET /img?u=<url>` (signed in only) fetches GitHub-hosted images from issue and PR bodies and comments so the app can show them inline under its CSP. It serves only `https` URLs on `github.com/user-attachments/assets/<uuid>`, `private-user-images.githubusercontent.com`, `user-images.githubusercontent.com`, `raw.githubusercontent.com/storytold/` and `avatars.githubusercontent.com`, and only when the exact URL occurs in a mirrored body or comment of a tracked repo; everything else is a 404 with no upstream request. The set of such URLs is rebuilt from the mirror when it has changed (at most every 30 seconds), and a cached image is served only while its URL is still in it. `imageRepo(url)` in `src/dash/server/images.ts` returns the repo an allowed URL belongs to.
+`GET /img?u=<url>` (signed in only) fetches GitHub-hosted images from issue and PR bodies and comments so the app can show them inline under its CSP. It serves only `https` URLs on `github.com/user-attachments/assets/<uuid>`, `private-user-images.githubusercontent.com`, `user-images.githubusercontent.com`, `raw.githubusercontent.com/<default owner>/` and `avatars.githubusercontent.com`, and only when the exact URL occurs in a mirrored body or comment of a tracked repo; everything else is a 404 with no upstream request. The set of such URLs is rebuilt from the mirror when it has changed (at most every 30 seconds), and a cached image is served only while its URL is still in it. `imageRepo(url)` in `src/dash/server/images.ts` returns the repo an allowed URL belongs to.
 
 The proxy follows at most three redirects, each to one of those hosts or GitHub's attachment bucket (`github-production-user-asset-6210df.s3.amazonaws.com`); IP addresses and `localhost` are never fetched. It serves PNG, JPEG, GIF, WebP and AVIF, checked by their magic bytes, up to 5 MB (the stream is aborted past that), within 15 seconds; never SVG. At most 4 upstream fetches run at once; further ones wait up to 5 seconds, then get 429. Each session may make 120 upstream fetches a minute and each client address 240. Responses are `private, max-age=86400` with `default-src 'none'` and `nosniff`; images are cached on disk for 7 days (at most 512 MB).
 
@@ -161,7 +161,7 @@ Feedback (picks and text) is display-only. The pipeline reads answers with `auto
 
 ## User-local inference
 
-In the `user-local` inference mode, model calls do not run on this host. Each call is queued, and a maintainer's or operator's Task Runner (the `autocraft` command) claims it, runs the harness on that person's machine under their own Claude Code or Codex subscription, and submits the reply. The planner, gates, Jev calls, embeddings, GitHub writes and builds stay on the server. The code is `src/remote/` (wire format in `protocol.ts`) and `worker/autocraft.mjs` (the Task Runner, served by the dashboard at `/worker/autocraft.mjs`). The server admin CLI is `autocraft-server`; the MCP server name and the Task Runner command are both `autocraft`.
+In the `user-local` inference mode, model calls do not run on this host. Each call is queued, and a maintainer's or operator's Task Runner (the `autocraft` command) claims it, runs the harness on that person's machine under their own Claude Code or Codex subscription, and submits the reply. The planner, gates, basal calls, embeddings, GitHub writes and builds stay on the server. The code is `src/remote/` (wire format in `protocol.ts`) and `worker/autocraft.mjs` (the Task Runner, served by the dashboard at `/worker/autocraft.mjs`). The server admin CLI is `autocraft-server`; the MCP server name and the Task Runner command are both `autocraft`.
 
 ### Switching the mode
 
@@ -521,10 +521,14 @@ It reads the same variables as the CLI (`AUTOCRAFT_DB` and the rest), plus:
 | `AUTOCRAFT_RUNNER_JOBS` | Most jobs running at once. Default 32. A job whose step calls Claude also waits for a free account slot before it starts. Jobs of one step run together only for different repos, within the `step_parallel` setting (`autocraft-server pipeline parallel [N|none]`, default 1). |
 | `AUTOCRAFT_RUNNER_POLL_MS` | Poll interval. Default 2000. |
 | `AUTOCRAFT_CALL_IDLE_MIN` | Minutes a Claude call may produce no output (no assistant text, tool use, tool result or progress line) before its process group is stopped (SIGTERM, then SIGKILL after 10 s) and the call fails with `no output for <n> min; stopped`. Default 15. Time spent inside a pending build-tool call (it waits on a worker, up to 45 minutes in all) does not count. |
+| `AUTOCRAFT_BASAL_URL` | Base URL of the basal-serve that answers basal's requests (`POST <url>/v1/systemone`). Default `http://127.0.0.1:8000`. |
+| `AUTOCRAFT_BASAL_KEY_FILE` | File holding the key of a basal-serve started with `--api-keys`, sent as a bearer token; read on each call, never logged. Default: unset, no key. |
 | `AUTOCRAFT_LOCK_DIR` | Directory of the lock file, shared with `sync`. Default `~/.cache/autocraft-logs`. |
 | `AUTOCRAFT_EXTRA_STEPS` | A module exporting `steps: StepDef[]` that is added to the step list, for tests and development (`test/runner-steps.ts` has fake steps). Set it for the dashboard and the runner alike, or not at all. |
 
-The classify steps call `jev` and `claude`, so the runner's `PATH` must reach them.
+The classify steps call `claude`, so the runner's `PATH` must reach it, and they post basal's requests to the basal-serve at `AUTOCRAFT_BASAL_URL`, which the runner must reach. Start that server as basal's README describes, for example `basal-serve --model Remek/basal-2.0-4.5B --mode fast --template-prefix off --host 127.0.0.1 --port 8000` on an NVIDIA GPU (`Remek/basal-2.0-mini` for a small GPU or a laptop, the `-MLX-8bit` models with `--mode mlx` on Apple Silicon). Bind it to `127.0.0.1`, or give it `--api-keys` and AutoCraft the key through `AUTOCRAFT_BASAL_KEY_FILE`.
+
+basal replaced Jev, TypeSafe's hosted model behind the `jev` command, and the provider was renamed from `jev` to `basal`. A database from before the rename is migrated on its first connect (`renameColumns` and `renameProvider` in `src/db.ts`): the settings keys, classifier and area sources, providers, prompt ids, usage agent names and priority models take the basal names, and the `jev_p` / `jev_impact` columns become `basal_p` / `basal_impact`. Usage rows of the hosted model keep the model name they were recorded with and its price. `autocraft-server accounts jev` and the `/api/accounts/jev` routes still work as aliases.
 
 To run it as a systemd user service, fill in the placeholders of `deploy/craft-runner.service`, copy it to `~/.config/systemd/user/`, and run `systemctl --user daemon-reload && systemctl --user enable --now craft-runner`. Stopping the service stops running jobs; they show as failed and can be started again.
 
@@ -586,7 +590,7 @@ Claude calls run under accounts that an operator enabled. Which accounts exist o
 
 Example: `AUTOCRAFT_ACCOUNTS=/path/to/accounts.json`, `AUTOCRAFT_USAGE_DIR=/path/to/usage`, `AUTOCRAFT_ACCOUNTS_ROOT=/path/to/accounts`.
 
-Each account in the file gets a row (disabled, labelled with its id) the first time anything lists accounts. Operators set the label, the switch and the number of calls at once on the Accounts page or with `autocraft-server accounts list` and `autocraft-server accounts set <id> [--label X] [--enabled yes|no] [--max-concurrent N]` (1 to 100; recorded as `cli`). Jev has no accounts; its calls at once are the `jev_parallel` setting (default 4), changed with `autocraft-server accounts jev [N]`. Claude calls in flight are limited only by the accounts' free slots; waiting calls take freed slots by priority class (security, then the path to merge, then the rest). An operator can also give an account a long-lived token (*Long-lived token* on the Accounts page, stored as `oauth-token` in the account's config directory, mode 0600): calls on that account use it instead of the login's short-lived token, so sandboxed calls never wait for a token refresh. Allocation and pauses are described in [docs/pipeline.md](docs/pipeline.md#claude-accounts-and-agent-runs).
+Each account in the file gets a row (disabled, labelled with its id) the first time anything lists accounts. Operators set the label, the switch and the number of calls at once on the Accounts page or with `autocraft-server accounts list` and `autocraft-server accounts set <id> [--label X] [--enabled yes|no] [--max-concurrent N]` (1 to 100; recorded as `cli`). Basal has no accounts; its calls at once are the `basal_parallel` setting (default 4), changed with `autocraft-server accounts basal [N]`. Claude calls in flight are limited only by the accounts' free slots; waiting calls take freed slots by priority class (security, then the path to merge, then the rest). An operator can also give an account a long-lived token (*Long-lived token* on the Accounts page, stored as `oauth-token` in the account's config directory, mode 0600): calls on that account use it instead of the login's short-lived token, so sandboxed calls never wait for a token refresh. Allocation and pauses are described in [docs/pipeline.md](docs/pipeline.md#claude-accounts-and-agent-runs).
 
 ### Adding a step
 
@@ -613,7 +617,7 @@ A step is one entry in `STEPS` in `src/runner/steps.ts`:
 }
 ```
 
-A step lists the models it calls in `models` (a list, or a function of the params, as `decide` does), so the Pipeline page shows them before any call is made. Model calls go through `askClaude` and `askJev` in `src/classify/run.ts`, which allocate the account and record the agent run; a step does neither itself.
+A step lists the models it calls in `models` (a list, or a function of the params, as `decide` does), so the Pipeline page shows them before any call is made. Model calls go through `askClaude` and `askBasal` in `src/classify/run.ts`, which allocate the account and record the agent run; a step does neither itself.
 
 Param kinds are `enum`, `repo` (a tracked repo), `int` and `run-id`; there is no free-text kind, so nothing typed on the dashboard reaches a prompt. `run` gets the database, the validated params, `progress(text)`, `log(line)`, `handled(n)` (the running total of units the job has attempted, saved at once and counted against the stage's daily limit), `usageRun(runId)` (token use recorded under that run from the job's start counts as the job's) and `cancelled()`, and returns a one-line summary; throwing fails the job with the error's message. `available()` and `check(db, params)` can refuse a step or a request with a reason. The Pipeline page, the API, the autopilot and the CLI pick the step up from the list.
 
@@ -761,7 +765,7 @@ A production install runs the dashboard, the runner, the sync timer and a daily 
 | `push.sh` | `deploy/push.sh REMOTE [REF]`: pushes a branch to the bare repo. |
 | `backup.sh` | `backup.sh [PREFIX [KEEP]]`: consistent snapshot with `sqlite3 .backup`, compressed, newest KEEP kept. |
 
-Layout: `<root>/{repo.git,releases,app,data,cache,config}` (`app` is a symlink to the current release). `<root>/config` holds the settings file, `secrets.json` (mode 0600), `accounts.json` and the per-account Claude config directories. The user needs `node` 24, `git`, `pnpm`, `sqlite3`, `curl`, `bwrap`, `gh` (logged in, with its git credential helper), `claude` (logged in per account) and `jev` on its PATH (`<root>/.local/bin` comes first). The restart needs a sudoers entry allowing the user `systemctl restart` of its own units, and `start`/`stop` of the sync timer, without a password. The units load `autocraft.env` themselves as the app user. The dashboard unit sees that file, `releases/`, `repo.git` and `.local` read-only (`ReadOnlyPaths=`): the process that faces the network cannot change what the other units source or run. The worker runs as a separate user (see Running a worker); `AUTOCRAFT_WORKER_SSH` and an SSH key at `<root>/.ssh/id_craftsandbox` let the hook install its code through the worker's forced-command key.
+Layout: `<root>/{repo.git,releases,app,data,cache,config}` (`app` is a symlink to the current release). `<root>/config` holds the settings file, `secrets.json` (mode 0600), `accounts.json` and the per-account Claude config directories. The user needs `node` 24, `git`, `pnpm`, `sqlite3`, `curl`, `bwrap`, `gh` (logged in, with its git credential helper), `claude` (logged in per account) on its PATH (`<root>/.local/bin` comes first), and a basal-serve for basal at `AUTOCRAFT_BASAL_URL` (see [Pipeline runner](#pipeline-runner)). The restart needs a sudoers entry allowing the user `systemctl restart` of its own units, and `start`/`stop` of the sync timer, without a password. The units load `autocraft.env` themselves as the app user. The dashboard unit sees that file, `releases/`, `repo.git` and `.local` read-only (`ReadOnlyPaths=`): the process that faces the network cannot change what the other units source or run. The worker runs as a separate user (see Running a worker); `AUTOCRAFT_WORKER_SSH` and an SSH key at `<root>/.ssh/id_craftsandbox` let the hook install its code through the worker's forced-command key.
 
 ## Running in a container
 
@@ -776,7 +780,7 @@ docker build -f deploy/container/Dockerfile -t autocraft .
 docker run -v data:/data -v config:/config -e AUTOCRAFT_BASE_URL=https://autocraft.example.com autocraft-server dashboard
 ```
 
-The image is built on Docker Hardened Images for Node 26 on Debian 13: the shell-less runtime variant receives a prepared file tree with `bash`, `dash` (`/bin/sh`), coreutils, grep, sed, tar, gzip, findutils, `script`, `git`, `bubblewrap`, `sqlite3`, `curl`, `zstd`, `tini`, pnpm, the production dependencies, the built `web/dist` and the Claude CLI (`--build-arg CLAUDE_CODE_VERSION=...`, default the version the systemd install runs). It runs as uid 10001. It contains `gh` (pinned by checksum; authenticate with the `GH_TOKEN` environment variable) but not `jev`; while it is missing, Haiku does Jev's work (the runner records the outage "not installed" and checks the `PATH` on every pass), and a derived image that adds `jev` restores it. `--build-arg SOURCE_COMMIT=<sha>` records the commit the dashboard shows (the image has no `.git`). `tini` is PID 1 and reaps the jobs' child processes.
+The image is built on Docker Hardened Images for Node 26 on Debian 13: the shell-less runtime variant receives a prepared file tree with `bash`, `dash` (`/bin/sh`), coreutils, grep, sed, tar, gzip, findutils, `script`, `git`, `bubblewrap`, `sqlite3`, `curl`, `zstd`, `tini`, pnpm, the production dependencies, the built `web/dist` and the Claude CLI (`--build-arg CLAUDE_CODE_VERSION=...`, default the version the systemd install runs). It runs as uid 10001. It contains `gh` (pinned by checksum; authenticate with the `GH_TOKEN` environment variable) but not basal-serve, the basal model server, which needs a GPU of its own: point `AUTOCRAFT_BASAL_URL` at one the containers can reach. While none answers, Haiku does basal's work (the runner records the outage "server unreachable" and tries basal again five minutes after the last failure). `--build-arg SOURCE_COMMIT=<sha>` records the commit the dashboard shows (the image has no `.git`). `tini` is PID 1 and reaps the jobs' child processes.
 
 The first argument picks the process, exactly as the systemd units start them:
 

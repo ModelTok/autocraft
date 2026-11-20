@@ -80,7 +80,7 @@ function setup(calls = 2) {
     fetchDiff: async () => ({ ok: true, text: "diff --git a/src/lib.rs b/src/lib.rs\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -1 +1 @@\n-x\n+fn a() {}\n" }),
     gh: async (args) => {
       if (args[0] === "api" && args[1]!.includes("/pulls/")) return `${"b".repeat(40)}\n`;
-      if (args[0] === "api") return JSON.stringify({ check_runs: [{ name: "gate / test", status: "completed", conclusion: "failure", completed_at: "2026-01-03T12:00:00Z", details_url: "https://github.com/storytold/app/actions/runs/11/job/5" }] });
+      if (args[0] === "api") return JSON.stringify({ check_runs: [{ name: "gate / test", status: "completed", conclusion: "failure", completed_at: "2026-01-03T12:00:00Z", details_url: "https://github.com/ModelTok/app/actions/runs/11/job/5" }] });
       return CODE_LOG;
     },
     ask: async (_db, input) => {

@@ -9,7 +9,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { notOwnIntegrationSql, groupHeldSql, backlogHeldSql } from "../dupes/held.ts";
 import { FAST_FLOOR, fastScoreSql } from "../fasttrack.ts";
 import { latestRun, needsDecisionOf, refereeClosed, securityOf, settle, topOf, SURE, type Referee } from "../classify/settled.ts";
-import { JEV_FLAG_NO, JEV_NEEDS_DECISION_YES, JEV_SECURITY_YES } from "../classify/parse.ts";
+import { BASAL_FLAG_NO, BASAL_NEEDS_DECISION_YES, BASAL_SECURITY_YES } from "../classify/parse.ts";
 import { answersToApply, groupsToAsk } from "../dupes/decide.ts";
 import { uncheckedPairs } from "../dupes/check.ts";
 import { dueSets } from "../dupes/plan.ts";
@@ -200,8 +200,8 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
   return rows.map((r): ItemFacts => {
     const ref = `${r.repo}#${r.number}`;
     const cls = byItem.get(ref) ?? [];
-    const j = cls.find((c) => c.classifier === "jev");
-    // A Haiku row without a Jev row counts only when Haiku classified alone (it carries the item's input hash).
+    const j = cls.find((c) => c.classifier === "basal");
+    // A Haiku row without a basal row counts only when Haiku classified alone (it carries the item's input hash).
     const h = cls.find((c) => c.classifier === "haiku" && (j || c.input_hash !== null));
     const s = cls.find((c) => c.classifier === "sonnet");
     let referee: Referee | null = null;
@@ -222,12 +222,12 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
     }
     const unsureFlag = (key: string, yes: number): boolean => {
       const p = (json<Record<string, unknown> | null>(j?.probs ?? null, null) ?? {})[key];
-      return typeof p === "number" && p >= JEV_FLAG_NO && p < yes;
+      return typeof p === "number" && p >= BASAL_FLAG_NO && p < yes;
     };
-    const jev = j ? {
+    const basal = j ? {
       at: j.at,
       changed: j.input_hash !== null ? j.input_hash !== classHash : (r.updated_at ?? "") > j.at,
-      unsure: (topOf(j.probs) ?? 0) < SURE || unsureFlag("security", JEV_SECURITY_YES) || unsureFlag("needs_decision", JEV_NEEDS_DECISION_YES),
+      unsure: (topOf(j.probs) ?? 0) < SURE || unsureFlag("security", BASAL_SECURITY_YES) || unsureFlag("needs_decision", BASAL_NEEDS_DECISION_YES),
     } : null;
     const haiku = h ? { at: h.at, aloneCurrent: h.input_hash !== null && h.input_hash === classHash && (!j || h.at > j.at) } : null;
     // Sync and Embed write the text hash; one not written yet is computed here.
@@ -240,8 +240,8 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
       fast: (r.score ?? 0) >= FAST_FLOOR, score: r.score, repoFacts: { labelsApproved: labelsApproved(r.repo), commentApproved: repoOf(r.repo).comment, fixIssueApproved: repoOf(r.repo).fix },
       run,
       classification: {
-        status: settled.status, label: settled.label, flags: settled.flags, jevLabel: settled.jevLabel, haikuLabel: settled.haikuLabel,
-        referee: settled.referee ? { sure: settled.referee.sure, final: refereeClosed(settled.referee), failedAt: settled.referee.failedAt ?? null } : null, jev, haiku,
+        status: settled.status, label: settled.label, flags: settled.flags, basalLabel: settled.basalLabel, haikuLabel: settled.haikuLabel,
+        referee: settled.referee ? { sure: settled.referee.sure, final: refereeClosed(settled.referee), failedAt: settled.referee.failedAt ?? null } : null, basal, haiku,
       },
       embedHash, embeddedHash: r.e_hash, priorityHash: r.pr_hash, scannedHash: r.scan_hash,
       pairsToCheck: pairs.get(ref) ?? 0, inGroupToAsk: inGroup.has(ref), inCompareSet: inCompare.has(ref), dupeAnswers: dupeAnswers.get(ref) ?? [],

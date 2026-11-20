@@ -26,7 +26,7 @@ function rank(text: string, limit: number, skip?: string): SimilarHit[] {
         score: Math.round(Math.min(score, 0.98) * 1000) / 1000,
         stateReason: closed && h.kind === "issue" ? (h.number % 2 ? "duplicate" : "completed") : null,
         label: h.number % 3 ? LABELS[h.number % LABELS.length] : null,
-        labelBy: h.number % 3 ? "jev" : null,
+        labelBy: h.number % 3 ? "basal" : null,
       };
       return hit;
     })

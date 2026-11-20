@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { syncAccounts } from "../src/agents/accounts.ts";
-import { setRunner } from "../src/classify/run.ts";
+import { setBasalRunner, setRunner } from "../src/classify/run.ts";
 import { loadPlanSet, type PlanSet } from "../src/core/plan-set.ts";
 import { connect } from "../src/db.ts";
 import { diffCacheDir } from "../src/review/diff.ts";
@@ -137,9 +137,9 @@ export function world() {
             }
             if (cmd === "gh") {
               if (a[0] === "api" && a[1] === "user") return ok(JSON.stringify({ login: "bot", id: 7, node_id: "N7" }));
-              if (a[0] === "api") return ok("storytold/app\n");
+              if (a[0] === "api") return ok("ModelTok/app\n");
               if (a[0] === "pr" && a[1] === "list") return ok("");
-              if (a[0] === "pr" && a[1] === "create") { writes.push({ kind: "pr", number: 900, head: tip, detail: opts?.input }); return ok("https://github.com/storytold/app/pull/900\n"); }
+              if (a[0] === "pr" && a[1] === "create") { writes.push({ kind: "pr", number: 900, head: tip, detail: opts?.input }); return ok("https://github.com/ModelTok/app/pull/900\n"); }
               if (a[0] === "pr" && a[1] === "close") return ok();
             }
             throw new Error(`unexpected ${cmd} ${a.join(" ")}`);
@@ -177,7 +177,7 @@ export function world() {
       const author = o.author ?? "regular";
       db.prepare(`INSERT INTO items (repo, number, kind, state, title, author, author_id, additions, deletions, head_oid, head_ref, created_at, updated_at)
         VALUES ('app', ?, 'pr', 'OPEN', ?, ?, ?, ?, 0, ?, ?, ?, ?)`).run(n, `PR ${n}`, author, o.authorId !== undefined ? o.authorId : author === "regular" ? REGULAR_ID : null, o.lines ?? 20, head, `fix-${n}`, T0, T0);
-      db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'jev', 'r1', ?, ?, ?, '{"top":0.95}')`)
+      db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'basal', 'r1', ?, ?, ?, '{"top":0.95}')`)
         .run(n, T0, o.label ?? "bugfix", JSON.stringify(o.flags ?? []));
       db.prepare(`INSERT INTO pr_checks (repo, number, head_oid, state, is_draft, overall, checks, mergeable, maintainer_can_modify, fetched_at)
         VALUES ('app', ?, ?, 'OPEN', 0, ?, ?, ?, ?, ?)`).run(n, head, o.ci ?? "success", o.ci === "failure" ? JSON.stringify([{ name: CHECK, state: "failure" }]) : "[]", o.mergeable ?? "MERGEABLE", o.canModify === false ? 0 : 1, T1);
@@ -195,9 +195,9 @@ export function world() {
     issue(n: number, o: IssueOpts = {}) {
       db.prepare("INSERT INTO items (repo, number, kind, state, title, body, author, created_at, updated_at) VALUES ('app', ?, 'issue', 'OPEN', ?, ?, 'someone', ?, ?)")
         .run(n, o.title ?? "Panic when the slice is empty", o.body ?? "first() indexes element 0.", T0, T0);
-      db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'jev', 'r1', ?, ?, ?, ?)`)
+      db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'basal', 'r1', ?, ?, ?, ?)`)
         .run(n, T0, o.label ?? "bugfix", JSON.stringify(o.flags ?? []), JSON.stringify({ top: 0.97, ...(o.flags?.includes("needs decision") ? { needs_decision: 0.9 } : {}) }));
-      if (o.impact) db.prepare("INSERT INTO item_priority (repo, number, text_hash, impact, score, model, at) VALUES ('app', ?, 'h', ?, 0, 'jev', ?)").run(n, o.impact, T0);
+      if (o.impact) db.prepare("INSERT INTO item_priority (repo, number, text_hash, impact, score, model, at) VALUES ('app', ?, 'h', ?, 0, 'basal', ?)").run(n, o.impact, T0);
       live.set(n, { head: "", state: "OPEN", mergeable: "UNKNOWN", ci: "success", authors: [], assignees: [] });
       return w;
     },
@@ -242,7 +242,7 @@ export function world() {
     },
 
     // ---- models ----
-    /** Installs a model runner: it gets each prompt's text and returns the reply text, or undefined for "no reply". One enabled Claude account is set up. */
+    /** Installs a model runner: it gets each prompt's text (a basal request body too) and returns the reply text, or undefined for "no reply". One enabled Claude account is set up. */
     models(reply: (input: string) => string | undefined) {
       const dir = tmpdir("box");
       mkdirSync(join(dir, "usage"));
@@ -251,12 +251,14 @@ export function world() {
       process.env.AUTOCRAFT_USAGE_DIR = join(dir, "usage");
       syncAccounts(db);
       db.prepare("UPDATE claude_accounts SET enabled = 1 WHERE id = 't'").run();
-      restore.push(setRunner(async (_cmd, _args, input) => {
+      const answer = (input: string) => {
         const text = reply(input);
         return text === undefined
           ? { code: 1, stdout: "", stderr: "no reply" }
           : { code: 0, stdout: JSON.stringify({ type: "result", result: text, usage: { input_tokens: 100, output_tokens: 10 } }), stderr: "" };
-      }));
+      };
+      restore.push(setRunner(async (_cmd, _args, input) => answer(input)));
+      restore.push(setBasalRunner(async (body) => answer(body)));
       return w;
     },
 

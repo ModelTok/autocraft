@@ -24,12 +24,12 @@ const topOf = (s: string | null): number | null => {
 
 // rows: the classifications of one item in one run.
 export function settleRows(rows: ClsRow[]): Settled | null {
-  const jev = rows.find((r) => r.classifier === "jev");
-  // A Haiku row without a Jev row counts only when Haiku classified alone (it carries the item's input hash).
-  const haiku = rows.find((r) => r.classifier === "haiku" && (jev || r.input_hash != null));
-  if (!jev?.type_label && !haiku?.type_label) return null;
+  const basal = rows.find((r) => r.classifier === "basal");
+  // A Haiku row without a basal row counts only when Haiku classified alone (it carries the item's input hash).
+  const haiku = rows.find((r) => r.classifier === "haiku" && (basal || r.input_hash != null));
+  if (!basal?.type_label && !haiku?.type_label) return null;
   const s = settle(
-    jev?.type_label ? { label: jev.type_label, flags: flagList(jev.flags), top: topOf(jev.probs), nd: needsDecisionOf(jev.probs), sec: securityOf(jev.probs) } : null,
+    basal?.type_label ? { label: basal.type_label, flags: flagList(basal.flags), top: topOf(basal.probs), nd: needsDecisionOf(basal.probs), sec: securityOf(basal.probs) } : null,
     haiku?.type_label ? { label: haiku.type_label, flags: flagList(haiku.flags) } : null,
   );
   if (s.status !== "settled" || s.label === null) return null;
@@ -37,6 +37,6 @@ export function settleRows(rows: ClsRow[]): Settled | null {
 }
 
 export function forRun(rows: ClsRow[], runId?: string): ClsRow[] {
-  const id = runId ?? rows.find((r) => r.classifier === "jev" || (r.classifier === "haiku" && r.input_hash != null))?.run_id;
+  const id = runId ?? rows.find((r) => r.classifier === "basal" || (r.classifier === "haiku" && r.input_hash != null))?.run_id;
   return id === undefined ? [] : rows.filter((r) => r.run_id === id);
 }

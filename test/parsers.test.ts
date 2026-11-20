@@ -155,7 +155,7 @@ describe("GitHub payloads", () => {
   });
 
   test("the gate call of a CI workflow: its ref and inputs; a workflow without the gate has none", () => {
-    const yml = ["name: CI", "on: [pull_request]", "jobs:", "  gate:", "    uses: storytold/craft-common-actions/.github/workflows/gate.yml@v3", "    with:", "      test-args: \"--workspace\"", "      os: ubuntu-latest", ""].join("\n");
+    const yml = ["name: CI", "on: [pull_request]", "jobs:", "  gate:", "    uses: ModelTok/craft-common-actions/.github/workflows/gate.yml@v3", "    with:", "      test-args: \"--workspace\"", "      os: ubuntu-latest", ""].join("\n");
     assert.deepEqual(parseGateCall(yml), { ref: "v3", with: { "test-args": "--workspace", os: "ubuntu-latest" } });
     assert.equal(parseGateCall("name: CI\njobs:\n  build:\n    runs-on: ubuntu-latest\n"), null);
   });

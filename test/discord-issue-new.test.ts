@@ -57,7 +57,7 @@ const ix = new Interactions(rest, (l) => assert.fail(l));
 const pick: Ask = async () => (pickReply);
 let pickReply = JSON.stringify({ picks: [{ ref: "photocraft#1", reason: "Same problem" }] });
 const calls: { id: string; input: unknown }[] = [];
-let draftReply: string | null = JSON.stringify({ title: "WebP export ignores quality", body: "Quality has no effect. See https://evil.example/x and https://github.com/storytold/photocraft/issues/1 ping @everyone <@123>" });
+let draftReply: string | null = JSON.stringify({ title: "WebP export ignores quality", body: "Quality has no effect. See https://evil.example/x and https://github.com/ModelTok/photocraft/issues/1 ping @everyone <@123>" });
 let questionsReply: string | null = JSON.stringify({ ask: ["steps", "env", "bogus"] });
 const ask = (async (_db: unknown, id: string, input: unknown) => { calls.push({ id, input }); return id === "discord.issue-questions" ? questionsReply : draftReply; }) as IssueAsk;
 const search = new Search({ db, embedder, index: new VectorIndex(embedder), log: () => {}, ask: pick });
@@ -90,11 +90,11 @@ const draftUrl = (b: EditBody): URL => new URL(rows(b).find((x) => x.label === "
 
 before(async () => {
   db.prepare("INSERT OR IGNORE INTO tracked_repos (name) VALUES ('photocraft'), ('vectorcraft'), ('secret')").run();
-  db.prepare("INSERT INTO repos (name, owner, visibility) VALUES ('photocraft', 'storytold', 'public'), ('vectorcraft', 'storytold', 'public'), ('secret', 'storytold', 'private') ON CONFLICT(name) DO UPDATE SET visibility = excluded.visibility").run();
+  db.prepare("INSERT INTO repos (name, owner, visibility) VALUES ('photocraft', 'ModelTok', 'public'), ('vectorcraft', 'ModelTok', 'public'), ('secret', 'ModelTok', 'private') ON CONFLICT(name) DO UPDATE SET visibility = excluded.visibility").run();
   db.prepare("INSERT INTO release_apps (repo, name, stars, updated_at) VALUES ('vectorcraft', 'Vector Studio', 0, '2026-01-01')").run();
   db.prepare("INSERT INTO discord_channels (channel_id, guild_id, guild_name, name, watched, default_repo) VALUES ('c1', 'g1', 'G', 'dev', 1, 'photocraft')").run();
   const recent = new Date().toISOString();
-  db.prepare("INSERT INTO items (repo, number, kind, state, title, body, url) VALUES ('photocraft', 1, 'issue', 'OPEN', 'Export to WebP ignores the quality setting', '', 'https://github.com/storytold/photocraft/issues/1')").run();
+  db.prepare("INSERT INTO items (repo, number, kind, state, title, body, url) VALUES ('photocraft', 1, 'issue', 'OPEN', 'Export to WebP ignores the quality setting', '', 'https://github.com/ModelTok/photocraft/issues/1')").run();
   db.prepare("INSERT INTO item_embeddings (repo, number, model, hash, vec, at) VALUES ('photocraft', 1, 'fake', 'h', ?, ?)").run(toBlob((await embedder.embed(["Export to WebP ignores the quality setting"], "item"))[0]!), recent);
 });
 
@@ -122,7 +122,7 @@ describe("search and filing flow", () => {
 
   test("None: questions from the fixed list, then a checked draft with a type select; File it shows each result; Edit and the link work", async () => {
     calls.length = 0;
-    draftReply = JSON.stringify({ title: "WebP export ignores quality", kind: "feature", body: "Quality has no effect. See https://evil.example/x and https://github.com/storytold/photocraft/issues/1 ping @everyone <@123>" });
+    draftReply = JSON.stringify({ title: "WebP export ignores quality", kind: "feature", body: "Quality has no effect. See https://evil.example/x and https://github.com/ModelTok/photocraft/issues/1 ping @everyone <@123>" });
     await searchCmd("u4");
     await submitForm("u4", "photocraft", "webp export quality slider does nothing");
     const noneId = rows(rest.edits[0]!).find((x) => x.label === NONE)!.custom_id!;
@@ -136,7 +136,7 @@ describe("search and filing flow", () => {
     const select = rows(out).find((x) => x.options)!;
     assert.deepEqual(select.options!.map((o) => [o.value, !!o.default]), [["bug", false], ["feature", true]]);
     const u = draftUrl(out);
-    assert.equal(`${u.origin}${u.pathname}`, "https://github.com/storytold/photocraft/issues/new");
+    assert.equal(`${u.origin}${u.pathname}`, "https://github.com/ModelTok/photocraft/issues/new");
     assert.equal(u.searchParams.get("title"), "WebP export ignores quality");
     const body = u.searchParams.get("body")!;
     assert.match(body, /issues\/1/);
@@ -163,10 +163,10 @@ describe("search and filing flow", () => {
     await press("u4", fileId);
     assert.match(rest.edits[0]!.content!, /filed 3 issues today/);
     assert.equal(rows(rest.edits[0]!)[0]!.label, "Open on GitHub instead");
-    fileResult = { status: "filed", number: 7, url: "https://github.com/storytold/photocraft/issues/7", login: "mira" };
+    fileResult = { status: "filed", number: 7, url: "https://github.com/ModelTok/photocraft/issues/7", login: "mira" };
     await press("u4", fileId);
     assert.equal(rest.edits[0]!.content, "Filed as photocraft#7");
-    assert.equal(rows(rest.edits[0]!)[0]!.url, "https://github.com/storytold/photocraft/issues/7");
+    assert.equal(rows(rest.edits[0]!)[0]!.url, "https://github.com/ModelTok/photocraft/issues/7");
     assert.deepEqual(filed.map((f) => [f.repo, f.kind, f.title]), [["photocraft", "bug", "WebP export ignores quality"], ["photocraft", "bug", "WebP export ignores quality"], ["photocraft", "bug", "WebP export ignores quality"]]);
     assert.equal(filed[0]!.reporter, keys.hash("author", "u4"));
     await press("u4", fileId);
@@ -241,8 +241,8 @@ describe("search and filing flow", () => {
 });
 
 test("the sanitizer removes foreign link targets and hidden comments", () => {
-  const repos = [{ owner: "storytold", name: "photocraft" }];
-  const out = sanitize("[a](//evil.example/x) ![b](/rel.png) [c](https://github.com/storytold/photocraft/issues/2) <!-- hidden", repos);
+  const repos = [{ owner: "ModelTok", name: "photocraft" }];
+  const out = sanitize("[a](//evil.example/x) ![b](/rel.png) [c](https://github.com/ModelTok/photocraft/issues/2) <!-- hidden", repos);
   assert.doesNotMatch(out, /evil|rel\.png|hidden/);
   assert.match(out, /issues\/2/);
   assert.equal(sanitize("x <!-- c --> y", repos), "x  y");

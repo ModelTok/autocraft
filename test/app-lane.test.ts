@@ -26,9 +26,9 @@ test("app identity: the installation token is the whole child environment; legac
   process.env.GITHUB_TOKEN = BOX;
   process.env.GH_TOKEN = BOX;
   let mintFails = false;
-  const w = { db, login: "t", mint: async () => { if (mintFails) throw new AppNotInstalledError("storytold"); return APP; } };
+  const w = { db, login: "t", mint: async () => { if (mintFails) throw new AppNotInstalledError("ModelTok"); return APP; } };
   const seen: (ExecOpts | undefined)[] = [];
-  const exec = async (_c: string, _a: string[], o?: ExecOpts) => { seen.push(o); return { code: 0, stdout: "https://github.com/storytold/lane/issues/7#issuecomment-1", stderr: "" }; };
+  const exec = async (_c: string, _a: string[], o?: ExecOpts) => { seen.push(o); return { code: 0, stdout: "https://github.com/ModelTok/lane/issues/7#issuecomment-1", stderr: "" }; };
   const gitSeen: unknown[] = [];
   const git = { git: async (_a: string[], o?: unknown) => { gitSeen.push(o); return { code: 0, stdout: "", stderr: "" }; } };
   const comment = (as: string) => ghComment(w, item(as), exec, "act-comment", { repo: "lane", number: 7, pr: false }, note, "hi");
@@ -50,13 +50,13 @@ test("app identity: the installation token is the whole child environment; legac
   await comment("user:example-user");
   assert.equal(seen.pop()!.env!.GH_TOKEN, APP);
 
-  await pushOwnBranch(w, repoGrant, git as never, "batch-push", { repo: "lane", remote: "storytold/lane", branch: "autocraft/x", sha: "a".repeat(40) });
+  await pushOwnBranch(w, repoGrant, git as never, "batch-push", { repo: "lane", remote: "ModelTok/lane", branch: "autocraft/x", sha: "a".repeat(40) });
   assert.equal((gitSeen.pop() as { app: { env: Record<string, string> } }).app.env.GH_TOKEN, APP);
 
   mintFails = true;
   const r = await comment("app");
   assert.equal(r.code, 1);
-  assert.match(r.stderr, /not installed on storytold/);
+  assert.match(r.stderr, /not installed on ModelTok/);
   assert.equal(seen.length, 0);
   const row = db.prepare("SELECT details FROM audit WHERE action = 'act-comment' ORDER BY rowid DESC LIMIT 1").get() as { details: string };
   assert.equal(JSON.parse(row.details).state, "failed");

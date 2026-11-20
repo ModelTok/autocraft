@@ -67,9 +67,9 @@ function fresh(o: Opts = {}): DatabaseSync {
 
 function issue(db: DatabaseSync, n: number, title: string, body: string, o: Opts = {}): void {
   db.prepare("INSERT INTO items (repo, number, kind, state, title, body, author, created_at, updated_at) VALUES ('app', ?, 'issue', 'OPEN', ?, ?, 'someone', ?, ?)").run(n, title, body, T0, T0);
-  db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'jev', 'r1', ?, ?, ?, ?)`)
+  db.prepare(`INSERT INTO classifications (repo, number, classifier, run_id, at, type_label, flags, probs) VALUES ('app', ?, 'basal', 'r1', ?, ?, ?, ?)`)
     .run(n, T0, o.label ?? "bugfix", JSON.stringify(o.flags ?? []), JSON.stringify({ top: 0.97, ...(o.flags?.includes("needs decision") ? { needs_decision: o.needsDecision ?? 0.9 } : {}) }));
-  if (o.level !== undefined) db.prepare("INSERT INTO item_priority (repo, number, text_hash, impact, score, model, at) VALUES ('app', ?, 'h', ?, 0, 'jev', ?)").run(n, o.level, T0);
+  if (o.level !== undefined) db.prepare("INSERT INTO item_priority (repo, number, text_hash, impact, score, model, at) VALUES ('app', ?, 'h', ?, 0, 'basal', ?)").run(n, o.level, T0);
   if (o.score !== undefined) db.prepare("INSERT INTO item_rank (repo, number, score, breakdown, computed_at) VALUES ('app', ?, ?, '{}', ?)").run(n, o.score, T0);
 }
 
@@ -167,13 +167,13 @@ function world(o: Opts & { check?: string | null; triage?: string; patches?: (st
       if (args[0] === "api" && args[1]!.includes("/forks")) return out(forked ? `${LOGIN}/app\n` : "");
       if (args[0] === "repo") { forked = true; return out(""); }
       if (args[0] === "pr" && args[1] === "list") return out(o.existingPr ? `${o.existingPr}\n` : "");
-      if (args[0] === "pr") { log.push(`pr ${args.join(" ")} :: ${opt.input}`); return out("https://github.com/storytold/app/pull/12\n"); }
+      if (args[0] === "pr") { log.push(`pr ${args.join(" ")} :: ${opt.input}`); return out("https://github.com/ModelTok/app/pull/12\n"); }
       if (args[0] === "issue") { log.push(`comment ${opt.input}`); return out(""); }
       return out("", 1);
     }
     const urlAt = args.findIndex((a) => a.startsWith("https://github.com/"));
     if (urlAt >= 0) {
-      const target = args[urlAt]!.includes("/storytold/") ? upstream : fork;
+      const target = args[urlAt]!.includes("/ModelTok/") ? upstream : fork;
       if (args.includes("push")) log.push(`push ${args.filter((a) => a.startsWith("--")).join(" ")} ${args.at(-1)}`);
       const a2 = args.map((a, i) => (i === urlAt ? target : a)).filter((a, i, all) => !(a === "-c" && all[i + 1] === "protocol.file.allow=never") && a !== "protocol.file.allow=never");
       return exec("git", a2, opt);
@@ -290,7 +290,7 @@ describe("fix step assignment", () => {
 });
 
 describe("claim comment of an attempt that ends without a PR", () => {
-  const URL = "https://github.com/storytold/app/issues/5#issuecomment-777";
+  const URL = "https://github.com/ModelTok/app/issues/5#issuecomment-777";
   function claimed(state: string, prUrl: string | null, author = LOGIN) {
     const w = world();
     w.db.prepare("INSERT INTO fix_attempts (repo, number, main_sha, text_hash, state, round, pr_url, created_at, updated_at) VALUES ('app', 5, ?, 'h', ?, 1, ?, ?, ?)").run(w.sha, state, prUrl, T0, T0);
@@ -321,7 +321,7 @@ describe("claim comment of an attempt that ends without a PR", () => {
     await run(bot.w);
     assert.deepEqual(bot.api, ["get", "delete"]);
 
-    const taken = claimed("opened", "https://github.com/storytold/app/pull/12");
+    const taken = claimed("opened", "https://github.com/ModelTok/app/pull/12");
     await run(taken.w);
     assert.deepEqual(taken.api, []);
   });

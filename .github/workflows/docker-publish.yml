@@ -1,8 +1,8 @@
 name: Docker publish
 
-# Publishes the image the cluster's `autocraft` Deployment runs. The build lives
-# in the shared reusable workflow, so this repo only owns the triggers, the image
-# names and the layer cache.
+# Publishes the image the `autocraft` deployment runs, to ghcr.io/modeltok/autocraft. The build is
+# plain `docker buildx` so this fork needs no shared reusable workflow and no actions beyond the
+# two the lockfile already pins.
 on:
   push:
     branches: [main]
@@ -17,21 +17,48 @@ concurrency:
   group: docker-publish-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  IMAGE: ghcr.io/modeltok/autocraft
+
 jobs:
   publish:
-    uses: storytold/craft-common-actions/.github/workflows/docker-build.yml@main
-    secrets: inherit
-    with:
-      images: |
-        ghcr.io/storytold/autocraft
-        docker.io/storytold/autocraft
-      dockerfile: deploy/container/Dockerfile
-      # The image is based on dhi.io/node, which needs a Docker Hub login.
-      dhi-login: true
-      # The dashboard shows this commit on its prompts page; there is no .git in
-      # the image.
-      build-args: |
-        SOURCE_COMMIT=${{ github.sha }}
-      cache-from: type=gha
-      cache-to: type=gha,mode=max
-      timeout-minutes: 45
+    name: Build and push the image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@v2.22.4
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Log in to ghcr.io
+        env:
+          TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: printf '%s' "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+      # The image is based on dhi.io/node, which needs a Docker Hub login: set the repository secrets
+      # DOCKERHUB_USERNAME and DOCKERHUB_TOKEN.
+      - name: Log in to dhi.io
+        env:
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$USERNAME" ] || [ -z "$TOKEN" ]; then
+            echo "::error::DOCKERHUB_USERNAME and DOCKERHUB_TOKEN are needed to pull the dhi.io base image"
+            exit 1
+          fi
+          printf '%s' "$TOKEN" | docker login dhi.io -u "$USERNAME" --password-stdin
+      - name: Build and push
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          tags=(--tag "$IMAGE:sha-${SHA:0:12}")
+          if [ "$REF_TYPE" = "tag" ]; then tags+=(--tag "$IMAGE:$REF_NAME"); fi
+          if [ "$REF_TYPE" = "branch" ] && [ "$REF_NAME" = "main" ]; then tags+=(--tag "$IMAGE:latest"); fi
+          docker buildx build --file deploy/container/Dockerfile \
+            --build-arg "SOURCE_COMMIT=$SHA" \
+            "${tags[@]}" --push .

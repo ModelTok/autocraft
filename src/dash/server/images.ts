@@ -4,7 +4,7 @@
 // in mirrored text of tracked repos (the `repos` lookup, see image-index.ts);
 // redirects are followed by hand and re-checked; the bot's token goes only to
 // github.com. Upstream fetches are limited to a few at a time, 5 MB each.
-import { ownerOf } from "../../owners.ts";
+import { DEFAULT_OWNER, ownerOf } from "../../owners.ts";
 import { readEnv } from "../../github/read.ts";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -32,7 +32,7 @@ const SOURCES: { host: string; path: RegExp; token?: boolean }[] = [
   { host: "github.com", path: /^\/user-attachments\/assets\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, token: true },
   { host: "private-user-images.githubusercontent.com", path: /^\/./ },
   { host: "user-images.githubusercontent.com", path: /^\/./ },
-  { host: "raw.githubusercontent.com", path: /^\/storytold\/./ },
+  { host: "raw.githubusercontent.com", path: new RegExp(`^/${DEFAULT_OWNER}/.`, "i") },
   { host: "avatars.githubusercontent.com", path: /^\/./ },
 ];
 // GitHub redirects public attachments to this bucket; it is never requested directly.

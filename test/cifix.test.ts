@@ -176,7 +176,7 @@ function world(opts: { log?: string; reply?: string | null; check?: string | nul
       if (args[0] === "api") return { code: 0, stdout: JSON.stringify({ login: "pipeline-bot", id: 42, node_id: "U42" }), stderr: "" };
       if (args[0] === "run") { log.push(`rerun ${args[2]}`); return { code: 0, stdout: "", stderr: "" }; }
       log.push(`comment: ${o.input}`);
-      if (opts.commentUnsent) return { code: 1, stdout: "", stderr: "app identity: no installation token for storytold/app: HTTP 500", sent: false };
+      if (opts.commentUnsent) return { code: 1, stdout: "", stderr: "app identity: no installation token for ModelTok/app: HTTP 500", sent: false };
       return opts.commentFails ? { code: 1, stdout: "", stderr: "HTTP 403" } : { code: 0, stdout: "", stderr: "" };
     }
     const net = args.findIndex((a) => a.startsWith("https://github.com/"));
@@ -194,8 +194,8 @@ function world(opts: { log?: string; reply?: string | null; check?: string | nul
     gh: async (args) => {
       if (args[0] === "api" && args[1]!.includes("/pulls/")) return `${BASE}\n`;
       if (args[0] === "api") return JSON.stringify({ check_runs: opts.checkRuns ?? [
-        { name: "gate / test", status: "completed", conclusion: opts.conclusion ?? "failure", completed_at: opts.completedAt ?? "2026-01-03T12:00:00Z", details_url: "https://github.com/storytold/app/actions/runs/11/job/5" },
-        { name: "optional / lint", status: "completed", conclusion: "success", details_url: "https://github.com/storytold/app/actions/runs/12/job/6" },
+        { name: "gate / test", status: "completed", conclusion: opts.conclusion ?? "failure", completed_at: opts.completedAt ?? "2026-01-03T12:00:00Z", details_url: "https://github.com/ModelTok/app/actions/runs/11/job/5" },
+        { name: "optional / lint", status: "completed", conclusion: "success", details_url: "https://github.com/ModelTok/app/actions/runs/12/job/6" },
       ] });
       log.push("read-log");
       return opts.log ?? CODE_LOG;
