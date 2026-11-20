@@ -253,6 +253,8 @@ const ADDED_COLUMNS: [table: string, column: string, type: string][] = [
   ["build_envs", "confidential", "INTEGER NOT NULL DEFAULT 0"],
   ["build_envs", "confidential_since", "TEXT"],
   ["build_envs", "confidential_online_at", "TEXT"],
+  // Set by an operator: the environment may take the default owner's private repos (src/build/private.ts).
+  ["build_envs", "private_code", "INTEGER NOT NULL DEFAULT 0"],
   ["security_findings", "env_wait_at", "TEXT"],
   ["mcp_tokens", "kind", "TEXT NOT NULL DEFAULT 'connector'"],
   ["mcp_tokens", "machine", "TEXT"],

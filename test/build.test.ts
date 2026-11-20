@@ -11,6 +11,7 @@ import { authenticate, createEnv, hello, listEnvs, rotateKey, updateEnv } from "
 import { appendLog, MAX_LOG_BYTES, cancelTask, claim, createTask, getTask } from "../src/build/tasks.ts";
 import { startWorkerServer } from "../src/build/worker-api.ts";
 import { connect } from "../src/db.ts";
+import { DEFAULT_OWNER } from "../src/owners.ts";
 import { apiRoutes } from "../src/dash/api/index.ts";
 import { loadConfig } from "../src/dash/server/config.ts";
 import { startServer } from "../src/dash/server/index.ts";
@@ -266,6 +267,35 @@ describe("dashboard API", () => {
     assert.equal((await v.send(`/api/tasks/${id}/artifacts/..%2F..%2Fbuild.db`)).status, 404);
     const hidden = task({ repo: "vault" });
     assert.equal((await v.send(`/api/tasks/${hidden}/artifacts/x.txt`)).status, 404);
+  });
+
+  test("a maintainer without access to a private repo gets neither its tasks, its log nor its artifacts", async () => {
+    clear();
+    db.exec("INSERT OR IGNORE INTO main.tracked_repos (name, pipeline) VALUES ('secret-app', 1)");
+    db.exec("INSERT INTO main.repos (name, visibility) VALUES ('secret-app', 'private')");
+    createEnv(db, { id: "private-box", label: "private-box", kind: "remote", slots: 2, privateCode: true }, "op");
+    const { key } = rotateKey(db, "private-box", "op");
+    hello(db, "private-box", { version: "1.0", capabilities: { ...CAPS, privateOwner: DEFAULT_OWNER }, slots: 2 });
+    const id = task({ repo: "secret-app" });
+    assert.deepEqual(claim(db, "private-box", 1).tasks.map((t) => [t.id, t.private]), [[id, { owner: DEFAULT_OWNER }]]);
+    appendLog(db, "private-box", id, "build", "private build output\n");
+    const w = await startWorkerServer({ db, listen: "127.0.0.1:0" });
+    try {
+      const put = await fetch(`${w.url}/worker/tasks/${id}/artifacts/secret.txt`, { method: "PUT", headers: { authorization: `Bearer ${key}` }, body: "private artifact" });
+      assert.equal(put.status, 200);
+    } finally {
+      await w.close();
+    }
+    const m = await signedIn("maint1");
+    assert.equal((await m.get<TaskPage>("/api/tasks")).tasks.some((t) => t.repo === "secret-app"), false);
+    assert.equal((await m.send("/api/tasks?repo=secret-app")).status, 404);
+    const detail = await m.send(`/api/tasks/${id}`);
+    assert.equal(detail.status, 404);
+    assert.doesNotMatch(await detail.text(), /private build output/);
+    assert.equal((await m.send(`/api/tasks/${id}/artifacts/secret.txt`)).status, 404);
+    const o = await signedIn("boss");
+    assert.match((await o.get<BuildTaskDetail>(`/api/tasks/${id}`)).logTail ?? "", /private build output/);
+    assert.equal(await (await o.send(`/api/tasks/${id}/artifacts/secret.txt`)).text(), "private artifact");
   });
 });
 

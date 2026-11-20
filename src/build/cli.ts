@@ -8,11 +8,12 @@ import type { EnvKind } from "../../web/src/api/types.ts";
 import { connect } from "../db.ts";
 import { trackedNames } from "../repos.ts";
 import { BuildError, createEnv, KINDS, listEnvs, rotateKey, updateEnv } from "./envs.ts";
+import { buildableRepo } from "./private.ts";
 import { cancelTask, createTask, getTaskDetail, listTasks, memorySummary } from "./tasks.ts";
 
 const USAGE = `usage: autocraft-server envs list
-       autocraft-server envs add <id> --label TEXT --kind local-sandbox|remote --slots N [--confidential yes|no] (--out FILE | --print)
-       autocraft-server envs set <id> [--label TEXT] [--enabled yes|no] [--slots N] [--confidential yes|no]
+       autocraft-server envs add <id> --label TEXT --kind local-sandbox|remote --slots N [--confidential yes|no] [--private yes|no] (--out FILE | --print)
+       autocraft-server envs set <id> [--label TEXT] [--enabled yes|no] [--slots N] [--confidential yes|no] [--private yes|no]
        autocraft-server envs rotate-key <id> (--out FILE | --print)
        autocraft-server tasks list [--state S] [--env ID] [--repo NAME] [--limit N]
        autocraft-server tasks show <id>
@@ -95,16 +96,17 @@ function envs(args: string[]): void {
   if (sub === "list") {
     for (const e of listEnvs(db)) {
       const c = e.capabilities;
-      console.log(`${e.id.padEnd(16)} ${safe(e.label).padEnd(24)} ${e.kind.padEnd(14)} ${e.enabled ? (e.online ? "online " : "offline") : "disabled"} ${e.running}/${e.slots} slots${e.confidential ? "  confidential" : ""}  ${c ? `${c.os}/${c.arch} ${c.cpus} cpu ${c.memGb} GB ${c.toolchains.join(",")}` : "no report yet"}${e.pausedReason ? `  paused: ${safe(e.pausedReason)}` : ""}`);
+      console.log(`${e.id.padEnd(16)} ${safe(e.label).padEnd(24)} ${e.kind.padEnd(14)} ${e.enabled ? (e.online ? "online " : "offline") : "disabled"} ${e.running}/${e.slots} slots${e.confidential ? "  confidential" : ""}${e.privateCode ? `  private code${c?.privateOwner ? ` (${c.privateOwner})` : " (no token reported)"}` : ""}  ${c ? `${c.os}/${c.arch} ${c.cpus} cpu ${c.memGb} GB ${c.toolchains.join(",")}` : "no report yet"}${e.pausedReason ? `  paused: ${safe(e.pausedReason)}` : ""}`);
     }
   } else if (sub === "add") {
     const { pos, opt } = options(rest, ["print"]);
     if (!pos[0] || !opt.get("label") || !opt.get("kind") || !opt.get("slots")) die(USAGE);
     if (!KINDS.includes(opt.get("kind") as EnvKind)) die(`--kind must be ${KINDS.join(" or ")}`);
     const confidential = yesNo(opt, "confidential");
+    const privateCode = yesNo(opt, "private");
     const f = keyFile(opt);
     try {
-      const { env, key } = (() => createEnv(db, { id: pos[0], label: opt.get("label"), kind: opt.get("kind"), slots: Number(opt.get("slots")), ...(confidential !== undefined && { confidential }) }, "cli"))();
+      const { env, key } = (() => createEnv(db, { id: pos[0], label: opt.get("label"), kind: opt.get("kind"), slots: Number(opt.get("slots")), ...(confidential !== undefined && { confidential }), ...(privateCode !== undefined && { privateCode }) }, "cli"))();
       f.write(key);
       console.log(`environment ${env.id} created`);
     } catch (e) {
@@ -122,9 +124,11 @@ function envs(args: string[]): void {
       const v = yesNo(opt, name);
       if (v !== undefined) input[name] = v;
     }
+    const privateCode = yesNo(opt, "private");
+    if (privateCode !== undefined) input.privateCode = privateCode;
     if (!Object.keys(input).length) die(USAGE);
     const e = run(() => updateEnv(db, pos[0], input, "cli"));
-    console.log(`${e.id}: ${safe(e.label)}, ${e.enabled ? "enabled" : "disabled"}, ${e.slots} slots${e.confidential ? ", confidential" : ""}`);
+    console.log(`${e.id}: ${safe(e.label)}, ${e.enabled ? "enabled" : "disabled"}, ${e.slots} slots${e.confidential ? ", confidential" : ""}${e.privateCode ? ", private code" : ""}`);
   } else if (sub === "rotate-key") {
     const { pos, opt } = options(rest, ["print"]);
     if (!pos[0]) die(USAGE);
@@ -195,7 +199,7 @@ function enqueueTest(db: DatabaseSync, args: string[]): void {
   if (!OS.includes(os)) die(`--env-requires must be one of ${OS.join(", ")}`);
   if (!trackedNames(db).includes(repo)) die(`${repo} is not a tracked repo`);
   const vis = (db.prepare("SELECT visibility FROM main.repos WHERE name = ?").get(repo) as { visibility: string | null } | undefined)?.visibility;
-  if (vis?.toLowerCase() !== "public") die(`${repo} is not public; workers fetch source anonymously`);
+  if (!buildableRepo(db, repo)) die(vis?.toLowerCase() === "public" ? `${repo} cannot be built` : `${repo} is not public, and no enabled environment takes its private code`);
   const id = run(() => createTask(db, {
     step: "smoke-test", repo, headSha: sha, requires: { os: os as "linux" | "macos" | "windows" },
     plan: [

@@ -48,6 +48,7 @@ import { staleReviews } from "../review/discussion.ts";
 import { nextUtcMidnight, reviewHolds } from "../review/gate.ts";
 import { scopeAnswers, unsettledScope } from "../review/candidates.ts";
 import { NOT_RUST_REASON, PRIVATE_REASON, cachedRust } from "../verify/candidates.ts";
+import { buildableRepo } from "../build/private.ts";
 import { CIFIX_PUSH_STATES, CIFIX_TRY_STATES, MAX_FAILURES, labelWithScopeAnswer, sizeOf, unsentAsk } from "./rules.ts";
 import type { AssignFacts, PrFacts, PrTier } from "./plan.ts";
 import { settledBySql } from "../settlers.ts";
@@ -198,14 +199,14 @@ export function loadPrFacts(db: DatabaseSync, opts: LoadOptions = {}): PrFacts[]
   const queued = rows.filter((r) => r.in_pilot && r.not_integration && (r.r_verdict === "take" || r.r_verdict === "take-fix") && r.author);
   const tiers = tiersOf(db, queued.map((r) => ({ login: r.author!, id: r.author_id })));
 
-  const repoMemo = new Map<string, { f: PrFacts["repoFacts"]; pub: boolean; longLived: LongLived; defaultBranch: string | null }>();
+  const repoMemo = new Map<string, { f: PrFacts["repoFacts"]; buildable: boolean; longLived: LongLived; defaultBranch: string | null }>();
   const repoOf = (repo: string) => {
     let m = repoMemo.get(repo);
     if (!m) {
       m = {
         f: { mergeApproved: !!mergeApprovalOf(db, repo), pushApproved: pushApprovalOf(db, repo) !== null, commentApproved: commentApprovalOf(db, repo) !== null, ciApproved: ciApprovalOf(db, repo) !== null,
           noCi: repoHasNoCi(db, repo), mainRed: mainRed.has(repo) },
-        pub: !!db.prepare("SELECT 1 FROM repos WHERE name = ? AND visibility = 'public'").get(repo),
+        buildable: buildableRepo(db, repo),
         longLived: longLivedOf(db, repo),
         defaultBranch: defaultBranchOf(db, repo),
       };
@@ -416,7 +417,7 @@ export function loadPrFacts(db: DatabaseSync, opts: LoadOptions = {}): PrFacts[]
     base.verification = (verifs.get(r.repo, r.number, r.r_head) as PrFacts["verification"] | undefined) ?? null;
     if (base.verification?.state === "failed" || base.verification?.state === "error") base.verifyOverride = verifyOverride(db, r.repo, r.number, r.r_head);
     if (!base.verification || base.verification.state === "stale") {
-      base.verifyUnavailable = !rf.pub ? PRIVATE_REASON : rf.f.noCi && cachedRust(r.repo, r.r_head) === false ? NOT_RUST_REASON : null;
+      base.verifyUnavailable = !rf.buildable ? PRIVATE_REASON : rf.f.noCi && cachedRust(r.repo, r.r_head) === false ? NOT_RUST_REASON : null;
     }
     if (r.state === "OPEN" && base.mergeable !== "MERGEABLE" && base.mergeable !== "CONFLICTING") base.unknown = unknownOf(db, r.repo, r.number, r.r_head);
     const id = mergeDecisionId(r.repo, r.number, r.r_head);

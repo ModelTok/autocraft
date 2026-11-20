@@ -11,22 +11,22 @@ const HOUR = 3_600_000;
 
 const envs: BuildEnv[] = [
   {
-    id: "sandbox", label: "Local sandbox", kind: "local-sandbox", enabled: true, online: true, lastSeenAt: iso(4_000), slots: 2, running: 0, version: "0.4.1", pausedReason: null, confidential: false,
+    id: "sandbox", label: "Local sandbox", kind: "local-sandbox", enabled: true, online: true, lastSeenAt: iso(4_000), slots: 2, running: 0, version: "0.4.1", pausedReason: null, confidential: false, privateCode: false,
     capabilities: { os: "linux", arch: "x86_64", cpus: 16, memGb: 48, diskGb: 210, display: false, gpu: false, toolchains: ["node-24", "rust-stable"] },
   },
   {
-    id: "build-a", label: "Build server A", kind: "remote", enabled: true, online: true, lastSeenAt: iso(9_000), slots: 4, running: 0, version: "0.4.1", pausedReason: null, confidential: false,
+    id: "build-a", label: "Build server A", kind: "remote", enabled: true, online: true, lastSeenAt: iso(9_000), slots: 4, running: 0, version: "0.4.1", pausedReason: null, confidential: false, privateCode: false,
     capabilities: { os: "linux", arch: "x86_64", cpus: 64, memGb: 256, diskGb: 1800, display: true, gpu: true, toolchains: ["java-21", "node-24", "rust-stable", "rust-nightly"] },
   },
   {
-    id: "build-b", label: "Build server B", kind: "remote", enabled: true, online: true, lastSeenAt: iso(12_000), slots: 4, running: 0, version: "0.4.0", pausedReason: "disk 12 GB free (needs 20)", confidential: false,
+    id: "build-b", label: "Build server B", kind: "remote", enabled: true, online: true, lastSeenAt: iso(12_000), slots: 4, running: 0, version: "0.4.0", pausedReason: "disk 12 GB free (needs 20)", confidential: false, privateCode: false,
     capabilities: { os: "linux", arch: "aarch64", cpus: 32, memGb: 128, diskGb: 900, display: false, gpu: false, toolchains: ["node-24", "rust-stable"] },
   },
   {
-    id: "mac-mini", label: "Mac mini", kind: "remote", enabled: true, online: false, lastSeenAt: iso(3 * HOUR), slots: 1, running: 0, version: "0.3.2", pausedReason: null, confidential: false,
+    id: "mac-mini", label: "Mac mini", kind: "remote", enabled: true, online: false, lastSeenAt: iso(3 * HOUR), slots: 1, running: 0, version: "0.3.2", pausedReason: null, confidential: false, privateCode: false,
     capabilities: { os: "macos", arch: "aarch64", cpus: 10, memGb: 32, diskGb: 400, display: true, gpu: true, toolchains: ["rust-stable"] },
   },
-  { id: "old-box", label: "Old build box", kind: "remote", enabled: false, online: false, lastSeenAt: iso(9 * 24 * HOUR), slots: 2, running: 0, version: null, pausedReason: null, confidential: true, capabilities: null },
+  { id: "old-box", label: "Old build box", kind: "remote", enabled: false, online: false, lastSeenAt: iso(9 * 24 * HOUR), slots: 2, running: 0, version: null, pausedReason: null, confidential: true, privateCode: false, capabilities: null },
 ];
 
 const PLAN: TaskStep[] = [
@@ -177,7 +177,7 @@ export function createBuildMock(me: User, changed: () => void): Pick<Api, "envs"
         operator();
         if (!/^[a-z][a-z0-9-]{1,30}[a-z0-9]$/.test(input.id)) throw new Error("id must be 3 to 32 lowercase letters, digits or hyphens, starting with a letter");
         if (envs.some((e) => e.id === input.id)) throw new Error(`environment ${input.id} exists`);
-        const env: BuildEnv = { id: input.id, label: input.label, kind: input.kind, enabled: true, online: false, lastSeenAt: null, slots: input.slots, running: 0, capabilities: null, version: null, pausedReason: null, confidential: input.confidential ?? false };
+        const env: BuildEnv = { id: input.id, label: input.label, kind: input.kind, enabled: true, online: false, lastSeenAt: null, slots: input.slots, running: 0, capabilities: null, version: null, pausedReason: null, confidential: input.confidential ?? false, privateCode: input.privateCode ?? false };
         envs.push(env);
         changed();
         return wait({ env, key: `cwk_${input.id}_Zr4mQ0vJp8XwL2nT7bKd1HsYcE9uAf3GiO5xVjR6MqN` }, 40);
@@ -190,6 +190,7 @@ export function createBuildMock(me: User, changed: () => void): Pick<Api, "envs"
         if (input.enabled !== undefined) e.enabled = input.enabled;
         if (input.slots !== undefined) e.slots = input.slots;
         if (input.confidential !== undefined) e.confidential = input.confidential;
+        if (input.privateCode !== undefined) e.privateCode = input.privateCode;
         changed();
         return wait(e, 30);
       },

@@ -117,7 +117,7 @@ const rows: Row[] = [
   { name: "no priority row yet: a candidate", facts: fixable({ fix: { impact: null } }), expect: { state: "classified", actions: ["fixissue"] } },
   { name: "a PR is never a fix candidate", facts: fixable({ kind: "pr" }), expect: { state: "classified", actions: [] } },
   { name: "not a bug", facts: fixable({ classification: { label: "chore" }, labels: { existing: ["chore"] } }), expect: { state: "classified", actions: [] } },
-  { name: "private repo", facts: fixable({ fix: { publicRepo: false } }), expect: { state: "classified", actions: [] } },
+  { name: "private repo", facts: fixable({ fix: { buildableRepo: false } }), expect: { state: "classified", actions: [] } },
   { name: "repo without a Rust workspace", facts: fixable({ fix: { notRust: true } }), expect: { state: "classified", actions: [] } },
   { name: "an open PR closes the issue", facts: fixable({ fix: { openPr: { number: 7, closes: true } } }), expect: { state: "classified", actions: [], wait: "open PR #7" } },
   { name: "needs-decision flag without a scope decision", facts: fixable({ ...needsDecision, scope: { covered: true } }), expect: { state: "classified", actions: [] } },

@@ -1749,6 +1749,7 @@ export type Capabilities = {
   gpu: boolean;
   toolchains: string[];      // e.g. ["rust-stable", "node-24"]
   warmSigner?: boolean;      // holds the warm-snapshot signing key; takes no PR-code tasks
+  privateOwner?: string;     // the owner whose private repos its privateFetch token downloads
 };
 export type Requires = Partial<Pick<Capabilities, "os" | "arch" | "display" | "gpu">> & {
   toolchains?: string[]; minMemGb?: number; minDiskGb?: number;
@@ -1763,9 +1764,11 @@ export type BuildEnv = {
   pausedReason: string | null;         // e.g. "disk 12 GB free (needs 20)"
   /** Set by an operator: the only environments that take the security lane's private tasks, and they take no PR code. */
   confidential: boolean;
+  /** Set by an operator: may take the default owner's private repos, when its worker also reports a token for them (capabilities.privateOwner). */
+  privateCode: boolean;
 };
-export type EnvInput = { label?: string; enabled?: boolean; slots?: number; confidential?: boolean };
-export type EnvCreate = { id: string; label: string; kind: EnvKind; slots: number; confidential?: boolean };
+export type EnvInput = { label?: string; enabled?: boolean; slots?: number; confidential?: boolean; privateCode?: boolean };
+export type EnvCreate = { id: string; label: string; kind: EnvKind; slots: number; confidential?: boolean; privateCode?: boolean };
 export type TaskStep = {
   name: string;                         // "fetch deps", "build", "test", "screenshot"
   cmd: string[];                        // argv, run inside the container

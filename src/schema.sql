@@ -951,6 +951,7 @@ CREATE TABLE IF NOT EXISTS build_envs (
   confidential INTEGER NOT NULL DEFAULT 0, -- set by an operator, never by the worker: takes the security lane's private tasks and no PR code
   confidential_since TEXT,            -- when the flag (or the environment, while flagged) was last turned on
   confidential_online_at TEXT,        -- the worker's first call after confidential_since: from then on it can take private tasks
+  private_code INTEGER NOT NULL DEFAULT 0, -- set by an operator, never by the worker: may take the default owner's private repos when its worker reports a token for them
   key_hash TEXT NOT NULL,
   capabilities TEXT,                  -- JSON Capabilities as last reported by the worker
   reported_slots INTEGER,

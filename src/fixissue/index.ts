@@ -639,6 +639,7 @@ async function checkPatch(x: Ctx, r: AttemptRow): Promise<boolean> {
 export async function forkOf(w: Writer, g: GuardedRepo, run: Exec, login: string, repo: string, details: Record<string, unknown> = {}): Promise<string> {
   // The GitHub App has no account to own a fork: its autocraft/* branches live in the base repository.
   if (identityFor(g) === "app" && githubIdentity(w.db) === "app") return slugOf(repo);
+  // A private repo's fork is private too: GitHub gives it the upstream repository's access and deletes it when the fork's owner loses that access, so its code stays with the people who can read the original. The org and the repo must allow forking of private repositories.
   const find = async (): Promise<string | null> => {
     const r = await run("gh", ["api", `repos/${slugOf(repo)}/forks?per_page=100`, "--jq", `.[] | select(.owner.login == "${login}") | .full_name`]);
     return r.code === 0 ? r.stdout.trim().split("\n")[0] || null : null;

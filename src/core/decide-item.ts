@@ -17,10 +17,10 @@ export function scopeReason(f: ItemFacts): "needs-decision" | "scope-disagreemen
   return null;
 }
 
-/** An issue the Fix stage may start on: settled bug, not backlog priority, no attempt (a skipped one returns when its text changed), a public Rust repo, no scope call against it, no open PR that closes or mentions it. */
+/** An issue the Fix stage may start on: settled bug, not backlog priority, no attempt (a skipped one returns when its text changed), a buildable Rust repo (public, or the org's private one with a private-code environment), no scope call against it, no open PR that closes or mentions it. */
 function fixCandidate(f: ItemFacts): boolean {
   const c = f.classification, fix = f.fix, a = fix.attempt;
-  if (!fix.publicRepo || fix.notRust || c.status !== "settled" || c.label !== "bug") return false;
+  if (!fix.buildableRepo || fix.notRust || c.status !== "settled" || c.label !== "bug") return false;
   if (fix.impact && levelWith(fix.impact as Level, c.flags.includes("security")) === "P4") return false;
   if (a && !(a.state === "skipped" && a.textChanged)) return false;
   const d = fix.scopeDecision;

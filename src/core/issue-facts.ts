@@ -18,6 +18,7 @@ import { classifyHash, embedHash as hashOfText, SCHEME_ID } from "../itemhash.ts
 import { actionable } from "../decisions.ts";
 import { commentApprovalOf } from "../act/approval.ts";
 import { TERMINAL } from "../build/tasks.ts";
+import { buildableRepo } from "../build/private.ts";
 import { fixIssueApprovalOf } from "../fixissue/approval.ts";
 import { issuesWithOpenPr, type OpenPr, notRustKey, textHash } from "../fixissue/candidates.ts";
 import { headOf, scopeAnswers, unsettledScope } from "../review/candidates.ts";
@@ -176,11 +177,11 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
     WHERE r.verdict = 'close' AND r.head_oid = (SELECT r2.head_oid FROM opus_reviews r2 WHERE r2.repo = r.repo AND r2.number = r.number AND r2.verdict IS NOT NULL ORDER BY r2.at DESC, r2.rowid DESC LIMIT 1)`).all() as
     { repo: string; number: number; head_oid: string; i_head: string | null; updated_at: string | null; c_head: string | null; c_at: string | null; asked: number }[])
     closeReview.set(`${r.repo}#${r.number}`, { head: r.head_oid, atHead: headOf({ head_oid: r.i_head, updated_at: r.updated_at, c_head: r.c_head, c_at: r.c_at }) === r.head_oid, asked: !!r.asked });
-  const repoMemo = new Map<string, { comment: boolean; fix: boolean; pub: boolean; notRust: boolean; openPrs: Map<number, OpenPr> }>();
+  const repoMemo = new Map<string, { comment: boolean; fix: boolean; buildable: boolean; notRust: boolean; openPrs: Map<number, OpenPr> }>();
   const repoOf = (repo: string) => {
     let m = repoMemo.get(repo);
     if (!m) {
-      m = { comment: commentApprovalOf(db, repo) !== null, fix: fixIssueApprovalOf(db, repo) !== null, pub: !!db.prepare("SELECT 1 FROM repos WHERE name = ? AND visibility = 'public'").get(repo),
+      m = { comment: commentApprovalOf(db, repo) !== null, fix: fixIssueApprovalOf(db, repo) !== null, buildable: buildableRepo(db, repo),
         notRust: !!db.prepare("SELECT 1 FROM settings WHERE key = ?").get(notRustKey(repo)), openPrs: issuesWithOpenPr(db, repo) };
       repoMemo.set(repo, m);
     }
@@ -255,7 +256,7 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
           headDone: r.h_state !== null && (TERMINAL as string[]).includes(r.h_state),
           baseDone: r.a_base === null || (r.b_state !== null && (TERMINAL as string[]).includes(r.b_state)),
         },
-        publicRepo: repoOf(r.repo).pub, notRust: repoOf(r.repo).notRust, openPr: r.kind === "issue" ? repoOf(r.repo).openPrs.get(r.number) ?? ownPrUnmirrored(r.a_state, r.a_pr) : null, impact: r.impact,
+        buildableRepo: repoOf(r.repo).buildable, notRust: repoOf(r.repo).notRust, openPr: r.kind === "issue" ? repoOf(r.repo).openPrs.get(r.number) ?? ownPrUnmirrored(r.a_state, r.a_pr) : null, impact: r.impact,
         scopeDecision: latestScope.get(ref) ?? null,
       },
     };
