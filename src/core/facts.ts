@@ -27,7 +27,7 @@ import { mergeHolds } from "../merge/holds.ts";
 import { repoHasNoCi } from "../merge/no-ci.ts";
 import { effectiveCi } from "../optional-checks.ts";
 import { inPilot, pilotSql, pipelineRepos } from "../pilot.ts";
-import { holdMap } from "../outside.ts";
+import { holdMap, teamAuthorTest } from "../outside.ts";
 import { attemptsOf, parseFixes } from "../fixup/candidates.ts";
 import { operatorTries, operatorTriesLeft, operatorWork, queuedOperatorFix } from "../preapproval/state.ts";
 import { getTask, TERMINAL } from "../build/tasks.ts";
@@ -259,6 +259,7 @@ export function loadPrFacts(db: DatabaseSync, opts: LoadOptions = {}): PrFacts[]
 
   const holdOf = reviewHolds(db, now);
   const outsideHolds = holdMap(db);
+  const teamAuthor = teamAuthorTest(db);
   const out: PrFacts[] = [];
   for (const r of rows) {
     // The queue leaves merged PRs outside the pilot and our own integration PRs out.
@@ -303,7 +304,8 @@ export function loadPrFacts(db: DatabaseSync, opts: LoadOptions = {}): PrFacts[]
 
     const s = settled(r.repo, r.number);
     base.label = labelWithScopeAnswer(s.label ?? null, base.scopeAnswer);
-    base.needsDecisionFlag = s.flags.includes("needs decision") || (unsettled.has(ref) && !scope.has(ref));
+    // The team wants what it wrote: a classifier flag on it asks no scope question (a scope disagreement still does).
+    base.needsDecisionFlag = (s.flags.includes("needs decision") && !teamAuthor(r.repo, r.number)) || (unsettled.has(ref) && !scope.has(ref));
     base.labelUnsure = s.status === "settled" && !!s.referee && !s.referee.sure && refereeClosed(s.referee);
     const pm = mergedByPipeline.get(ref);
     if (pm) base.postmerge = { mergedAt: pm.merged_at, head: pm.head, since, review: pmReviews.get(ref) ?? null };

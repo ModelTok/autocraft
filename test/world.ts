@@ -35,7 +35,7 @@ export function prFacts(over: Override = {}): PrFacts {
 // ---- items (issues and PRs) in the triage steps
 
 const itemBase = (): ItemFacts => ({
-  repo: "app", number: 1, kind: "issue", open: true, assignment: { login: "bot", assignees: ["dev"], ours: false }, now: NOW, pipelineOn: true, draft: false, inScope: true, integration: false, held: null, fast: false, score: 100,
+  repo: "app", number: 1, kind: "issue", open: true, assignment: { login: "bot", assignees: ["dev"], ours: false }, now: NOW, pipelineOn: true, draft: false, teamAuthor: false, inScope: true, integration: false, held: null, fast: false, score: 100,
   repoFacts: { labelsApproved: true, commentApproved: true, fixIssueApproved: true }, run: "run1",
   classification: {
     status: "settled", label: "bug", flags: [], basalLabel: "bug", haikuLabel: null, referee: null,

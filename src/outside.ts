@@ -85,6 +85,24 @@ export function isOutsideAuthor(db: DatabaseSync, r: { author: string | null; au
   return !INSIDE_ASSOCIATIONS.has(r.author_association ?? "") && !isBotAuthor({ author: r.author, author_type: r.author_type }) && !inside.has(r.author.toLowerCase());
 }
 
+/** An org member's or the repo owner's association: a collaborator is let in for model spend, but is not the team. */
+const TEAM_ASSOCIATIONS = new Set(["OWNER", "MEMBER"]);
+
+/**
+ * A test for items the team wrote: an org member, the repo's owner, an operator or maintainer of the dashboard, or the pipeline's own
+ * account (never a bot). Their items are wanted by the people who wrote them, so the classifier's "needs decision" flag asks no
+ * "Is this wanted?" question of them (docs/pipeline.md, "Scope decisions").
+ */
+export function teamAuthorTest(db: DatabaseSync): (repo: string, number: number) => boolean {
+  const inside = insiders(db);
+  const row = db.prepare("SELECT author, author_association, author_type FROM items WHERE repo = ? AND number = ?");
+  return (repo, number) => {
+    const r = row.get(repo, number) as { author: string | null; author_association: string | null; author_type: string | null } | undefined;
+    if (!r?.author || isBotAuthor({ author: r.author, author_type: r.author_type })) return false;
+    return TEAM_ASSOCIATIONS.has(r.author_association ?? "") || inside.has(r.author.toLowerCase());
+  };
+}
+
 /** Logins that are never outside authors: the dashboard's operators and maintainers and the pipeline's own accounts (lowercase). */
 function insiders(db: DatabaseSync): Set<string> {
   const out = new Set<string>();

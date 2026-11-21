@@ -9,10 +9,13 @@ import type { Action, ItemFacts, ItemPlan, ItemState, ItemView, PrFacts } from "
 
 const act = (kind: Action["kind"], head: string | null, params?: Record<string, unknown>): Action => ({ kind, head, ...(params ? { params } : {}) });
 
+/** The classifier flagged a decision on an item the team did not write: only then is "Is this wanted?" asked of the flag. */
+const needsScopeCall = (f: ItemFacts): boolean => f.classification.flags.includes("needs decision") && !f.teamAuthor;
+
 /** Why the item would become a scope decision, or null. */
 export function scopeReason(f: ItemFacts): "needs-decision" | "scope-disagreement" | null {
   const c = f.classification;
-  if (c.status === "settled" && c.flags.includes("needs decision")) return "needs-decision";
+  if (c.status === "settled" && needsScopeCall(f)) return "needs-decision";
   if (c.status === "disagree" && isScope(c.basalLabel) && isScope(c.haikuLabel)) return "scope-disagreement";
   return null;
 }
@@ -24,7 +27,7 @@ function fixCandidate(f: ItemFacts): boolean {
   if (fix.impact && levelWith(fix.impact as Level, c.flags.includes("security")) === "P4") return false;
   if (a && !(a.state === "skipped" && a.textChanged)) return false;
   const d = fix.scopeDecision;
-  if (d ? !(d.answer === "take" && d.byOperator) : c.flags.includes("needs decision")) return false;
+  if (d ? !(d.answer === "take" && d.byOperator) : needsScopeCall(f)) return false;
   return fix.openPr === null;
 }
 
@@ -138,7 +141,7 @@ export function nextStep(item: ItemPlan, f: ItemFacts, pr: PrFacts | null): stri
   }
   const c = f.classification;
   if (item.state === "scope-due" && c.status === "disagree") return "Decide";
-  const needsDecision = c.flags.includes("needs decision");
+  const needsDecision = needsScopeCall(f);
   if (f.kind === "issue") {
     switch (f.fix.attempt?.state) {
       case "retry": case "testing": return "Fix: in progress";

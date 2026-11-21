@@ -199,6 +199,36 @@ export function setAsideSupersededQuestions(db: DatabaseSync, at: string, repo?:
   return stale + aside.length;
 }
 
+/**
+ * Withdraws open scope questions that no reason asks any more (src/core/scope-unneeded.ts picks them): answered "withdrawn" by the
+ * pipeline with `why` as the note, renamed so the item is asked again under the same id if a reason comes back, its stages row
+ * cleared and audited. Nothing is written to GitHub. Returns how many were withdrawn.
+ */
+export function withdrawScopeQuestions(db: DatabaseSync, rows: { id: string; repo: string; number: number }[], why: string, at: string): number {
+  if (!rows.length) return 0;
+  const clear = clearAskedStage(db);
+  const close = db.prepare("UPDATE main.decisions SET answer = ?, answered_by = 'pipeline', answered_at = ?, applied_at = ?, answer_note = ?, adopted_opinion = NULL WHERE id = ? AND answer IS NULL AND kind = 'scope'");
+  let n = 0;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    for (const r of rows) {
+      const open = db.prepare("SELECT 1 FROM main.decisions WHERE id = ? AND answer IS NULL AND kind = 'scope'").get(r.id);
+      if (!open) continue;
+      const old = `${r.id}~replaced-${at}`;
+      renameDecision(db, r.id, old);
+      close.run(WITHDRAWN, at, at, why, old);
+      clear(r.repo, r.number, r.id);
+      audit(db, "pipeline", "decision-withdrawn", old, { repo: r.repo, number: r.number, kind: "scope", why });
+      n++;
+    }
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+  return n;
+}
+
 type OpenRow = { id: string; kind: string; repo: string | null; number: number | null; state: string | null; itemKind: string | null };
 
 const closedWhy = (r: OpenRow): string => r.state === "MERGED" ? "the pull request was merged" : `the ${r.itemKind === "pr" ? "pull request" : "issue"} was closed on GitHub`;

@@ -24,7 +24,7 @@ import { issuesWithOpenPr, type OpenPr, notRustKey, textHash } from "../fixissue
 import { headOf, scopeAnswers, unsettledScope } from "../review/candidates.ts";
 import { approvalOf as labelsApprovalOf } from "../labels/approval.ts";
 import { pilotSql } from "../pilot.ts";
-import { holdMap } from "../outside.ts";
+import { holdMap, teamAuthorTest } from "../outside.ts";
 import { lockLiveSql } from "../answers/hold.ts";
 import { isPreparing, prepareStateSql, utcDayStart, type PrepareColumns } from "../decide/prepared.ts";
 import type { ItemFacts } from "./plan.ts";
@@ -97,6 +97,7 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
   }
   const memo = settleMemo();
   const outsideHolds = holdMap(db);
+  const teamAuthor = teamAuthorTest(db);
   const answers = scopeAnswers(db);
   const unsettled = unsettledScope(db);
   const latestScope = new Map<string, { answer: string | null; byOperator: boolean }>(), securityIds = new Set<string>();
@@ -235,6 +236,7 @@ export function loadItemFacts(db: DatabaseSync, opts: ItemLoadOptions = {}): Ite
     const note = labeled.get(ref) ?? null;
     return {
       repo: r.repo, number: r.number, kind: r.kind, open: r.state === "OPEN", assignment: assigned(ref, r.assignees), now, pipelineOn, tripped: activeTrips(db), inFlight: r.state === "OPEN" && (["retry", "testing", "passed"].includes(r.a_state ?? "") || (r.kind === "pr" && own.prs.has(ref) && own.isOwn(r.repo, (authorOf.get(r.repo, r.number) as { author: string | null } | undefined)?.author ?? null))), draft: !!r.is_draft,
+      teamAuthor: teamAuthor(r.repo, r.number),
       inScope: !!r.in_pilot, ...(outsideHolds.has(ref) ? { outsideHold: outsideHolds.get(ref)! } : {}), integration: !r.not_integration,
       held: r.held_backlog ? "backlog" : r.held_dup ? "duplicate" : null,
       fast: (r.score ?? 0) >= FAST_FLOOR, score: r.score, repoFacts: { labelsApproved: labelsApproved(r.repo), commentApproved: repoOf(r.repo).comment, fixIssueApproved: repoOf(r.repo).fix },
