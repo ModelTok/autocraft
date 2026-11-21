@@ -40,12 +40,13 @@ type DecisionRef = Pick<Decision, "id" | "repo" | "number"> & { items?: { repo: 
 
 /**
  * The link to a decision: the page of its item, scrolled to the decision's block. A batch opens its first item.
- * Only a decision without any item uses the id form, which `/needs/decisions/:id` resolves.
+ * Only a decision without any item uses the id form, which `/needs/decisions/:id` resolves; a repo-level question (a red
+ * default branch) is stored with number 0, which is no item either.
  */
 export function decisionPath(d: DecisionRef | undefined): string {
   if (!d) return "/needs";
   const anchor = `#decision-${encodeURIComponent(d.id)}`;
-  if (d.number != null) return `${itemPath(d.repo, d.number)}${anchor}`;
+  if (d.number != null && d.number > 0) return `${itemPath(d.repo, d.number)}${anchor}`;
   const first = d.items?.[0];
   return first ? `${itemPath(first.repo, first.number)}${anchor}` : `/needs/decisions/${encodeURIComponent(d.id)}`;
 }
