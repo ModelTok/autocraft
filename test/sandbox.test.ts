@@ -122,6 +122,35 @@ describe("checkout", () => {
 
 
 
+  test("compiled build output is left out, and files left out do not count toward the size cap", async () => {
+    const w = join(dir, "work-wasm");
+    mkdirSync(join(w, "src"), { recursive: true });
+    mkdirSync(join(w, "dist"), { recursive: true });
+    g(w, "init", "-q");
+    writeFileSync(join(w, "src/lib.rs"), "pub fn f() {}\n");
+    // 3 x 1 MiB of committed .wasm, and a 2.5 MiB fixture over the per-file cap: both are left out, so a 1 MiB cap still fits.
+    for (const n of ["a", "b", "c"]) writeFileSync(join(w, `dist/${n}.wasm`), Buffer.alloc(1024 * 1024, 1));
+    writeFileSync(join(w, "big.tsv"), Buffer.alloc(2.5 * 1024 * 1024, 65));
+    g(w, "add", "-A");
+    g(w, "commit", "-qm", "c");
+    const s = g(w, "rev-parse", "HEAD");
+    const b = join(dir, "bare-wasm.git");
+    g(dir, "clone", "-q", "--bare", w, b);
+    const caps = { maxFiles: 10, maxBytes: 1024 * 1024, maxFileBytes: 2 * 1024 * 1024 };
+    const dest = join(dir, "out", "wasm", s);
+    const r = await buildCheckout(b, s, dest, caps);
+    assert.ok(r.ok, r.ok ? "" : r.reason);
+    assert.ok(existsSync(join(dest, "src/lib.rs")));
+    for (const gone of ["dist/a.wasm", "big.tsv"]) assert.equal(existsSync(join(dest, gone)), false, gone);
+  });
+
+  test("an issue fix without a checkout is told it has no tools; with one it is not", () => {
+    const without = claudeParts("fixissue.patch", SAMPLE_PATCH.slice(0, 1), false);
+    assert.match(without.stdin + (without.system ?? ""), /This call has no tools/);
+    const withDir = claudeParts("fixissue.patch", [{ ...SAMPLE_PATCH[0]!, repo_dir: REPO_PATH }], true);
+    assert.doesNotMatch(withDir.stdin, /This call has no tools/);
+  });
+
   test("unsafe paths are rejected", () => {
     for (const p of ["../x", "a/../b", "/abs", ".git/config", "a/.GIT/x", "a//b", ""]) assert.equal(safePath(p), false, p);
     assert.equal(safePath("src/.github/ci.yml"), true);

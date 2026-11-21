@@ -1,5 +1,5 @@
 // Validation of what the models return for the Fix stage. Pure text checks.
-import { MAX_CHANGED_LINES, editable, extractDiff, safePath, validatePatch, type BuildScripts } from "../fixup/patch.ts";
+import { MAX_CHANGED_LINES, editable, extractDiff, recountHunks, safePath, validatePatch, type BuildScripts } from "../fixup/patch.ts";
 
 export { editable };
 import { patchFor, patchProblem } from "../verify/plan.ts";
@@ -60,7 +60,8 @@ export type FixPatchCheck = ({ ok: true } & FixPatch) | { ok: false; reason: str
  * its added lines so the stored patch has the canonical header; everything else goes through validatePatch.
  */
 export function validateFixPatch(text: string, allowed: string[], testPath: string, crateDir: string, test: string, scripts: BuildScripts = null): FixPatchCheck {
-  const diff = extractDiff(text);
+  // The hunk counts are recounted from the bodies, as for the edits: models often miscount a long new test file.
+  const diff = recountHunks(extractDiff(text));
   if (!diff.startsWith("diff --git ")) return { ok: false, reason: "the reply is not a unified diff" };
   const chunks = diff.split(/^(?=diff --git )/m).filter((c) => c.trim());
   const edits: string[] = [];
