@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { QueueBadge } from "../../ui/molecules/QueueBadge";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useApi } from "../../api/client";
 import { canComment } from "../../registry/permissions";
 import { CheckIcon, ArrowUUpLeftIcon, UsersIcon } from "@phosphor-icons/react";
@@ -154,6 +154,11 @@ function Row({ phone, d, canUndo, active, checked, mine, onOpen, activeRef }: { 
               <span className="code shrink-0 text-[11.5px]">{d.repo}</span>
               <span className="shrink-0">· {d.items.length} items</span>
             </>
+          ) : d.number === 0 ? (
+            // A repo-level question (a red default branch) has no item to link to: it opens on its own page.
+            <Link to={decisionPath(d)} className="code min-w-0 flex-1 text-[11.5px] hover:underline" onClick={(e) => e.stopPropagation()}>
+              {d.repo} · default branch
+            </Link>
           ) : (
             // The row selects the decision; clicks on the item's links must not also select it.
             <span className="min-w-0 flex-1" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) e.stopPropagation(); }}>
