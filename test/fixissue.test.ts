@@ -14,6 +14,7 @@ import { parseTriage, validateFixPatch } from "../src/fixissue/parse.ts";
 import type { PatchInput } from "../src/fixissue/types.ts";
 import type { Querier } from "../src/mirror.ts";
 import { REPO_PATH } from "../src/sandbox/command.ts";
+import { setRepoHoldPaths } from "../src/repo-build.ts";
 import { SCRATCH } from "./scratch.ts";
 import { validating } from "./gql.ts";
 
@@ -231,6 +232,55 @@ describe("fix step", () => {
     assert.equal(calls.length, 1);
     assert.deepEqual(calls[0]!.files, [{ path: LIB }]);
     assert.equal(calls[0]!.repo_dir, REPO_PATH);
+  });
+
+  test("a repo with more crates than the list holds: the triage's crate is read from the manifest above its files", async () => {
+    // Another lib text, so the commit (and its cached crate list) is this test's own.
+    const w = world({ lib: `pub fn first(v: &[u8]) -> u8 {
+    v[0] // big repo
+}
+` });
+    w.deps.fetchCrates = async () => ({ ok: true, rust: true, crates: [{ name: "other", dir: "crates/other" }], workspaces: {}, truncated: true, manifests: { ".": "root", "crates/other": "o", "crates/app": "app" } });
+    const reads: string[] = [];
+    w.deps.readBlob = () => async (blob) => { reads.push(blob); return blob === "root" ? `[workspace]
+members = ["crates/*"]
+` : `[package]
+name = "${blob}"
+`; };
+    await runFixIssue(w.db, { repo: "app", dryRun: false }, quiet, w.deps);
+    const triage = JSON.parse(w.asked.find((a) => a.startsWith("fixissue.triage:"))!.slice("fixissue.triage:".length)) as { crates_partial?: boolean };
+    assert.equal(triage.crates_partial, true, "the model is told the list is partial");
+    const a = attemptOf(w.db, "app", 5)!;
+    assert.equal(a.crate, "app");
+    const patch = JSON.parse(w.asked.find((x) => x.startsWith("fixissue.patch:"))!.slice("fixissue.patch:".length)) as PatchInput;
+    assert.deepEqual(patch.crate, { name: "app", dir: "crates/app" }, "the patch round works on the crate the list did not hold");
+    assert.deepEqual(reads.sort(), ["app", "root"]);
+  });
+
+  test("a fix under a held path is handed to a person before any patch or build, and when the setting arrives mid-attempt", async () => {
+    const tasks = (w: World) => (w.db.prepare("SELECT COUNT(*) AS n FROM build_tasks").get() as { n: number }).n;
+    const lastStage = (w: World) => w.db.prepare("SELECT stage, note FROM stages WHERE repo = 'app' AND number = 5 ORDER BY rowid DESC LIMIT 1").get() as { stage: string; note: string };
+    // The regression test's own directory is held: the triage's choice cannot be opened.
+    const w = world();
+    setRepoHoldPaths(w.db, "op", "app", ["crates/app/tests/"]);
+    await runFixIssue(w.db, { repo: "app", dryRun: false }, quiet, w.deps);
+    assert.equal(attemptOf(w.db, "app", 5)!.state, "skipped");
+    assert.match(attemptOf(w.db, "app", 5)!.reason!, /^needs a person: the fix would change crates\/app\/tests\/autocraft_regression_5\.rs, and app leaves changes under crates\/app\/tests\/ to people$/);
+    assert.equal(w.asked.filter((a) => a.startsWith("fixissue.patch:")).length, 0);
+    assert.equal(tasks(w), 0);
+    assert.equal(lastStage(w).stage, "hold");
+    // Held while the patch was written: no build is queued.
+    const v = world();
+    const ask = v.deps.ask;
+    v.deps.ask = async (...a: Parameters<typeof ask>) => {
+      if (a[1] === "fixissue.patch") setRepoHoldPaths(a[0], "op", "app", [LIB]);
+      return ask(...a);
+    };
+    await runFixIssue(v.db, { repo: "app", dryRun: false }, quiet, v.deps);
+    assert.equal(attemptOf(v.db, "app", 5)!.state, "failed");
+    assert.match(attemptOf(v.db, "app", 5)!.reason!, /needs a person: the fix would change crates\/app\/src\/lib\.rs/);
+    assert.equal(tasks(v), 0);
+    assert.equal(lastStage(v).stage, "hold");
   });
 
 

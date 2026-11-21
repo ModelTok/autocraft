@@ -4,7 +4,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import type { TaskStep } from "../../web/src/api/types.ts";
 import { LINT_MAX_ROUNDS } from "../core/rules.ts";
-import { cachedCrates, type CratesFetcher } from "../verify/crates.ts";
+import { cachedCrates, cratesCovering, type CratesFetcher } from "../verify/crates.ts";
 import type { Crate } from "../verify/types.ts";
 import { featureOn } from "../build/features.ts";
 import type { Finding, LintJob } from "./index.ts";
@@ -50,8 +50,12 @@ if [ "$(cat /out/${TESTS_EXIT_ARTIFACT})" != 0 ]; then
 fi
 true`;
 
-export function testsStep(crates: string[]): TaskStep {
-  return { name: TESTS_STEP, cmd: ["sh", "-c", TESTS_SCRIPT, TESTS_STEP, ...crates], network: "none", timeoutSec: TEST_STEP_MAX_SEC, artifacts: [TESTS_ARTIFACT, TESTS_EXIT_ARTIFACT, TESTS_RERUN_ARTIFACT, TESTS_RERUN_EXIT_ARTIFACT] };
+// For crates of a workspace other than the root: the first argument is its manifest (a validated path, rust.ts manifestOf).
+const TESTS_SCRIPT_IN = TESTS_SCRIPT.replace('P=""; for', 'M="$1"; shift; P="--manifest-path $M"; for');
+
+/** The tests step for `crates`, all of one workspace: the root's without `manifest`, else the one at that Cargo.toml. */
+export function testsStep(crates: string[], manifest?: string): TaskStep {
+  return { name: TESTS_STEP, cmd: manifest ? ["sh", "-c", TESTS_SCRIPT_IN, TESTS_STEP, manifest, ...crates] : ["sh", "-c", TESTS_SCRIPT, TESTS_STEP, ...crates], network: "none", timeoutSec: TEST_STEP_MAX_SEC, artifacts: [TESTS_ARTIFACT, TESTS_EXIT_ARTIFACT, TESTS_RERUN_ARTIFACT, TESTS_RERUN_EXIT_ARTIFACT] };
 }
 
 export type TestsInput = { text: string | null; exit: number | null; rerunText: string | null; rerunExit: number | null; timedOut: boolean };
@@ -140,12 +144,20 @@ export async function testsFeatureCrates(db: DatabaseSync, j: LintJob, fetch: Cr
   return featureOn(db, "push-tests", j.repo) ? cratesForTests(j, fetch) : null;
 }
 
-/** The same without the switch, for the operator's `lint --tests`. */
+/**
+ * The same without the switch, for the operator's `lint --tests`. Crates of more than one workspace (a repo with nested
+ * workspaces, verify/workspaces.ts) get no tests step: one step runs one workspace's tests.
+ */
 export async function cratesForTests(j: LintJob, fetch: CratesFetcher): Promise<string[] | null> {
   try {
-    const info = await cachedCrates(j.repo, j.head, fetch);
-    if (!info.ok || !info.rust) return null;
-    return testCrates([...patchPaths(j.patch ?? ""), ...(j.files ?? [])], info.crates);
+    const got = await cachedCrates(j.repo, j.head, fetch);
+    if (!got.ok || !got.rust) return null;
+    const changed = [...patchPaths(j.patch ?? ""), ...(j.files ?? [])];
+    // A repo with more crates than the list holds: the crates that own the changed files are added first.
+    const info = got.truncated ? await cratesCovering(j.repo, j.head, got, changed) : got;
+    const crates = testCrates(changed, info.crates);
+    if (crates && new Set(crates.map((c) => info.workspaces?.[c] ?? ".")).size > 1) return null;
+    return crates;
   } catch {
     return null;
   }

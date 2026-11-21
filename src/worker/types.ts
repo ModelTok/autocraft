@@ -28,6 +28,8 @@ export type TaskStep = {
   artifacts?: string[];
   /** Run without the /target and /cache mounts (steps that read neither build output nor the crate cache). */
   bare?: boolean;
+  /** Mount the task's companion sources read-only at /companions/<repo> and set their variables (test steps only). */
+  companions?: boolean;
 };
 
 export type StepResult = { step: string; exitCode: number | null; durationMs: number; timedOut: boolean; peakMemBytes?: number; oomKilled?: boolean };
@@ -47,7 +49,14 @@ export type ClaimedTask = {
   warm?: { key: string; role: "use" | "build" };
   /** The repo is private: the worker downloads it with its privateFetch token, and refuses the task unless `owner` is its configured owner. */
   private?: { owner: string };
+  /**
+   * Other repos of the owner whose source the steps marked `companions` read (setting repo_companions): fetched at `sha`,
+   * mounted read-only at /companions/<repo>, with `env` pointing there. Without `sha` the coordinator sends a `note` instead.
+   */
+  companions?: ClaimedCompanion[];
 };
+
+export type ClaimedCompanion = { repo: string; owner: string; env: string; sha?: string; private?: true; note?: string };
 
 export type ClaimResponse = { tasks: ClaimedTask[]; cancel?: number[] };
 

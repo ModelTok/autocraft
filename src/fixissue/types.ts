@@ -18,7 +18,7 @@ export const TRIAGE_REASON_WORDS = 25;
 export type IssueText = { ref: string; title: string; body: string; comments: { author: string; body: string }[] };
 
 /** What the triage prompt is rendered from. */
-export type TriageInput = IssueText & { crates: Crate[]; paths: string[]; /** Where the call may read the repository in the sandbox; with it, `paths` is not shown. */ repo_dir?: string };
+export type TriageInput = IssueText & { crates: Crate[]; /** The repo has more crates than `crates` lists: the crate is the package that owns the files. */ crates_partial?: boolean; paths: string[]; /** Where the call may read the repository in the sandbox; with it, `paths` is not shown. */ repo_dir?: string };
 
 /** What the patch prompt is rendered from. `previous` is set on later rounds. */
 export type PatchInput = IssueText & {

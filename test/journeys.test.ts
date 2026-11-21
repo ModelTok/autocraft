@@ -510,7 +510,7 @@ describe("issue journey", () => {
     const collected = await runFixIssueCollect(w.db, {}, quiet, g.deps);
     assert.equal(collected.opened, 1);
     assert.equal(attemptOf(w.db, "app", 5)!.state, "pr-opened");
-    assert.deepEqual(g.prs.map((x) => x.head), ["pipeline-bot:autocraft/fix-5-panic-when-the-slice-is-empty"]);
+    assert.deepEqual(g.prs.map((x) => x.head), ["ModelTok:autocraft/fix-5-panic-when-the-slice-is-empty"]);
     assert.deepEqual(g.comments, ["A PR for this is in progress: https://github.com/ModelTok/app/pull/12."]);
   });
 });

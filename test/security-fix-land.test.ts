@@ -55,7 +55,7 @@ function finding(state: string, extra: Record<string, string | number | null> = 
   const at = "2026-11-05T00:00:00Z";
   db.prepare(`INSERT INTO security_findings (repo, number, scan_id, area, title, severity, urgent, state, refs, reach, impact, fingerprint, fix_commit, fix_title, fix_summary, fix_branch, fix_files, created_at, updated_at)
     VALUES ('photocraft', ?, 1, 'psd', 'Layer length trusted', 'high', 0, ?, '[{"path":"crates/psd/src/layer.rs","line":118,"claim":""}]', 'open file', 'writes outside', ?, ?, 'Check layer length before copying', 'The reader compares the length with the remaining data and returns an error.', ?, ?, ?, ?)`)
-    .run(n, state, `fp${n}`, SHA, `fix-check-layer-length-${n}`, JSON.stringify(["crates/psd/src/layer.rs", "crates/psd/tests/autocraft_regression_1.rs"]), at, at);
+    .run(n, state, `fp${n}`, SHA, `autocraft/fix-check-layer-length-${n}`, JSON.stringify(["crates/psd/src/layer.rs", "crates/psd/tests/autocraft_regression_1.rs"]), at, at);
   for (const [k, v] of Object.entries(extra)) db.prepare(`UPDATE security_findings SET ${k} = ? WHERE repo = 'photocraft' AND number = ?`).run(v, n);
   return n;
 }
@@ -146,7 +146,10 @@ describe("private fix and landing", () => {
     // Everything sent to GitHub for the landing: arguments and bodies.
     const sent = f.calls.map((c) => `${c.args.join(" ")} ${c.input ?? ""}`).join("\n");
     assert.equal(giveaway(sent), null, `a landing write names the problem: ${giveaway(sent)}`);
-    assert.match(sent, /refs\/heads\/fix-check-layer-length/);
+    assert.match(sent, /refs\/heads\/autocraft\/fix-check-layer-length/);
+    // A default-owner repo's branch goes to the repository itself, so its own CI runs on the pull request.
+    assert.match(sent, /https:\/\/github\.com\/ModelTok\/photocraft\.git /);
+    assert.ok(!f.calls.some((c) => c.args[0] === "repo" && c.args[1] === "fork"), "no fork is made");
     const pr = f.calls.find((c) => c.args[0] === "pr" && c.args[1] === "create")!;
     assert.ok(pr.args.includes("Check layer length before copying"));
 

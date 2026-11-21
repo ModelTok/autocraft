@@ -38,11 +38,12 @@ import { claimForWork, issueInfo } from "../github/claim.ts";
 import { commitIdentity, ownLogins, githubIdentity, identityFor } from "../github/identity.ts";
 import { CLAUDE_PROMPTS } from "../prompts/index.ts";
 import { diffCacheDir } from "../review/diff.ts";
-import { rustPlan } from "../worker/rust.ts";
+import { cargoTargets, manifestArgs, rustPlan, type CargoTarget } from "../worker/rust.ts";
 import type { TaskStep } from "../worker/types.ts";
 import { createTask, warmKeyOf, type NewTask } from "../build/tasks.ts";
 export { warmKeyOf };
-import { cachedCrates, ghApi, ghCrates, type CratesFetcher } from "../verify/crates.ts";
+import { cachedCrates, cratesCovering, ghApi, ghBlobReader, ghCrates, type BlobReader, type CratesFetcher } from "../verify/crates.ts";
+import type { Workspaces } from "../verify/workspaces.ts";
 import { cloneTask, queueWarmBuild } from "../verify/tasks.ts";
 import { outcomeOf, summariseFailure } from "../verify/results.ts";
 import { regressionPath } from "../verify/plan.ts";
@@ -52,7 +53,7 @@ import { CHECK_PATCH_CAP, type FixIssueCheckInput } from "../patchcheck/types.ts
 import { fixIssueApprovalOf } from "./approval.ts";
 import { hasOpenPr, notRustKey, textHash, type IssueCandidate } from "./candidates.ts";
 import { plannedItems } from "../core/select-items.ts";
-import { parseTriage, sourcePaths, validateFixPatch } from "./parse.ts";
+import { parseTriage, sourcePaths, triageFilesOf, validateFixPatch } from "./parse.ts";
 import { buildScriptsAt, editable, type BuildScripts } from "../fixup/patch.ts";
 import { branchName, claimCommentText, commentText, commitMessage, prBody, prTitle } from "./template.ts";
 import { changedRsFiles, foldFormat, lintSteps, readLint } from "../prepush/index.ts";
@@ -61,8 +62,9 @@ import { COMMENTS_SHOWN, COMMENT_CHARS, FILE_CAP, ISSUE_BODY_LIMIT, MAX_PATHS, M
 import { inPilot, pilotSqlFor } from "../pilot.ts";
 import { backlogHeldSql, duplicateHeld } from "../dupes/held.ts";
 import { jobItem } from "../runner/job-items.ts";
-import { ownerOf, slugOf } from "../owners.ts";
+import { isDefaultOwner, ownerOf, slugOf } from "../owners.ts";
 import { isBotLogin } from "../review/bots.ts";
+import { heldPath } from "../repo-build.ts";
 
 export { type IssueCandidate } from "./candidates.ts";
 
@@ -87,6 +89,8 @@ export type FixIssueDeps = {
   /** The head commit of the repo's default branch, or null. */
   mainHead: (repo: string, branch: string) => Promise<string | null>;
   fetchCrates: CratesFetcher;
+  /** Reads a manifest blob of the repo, for the crates of a repo whose list is truncated. Default: GitHub. */
+  readBlob?: (repo: string) => BlobReader;
   /** Every file path of the repo at a commit, or null. */
   fetchPaths: (repo: string, sha: string) => Promise<string[] | null>;
   now: () => Date;
@@ -196,6 +200,15 @@ function stage(db: DatabaseSync, d: FixIssueDeps, r: { repo: string; number: num
   jobItem(db, r.repo, r.number, note, () => {});   // the callers log the outcome themselves
 }
 
+/**
+ * Why a fix that changes `paths` is left to a person (setting repo_hold_paths, repo-build.ts): the maintainers hold those
+ * paths, often because no build here can show the change is right (a web app, generated files). null when none is held.
+ */
+export function heldReason(db: DatabaseSync, repo: string, paths: string[]): string | null {
+  const h = heldPath(db, repo, paths);
+  return h ? `needs a person: the fix would change ${h.path}, and ${repo} leaves changes under ${h.prefix} to people` : null;
+}
+
 function fail(db: DatabaseSync, d: FixIssueDeps, r: AttemptRow, reason: string): void {
   update(db, d, r, { state: "failed", reason: oneLine(reason) });
   stage(db, d, r, "hold", `fix failed: ${oneLine(reason)}`);
@@ -222,19 +235,21 @@ function issueText(db: DatabaseSync, c: { repo: string; number: number; title: s
 
 // ---- sandbox tasks -------------------------------------------------------------
 
-const regressionStep = (crate: string, test: string): TaskStep =>
-  ({ name: "regression", cmd: ["cargo", "test", "--offline", "--locked", "-p", crate, "--test", test], network: "none", timeoutSec: 3600 });
+const regressionStep = (t: CargoTarget, test: string): TaskStep =>
+  ({ name: "regression", cmd: ["cargo", "test", "--offline", "--locked", ...manifestArgs(t), ...t.args, "--test", test], network: "none", timeoutSec: 3600 });
 
 /** A warm-build key the task store accepts: ^[a-z0-9][a-z0-9-]{0,63}$. */
 
 /** Head: main plus the full patch, the crate's tests and the regression test. Base: main plus the test file, expected to fail. */
-export function tasksFor(r: { repo: string; number: number | null; main_sha: string; crate: string; test: string }, patch: string, testPatch: string, step = "fixissue"): NewTask[] {
+/** `workspaces` (crate name -> workspace directory) runs a crate outside the root workspace from its own (verify/workspaces.ts). */
+export function tasksFor(r: { repo: string; number: number | null; main_sha: string; crate: string; test: string; workspaces?: Workspaces }, patch: string, testPatch: string, step = "fixissue"): NewTask[] {
   const common = { step, repo: r.repo, number: r.number, headSha: r.main_sha, baseSha: r.main_sha, requires: { ...REQUIRES, toolchains: [...REQUIRES.toolchains] }, warm: { key: warmKeyOf(r.repo), role: "use" as const } };
-  const steps = rustPlan({ cargoArgs: ["-p", r.crate] });
+  const [target] = cargoTargets([r.crate], r.workspaces);
+  const steps = rustPlan({ targets: [target!] });
   // The head task also formats and lints the files the patch changes; the base task only has to fail the regression test.
   const lint = lintSteps(changedRsFiles(patch));
   const baseSteps = steps.map((s): TaskStep => (s.name === "test" ? { ...s, cmd: [...s.cmd, "--test", r.test] } : s));
-  return [{ ...common, plan: [...steps, regressionStep(r.crate, r.test), ...lint], patch }, { ...common, plan: baseSteps, patch: testPatch }];
+  return [{ ...common, plan: [...steps, regressionStep(target!, r.test), ...lint], patch }, { ...common, plan: baseSteps, patch: testPatch }];
 }
 
 // ---- running: triage and patch rounds -------------------------------------------
@@ -282,11 +297,14 @@ async function startAttempt(x: Ctx, c: IssueCandidate): Promise<"started" | "ski
   // Build scripts the manifests name are left out of the paths the triage is offered and refused in its reply.
   const scripts = await scriptsAt(x, c.repo, branch, main);
   const paths = sourcePaths(listed, MAX_PATHS, scripts);
-  const input: TriageInput = { ...issueText(db, c), crates: cr.crates, paths };
+  const input: TriageInput = { ...issueText(db, c), crates: cr.crates, ...(cr.truncated ? { crates_partial: true } : {}), paths };
   let parsed: ReturnType<typeof parseTriage> | null = null;
+  let crates = cr;
   for (let attempt = 0; attempt < TRIAGE.limits.attempts && !(parsed && parsed.ok); attempt++) {
     const reply = await ask(x, "fixissue.triage", input, { repo: c.repo, sha: main });
-    if (reply !== null) parsed = parseTriage(reply, ref, cr.crates, paths, scripts);
+    // A repo with more crates than the list holds: the crates that own the named files are read and added (and cached).
+    if (reply !== null && crates.truncated) crates = { ...crates, ...(await cratesCovering(c.repo, main, crates, triageFilesOf(reply), (d.readBlob ?? ghBlobReader)(c.repo))) };
+    if (reply !== null) parsed = parseTriage(reply, ref, crates.crates, paths, scripts);
   }
   const at = iso(d);
   const row = (state: string, reason: string, extra: Partial<AttemptRow> = {}): AttemptRow => {
@@ -303,6 +321,14 @@ async function startAttempt(x: Ctx, c: IssueCandidate): Promise<"started" | "ski
     return "skipped";
   }
   const t = parsed.triage;
+  // A fix under a held path is never opened on its own: the issue is handed to a person, as one without a clear fix is.
+  const held = heldReason(db, c.repo, [...t.files, regressionPath(t.crate.dir, regressionName(c.number))]);
+  if (held) {
+    row("skipped", held);
+    stage(db, d, c, "hold", held);
+    log(`  ${ref}: skipped: ${held}`);
+    return "skipped";
+  }
   const r = row("retry", t.reason, { files: JSON.stringify(t.files), crate: t.crate.name, crate_dir: t.crate.dir, size: t.size });
   await assignIssue(x, c);
   await patchRound(x, r);
@@ -429,6 +455,9 @@ async function patchRound(x: Ctx, r: AttemptRow): Promise<boolean> {
   if (reply === null) { roundFailed(db, d, row, round, "the model gave no answer", r.patch, log); return false; }
   const v = validateFixPatch(reply, files, testPath, r.crate_dir!, regressionName(r.number), scripts);
   if (!v.ok) { roundFailed(db, d, row, round, v.reason, reply.slice(0, 60_000), log); return false; }
+  // The held paths may have been set after the triage: checked again before any build is queued.
+  const heldNow = heldReason(db, r.repo, [...v.files, testPath]);
+  if (heldNow) { fail(db, d, row, heldNow); return false; }
   const scratch = mkdtempSync(join(d.root, ".index-"));
   let applied;
   try {
@@ -437,8 +466,11 @@ async function patchRound(x: Ctx, r: AttemptRow): Promise<boolean> {
     rmSync(scratch, { recursive: true, force: true });
   }
   if (!applied.ok) { roundFailed(db, d, row, round, applied.reason, v.patch, log); return false; }
+  // The crate's workspace (a crate outside the root workspace builds from its own); without a crate list, the root.
+  const listedCrates = await cachedCrates(r.repo, r.main_sha, d.fetchCrates);
+  const workspaces = listedCrates.ok ? listedCrates.workspaces ?? {} : {};
   try {
-    const ids = tasksFor({ repo: r.repo, number: r.number, main_sha: r.main_sha, crate: r.crate!, test: regressionName(r.number) }, v.patch, v.testPatch).map((t) => createTask(db, t));
+    const ids = tasksFor({ repo: r.repo, number: r.number, main_sha: r.main_sha, crate: r.crate!, test: regressionName(r.number), workspaces }, v.patch, v.testPatch).map((t) => createTask(db, t));
     queueWarmBuild(db, r.repo, r.main_sha);
     update(db, d, r, { state: "testing", round, patch: v.patch, test_patch: v.testPatch, head_task_id: ids[0]!, base_task_id: ids[1]!, summary: null });
     log(`  ${ref}: round ${round}: ${v.files.join(", ")} (${v.changed} lines); tasks ${ids.join(", ")} queued`);
@@ -635,10 +667,25 @@ async function checkPatch(x: Ctx, r: AttemptRow): Promise<boolean> {
   return true;
 }
 
-/** The pipeline account's fork of the repo as owner/name, created when missing; the base repo itself for a repo on the app identity. */
+/**
+ * Whether the pipeline's own branches of `repo` (autocraft/*, integration batches) go to the repository itself instead of a
+ * fork: always under the app identity (the app has no account to own a fork), and under the box identity for the default
+ * owner's repos, which the box account can write to; a repo's own CI may run only for branches in the repository (poka's
+ * pr.yml). Other owners' repos keep the fork.
+ */
+export function branchesInRepo(db: DatabaseSync, repo: string): boolean {
+  return githubIdentity(db) === "app" || isDefaultOwner(ownerOf(repo));
+}
+
+/** The head owners whose PRs of `repo` count as the pipeline's own: its account's fork, and the repository itself when its branches go there. */
+export const headOwnersOf = (db: DatabaseSync, repo: string, login: string): string[] => [login, ...(branchesInRepo(db, repo) ? [ownerOf(repo)] : [])];
+
+/** The pipeline account's fork of the repo as owner/name, created when missing; the base repo itself when branchesInRepo says so. */
 export async function forkOf(w: Writer, g: GuardedRepo, run: Exec, login: string, repo: string, details: Record<string, unknown> = {}): Promise<string> {
   // The GitHub App has no account to own a fork: its autocraft/* branches live in the base repository.
   if (identityFor(g) === "app" && githubIdentity(w.db) === "app") return slugOf(repo);
+  // The box account writes to the default owner's repos, so their branches live in the repository too.
+  if (githubIdentity(w.db) === "box" && isDefaultOwner(ownerOf(repo))) return slugOf(repo);
   // A private repo's fork is private too: GitHub gives it the upstream repository's access and deletes it when the fork's owner loses that access, so its code stays with the people who can read the original. The org and the repo must allow forking of private repositories.
   const find = async (): Promise<string | null> => {
     const r = await run("gh", ["api", `repos/${slugOf(repo)}/forks?per_page=100`, "--jq", `.[] | select(.owner.login == "${login}") | .full_name`]);
@@ -722,8 +769,8 @@ export async function openPr(x: Ctx, r: AttemptRow): Promise<boolean> {
     const author = await commitIdentity(db, r.repo, async () => who);
     setPipelineLogin(db, who.login);
     const branch = branchName(r.number, issueNow?.title ?? "", who.login);
-    // On an app repo the branch lives in the base repository, so its head owner is the org.
-    const headOwners = [who.login, ...(githubIdentity(db) === "app" ? [ownerOf(r.repo)] : [])];
+    // When the branch lives in the base repository (branchesInRepo), its head owner is the repo's owner.
+    const headOwners = headOwnersOf(db, r.repo, who.login);
     const sel = ownPrSelect(db, r.repo, headOwners, branchOf(db, r.repo));
     const found = await d.exec("gh", ["pr", "list", "--repo", `${slugOf(r.repo)}`, "--state", "open", "--head", branch, "--json", sel.json, "--jq", sel.jq]);
     const existing = found.code === 0 ? found.stdout.trim().split("\n")[0] ?? "" : "";
@@ -747,6 +794,8 @@ export async function openPr(x: Ctx, r: AttemptRow): Promise<boolean> {
       rmSync(scratch, { recursive: true, force: true });
     }
     if (!applied.ok) { fail(db, d, r, applied.reason); return false; }
+    const heldNow = heldReason(db, r.repo, [...files, testPath]);
+    if (heldNow) { fail(db, d, r, heldNow); return false; }
     // The formatter's changes ride in the same commit (whitespace-only is checked; the branch is our own, so Opus does not look again).
     let tree = applied.tree;
     if (r.format_diff) {

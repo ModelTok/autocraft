@@ -2,9 +2,17 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { TaskStep } from "./types.ts";
 
+/**
+ * One workspace a plan builds: `manifest` is its Cargo.toml relative to /src (absent: the root workspace, run without
+ * --manifest-path) and `args` the cargo arguments for it, e.g. ["-p", "poka-core"].
+ */
+export type CargoTarget = { manifest?: string; args: string[] };
+
 export type RustPlanOptions = {
-  /** Cargo arguments shared by build and test, e.g. ["--workspace"] or ["-p", "app"]. */
+  /** Cargo arguments shared by build and test, e.g. ["--workspace"] or ["-p", "app"]. Ignored when `targets` is given. */
   cargoArgs?: string[];
+  /** The workspaces to build and test, in order; default: the root workspace with `cargoArgs`. */
+  targets?: CargoTarget[];
   test?: boolean;
   fetchTimeoutSec?: number;
   buildTimeoutSec?: number;
@@ -37,6 +45,42 @@ export function fetchScript(commands: string[]): string {
 
 export const FETCH_SCRIPT = fetchScript(["/usr/local/cargo/bin/cargo fetch --locked"]);
 
+const MANIFEST_RE = /^(?:[A-Za-z0-9_][A-Za-z0-9._-]*\/)+Cargo\.toml$/;
+
+/** The manifest path of a workspace directory ("." is the root, which needs none). Throws on a path a shell or cargo could misread. */
+export function manifestOf(dir: string): string | undefined {
+  if (dir === "." || dir === "") return undefined;
+  const m = `${dir}/Cargo.toml`;
+  if (!MANIFEST_RE.test(m) || m.split("/").some((s) => s === ".." || s === ".")) throw new Error(`not a workspace directory: ${dir}`);
+  return m;
+}
+
+/**
+ * The crates `crates` grouped by the workspace each is built from (`workspaces`: crate name -> workspace directory,
+ * src/verify/workspaces.ts), in first-seen order. Without a map, or for crates it does not name, the root workspace.
+ */
+export function cargoTargets(crates: string[], workspaces: Record<string, string> = {}): CargoTarget[] {
+  const groups = new Map<string, string[]>();
+  for (const c of crates) {
+    const dir = Object.hasOwn(workspaces, c) ? workspaces[c]! : ".";
+    (groups.get(dir) ?? groups.set(dir, []).get(dir)!).push(c);
+  }
+  return [...groups].map(([dir, names]) => {
+    const manifest = manifestOf(dir);
+    return { ...(manifest ? { manifest } : {}), args: names.flatMap((n) => ["-p", n]) };
+  });
+}
+
+/** The fetch step's script for these targets: one `cargo fetch --locked` per workspace, so every lock the plan reads is fetched. */
+export function fetchScriptFor(targets: CargoTarget[]): string {
+  const manifests = [...new Set(targets.map((t) => t.manifest ?? ""))];
+  if (manifests.length === 1 && manifests[0] === "") return FETCH_SCRIPT;
+  return fetchScript(manifests.map((m) => (m ? `/usr/local/cargo/bin/cargo fetch --locked --manifest-path ${manifestOf(m.slice(0, -"/Cargo.toml".length))}` : "/usr/local/cargo/bin/cargo fetch --locked")));
+}
+
+/** `--manifest-path <m>` when the target is not the root workspace. */
+export const manifestArgs = (t: Pick<CargoTarget, "manifest">): string[] => (t.manifest ? ["--manifest-path", t.manifest] : []);
+
 /** Whether the checkout can use a locked plan (`--locked` needs Cargo.lock). */
 export function hasCargoLock(checkoutDir: string): boolean {
   return existsSync(join(checkoutDir, "Cargo.lock"));
@@ -50,13 +94,15 @@ export function hasCargoLock(checkoutDir: string): boolean {
  * poisoning rules are described in cache.ts.
  */
 export function rustPlan(o: RustPlanOptions = {}): TaskStep[] {
-  const extra = o.cargoArgs ?? [];
+  const targets = o.targets?.length ? o.targets : [{ args: o.cargoArgs ?? [] }];
+  // One workspace keeps the step names "build" and "test" (the results read them); more add a number from the second on.
+  const named = (base: string, i: number): string => (i === 0 ? base : `${base} ${i + 1}`);
   const steps: TaskStep[] = [
-    { name: "fetch deps", cmd: ["sh", "-c", FETCH_SCRIPT], network: "fetch", timeoutSec: o.fetchTimeoutSec ?? 900 },
-    { name: "build", cmd: ["cargo", "build", "--offline", "--locked", "--all-targets", ...extra], network: "none", timeoutSec: o.buildTimeoutSec ?? 3600 },
+    { name: "fetch deps", cmd: ["sh", "-c", fetchScriptFor(targets)], network: "fetch", timeoutSec: o.fetchTimeoutSec ?? 900 },
+    ...targets.map((t, i): TaskStep => ({ name: named("build", i), cmd: ["cargo", "build", "--offline", "--locked", ...manifestArgs(t), "--all-targets", ...t.args], network: "none", timeoutSec: o.buildTimeoutSec ?? 3600 })),
   ];
   if (o.test ?? true) {
-    steps.push({ name: "test", cmd: ["cargo", "test", "--offline", "--locked", ...extra], network: "none", timeoutSec: o.testTimeoutSec ?? 3600, artifacts: o.testArtifacts });
+    targets.forEach((t, i) => steps.push({ name: named("test", i), cmd: ["cargo", "test", "--offline", "--locked", ...manifestArgs(t), ...t.args], network: "none", timeoutSec: o.testTimeoutSec ?? 3600, artifacts: o.testArtifacts }));
   }
   return steps;
 }

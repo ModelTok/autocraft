@@ -33,6 +33,8 @@ export type WorkerConfig = {
   gpu: boolean;
   userns: string;
   maxSourceMb: number;
+  /** Largest companion source archive (worker/companions.ts), in MB; a corpus is far larger than a repo's source. */
+  maxCompanionMb: number;
   maxStepSec: number;
   /** Shared snapshot store for warm target dirs (see docs/operations.md). */
   warmStore?: { url: string; readKey: string; writeKey?: string; signKey?: KeyObject; verifyKeys: KeyObject[]; timeoutSec: number };
@@ -166,6 +168,7 @@ export function parseWorkerConfig(raw: unknown): WorkerConfig {
     gpu: o.gpu === true,
     userns,
     maxSourceMb: num(o.maxSourceMb, "maxSourceMb", 300, 1, 5000),
+    maxCompanionMb: num(o.maxCompanionMb, "maxCompanionMb", 2048, 1, 50_000),
     maxStepSec: num(o.maxStepSec, "maxStepSec", 4 * 3600, 10, 48 * 3600),
   };
 }

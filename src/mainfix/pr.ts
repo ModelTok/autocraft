@@ -16,7 +16,7 @@ import { errorFiles, patchFromFailure, type CifixDeps } from "../cifix/index.ts"
 import { isQuiet } from "../security/quiet.ts";
 import { readFailure } from "../cifix/logs.ts";
 import type { CifixPr } from "../cifix/types.ts";
-import { forkOf } from "../fixissue/index.ts";
+import { forkOf, headOwnersOf } from "../fixissue/index.ts";
 import { outsideShown } from "../fixup/excerpt.ts";
 import { Git, type Exec } from "../fixup/git.ts";
 import { setPipelineLogin } from "../github/pipeline-account.ts";
@@ -270,7 +270,7 @@ async function attempt(c: Ctx, rows: FixRow[], count: () => void, ledger: Sessio
     if ("refused" in g) return set(live, "fix-failed", g.refused);
     const fork = await forkOf({ db: c.db, login: PR_ACTOR }, g, c.exec, who.login, c.repo);
     const owner = fork.split("/")[0]!;
-    const sel = ownPrSelect(c.db, c.repo, [owner], now.branch);
+    const sel = ownPrSelect(c.db, c.repo, [...new Set([owner, ...headOwnersOf(c.db, c.repo, who.login)])], now.branch);
     const found = await c.exec("gh", ["pr", "list", "--repo", `${slugOf(c.repo)}`, "--state", "open", "--head", branch, "--json", sel.json, "--jq", sel.jq]);
     let url = found.code === 0 ? found.stdout.trim().split("\n")[0] ?? "" : "";
     if (!(url && urlOk(url, c.repo))) {

@@ -9,8 +9,8 @@ import { createTask, getTask, warmKeyOf, type Warm } from "../build/tasks.ts";
 import { FORMAT_ARTIFACT, FORMAT_SCRIPT, gitFormatDiff } from "../cifix/index.ts";
 import { formattingOnly } from "../cifix/guard.ts";
 import type { Git } from "../fixup/git.ts";
-import { rustPlan } from "../worker/rust.ts";
-import { ghCrates, type CratesFetcher } from "../verify/crates.ts";
+import { cargoTargets, rustPlan } from "../worker/rust.ts";
+import { ghCrates, workspacesOf, type CratesFetcher } from "../verify/crates.ts";
 import { classifyTests, testFindings, testsFeatureCrates, testsStep, TESTS_ARTIFACT, TESTS_EXIT_ARTIFACT, TESTS_RERUN_ARTIFACT, TESTS_RERUN_EXIT_ARTIFACT, TESTS_STEP } from "./tests.ts";
 
 export const CLIPPY_ARTIFACT = "clippy.txt";
@@ -28,12 +28,16 @@ export function changedRsFiles(patch: string): string[] {
   return [...new Set(patchLines(patch).keys())].filter((p) => p.endsWith(".rs"));
 }
 
-/** Fetch, rustfmt on the named files (diff artifact), clippy (JSON artifact), and the tests of `crates` when given. null when the patch changes no `.rs` file. */
-export function lintPlan(changedRs: string[], crates?: string[]): TaskStep[] | null {
+/**
+ * Fetch, rustfmt on the named files (diff artifact), clippy (JSON artifact), and the tests of `crates` when given. null when the
+ * patch changes no `.rs` file. `testsManifest`: the crates belong to the workspace at that Cargo.toml, not the root one.
+ */
+export function lintPlan(changedRs: string[], crates?: string[], testsManifest?: string): TaskStep[] | null {
   const files = [...new Set(changedRs.filter((f) => f.endsWith(".rs")))];
   if (!files.length) return null;
-  const [fetch] = rustPlan({ test: false });
-  return [fetch!, ...lintSteps(files), ...(crates?.length ? [testsStep(crates)] : [])];
+  const tests = crates?.length ? crates : null;
+  const [fetch] = rustPlan({ test: false, ...(tests && testsManifest ? { targets: [{ args: [] }, { manifest: testsManifest, args: [] }] } : {}) });
+  return [fetch!, ...lintSteps(files), ...(tests ? [testsStep(tests, testsManifest)] : [])];
 }
 
 /** The formatter and clippy steps alone, for a task that fetched and built already (fix issue's round task). */
@@ -61,7 +65,9 @@ export type LintJob = {
 
 /** Queues the lint task for the patch; null when it changes no `.rs` file. */
 export function queueLint(db: DatabaseSync, j: LintJob): number | null {
-  const plan = lintPlan(j.files ?? changedRsFiles(j.patch ?? ""), j.crates);
+  // Crates outside the root workspace run their tests from their own (the crate list cratesForTests read is cached).
+  const [target] = j.crates?.length ? cargoTargets(j.crates, workspacesOf(j.repo, j.head)) : [];
+  const plan = lintPlan(j.files ?? changedRsFiles(j.patch ?? ""), j.crates, target?.manifest);
   if (!plan) return null;
   return createTask(db, {
     step: j.step, repo: j.repo, number: j.number, headSha: j.head, baseSha: j.base, requires: { os: "linux", toolchains: ["rust-stable"] },

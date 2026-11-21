@@ -12,7 +12,7 @@ import { cloneTask } from "../verify/tasks.ts";
 import { outcomeOf } from "../verify/results.ts";
 import { patchFor, patchProblem, regressionPath } from "../verify/plan.ts";
 import { regressionName } from "../verify/types.ts";
-import type { CratesResult } from "../verify/crates.ts";
+import { cratesCovering, type CratesResult } from "../verify/crates.ts";
 import type { ScanTestState } from "../../web/src/api/types.ts";
 import { ROUND_BUILD_LIMIT_MS } from "./actions.ts";
 import { crateOf } from "./fix.ts";
@@ -48,7 +48,10 @@ export type WriteOpts = {
 export async function writeAndQueue(db: DatabaseSync, o: WriteOpts): Promise<boolean> {
   const { repo, number: n } = o;
   if (!o.crates.ok || !o.crates.rust) return false;
-  const crate = crateOf(o.crates.crates, o.finding.refs[0]?.path ?? "");
+  const sink = o.finding.refs[0]?.path ?? "";
+  // A repo with more crates than the list holds: the crate that owns the sink is added (and cached).
+  const info = o.crates.truncated && sink ? await cratesCovering(repo, o.sha, o.crates, [sink]) : o.crates;
+  const crate = crateOf(info.crates, sink);
   if (!crate || !/^[A-Za-z0-9_./-]+$/.test(crate.dir) || crate.dir.split("/").includes("..")) { o.log(`${repo} finding ${n}: no scan test: the sink is not in a Rust crate`); return false; }
   const name = scanTestName(repo, n);
   const path = regressionPath(crate.dir, name);
@@ -59,7 +62,7 @@ export async function writeAndQueue(db: DatabaseSync, o: WriteOpts): Promise<boo
   if (problem) { o.log(`${repo} finding ${n}: no scan test: ${problem}`); return false; }
   let id: number;
   try {
-    const base = tasksFor({ repo, number: null, main_sha: o.sha, crate: crate.name, test: name }, patch, patch, "scan-test")[1]!;
+    const base = tasksFor({ repo, number: null, main_sha: o.sha, crate: crate.name, test: name, workspaces: info.workspaces }, patch, patch, "scan-test")[1]!;
     id = createTask(db, { ...base, priority: SCAN_TEST_PRIORITY });
   } catch (e) {
     if (!(e instanceof BuildError)) throw e;

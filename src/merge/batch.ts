@@ -40,7 +40,7 @@ import { type Exec, exec, fixupDir } from "../fixup/git.ts";
 import { whoAmI } from "../fixup/index.ts";
 import { setPipelineLogin } from "../github/pipeline-account.ts";
 import { commitIdentity } from "../github/identity.ts";
-import { branchOf, forkOf } from "../fixissue/index.ts";
+import { branchOf, forkOf, headOwnersOf } from "../fixissue/index.ts";
 import type { Querier } from "../mirror.ts";
 import { refreshChecks } from "../review/checks.ts";
 import { BatchGit } from "./batch-git.ts";
@@ -471,7 +471,7 @@ export async function runBatches(db: DatabaseSync, params: BatchParams, log: (li
     const body = `Lands ${members.length} reviewed and verified pull request${members.length === 1 ? "" : "s"} together. Each one is merged with its own commits.\n\n${links}\n`;
     // A crash after `gh pr create` leaves a PR for this branch: adopt it instead of failing on "already exists".
     const owner = fork.split("/")[0]!;
-    const sel = ownPrSelect(db, repo, [owner], branch);
+    const sel = ownPrSelect(db, repo, [...new Set([owner, ...headOwnersOf(db, repo, who.login)])], branch);
     const found = await d.exec("gh", ["pr", "list", "--repo", `${slugOf(repo)}`, "--state", "open", "--head", b.branch, "--json", sel.json, "--jq", sel.jq]);
     const existing = found.code === 0 ? found.stdout.trim().split("\n")[0] ?? "" : "";
     const pr = PR_URL.test(existing) ? { code: 0, stdout: existing, stderr: "" }

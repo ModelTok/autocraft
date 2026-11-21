@@ -118,6 +118,8 @@ const ADDED_COLUMNS: [table: string, column: string, type: string][] = [
   ["build_tasks", "patch", "TEXT"],
   ["build_tasks", "warm_key", "TEXT"],
   ["build_tasks", "warm_role", "TEXT"],
+  // JSON TaskCompanion[] (build/companions.ts): companion sources of the test steps, with the commit each is fetched at.
+  ["build_tasks", "companions", "TEXT"],
   ["verifications", "note", "TEXT"],
   ["fix_attempts", "size", "TEXT"],
   // The formatter diff of the passing round, folded into the PR commit.

@@ -632,6 +632,8 @@ export function pushRepin(w: Writer, g: GuardedRepo, git: Pick<Git, "git">, o: {
 export function pushOwnBranch(w: Writer, g: Grant, git: Pick<Git, "git">, action: string, o: { repo: string; number?: number; remote: string; branch: string; sha: string }, details: Details = {}, /** The push needs the box account whatever the repo's identity (an advisory's private fork, which the app cannot reach). */ asBox = false): Promise<ExecResult> {
   opensOwnPr(g, o.repo);
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9._-]+$/.test(o.remote) || o.branch.startsWith("-") || !/^[0-9a-f]{40,64}$/.test(o.sha)) throw new Error("the push target is not a repository and branch");
+  // The push replaces the branch: in the repository itself (forkOf's branchesInRepo) only the pipeline's own branch names may be replaced.
+  if (o.remote.toLowerCase() === slugOf(o.repo).toLowerCase() && !/^(?:autocraft\/|integration-)/.test(o.branch)) throw new Error(`a push to ${o.remote} itself must be to an autocraft/ or integration- branch, not ${o.branch}`);
   // A new branch has no PR yet: its outcome is matched to the PR by commit once the PR's checks arrive.
   return pushed(w, g, git, action, o.number === undefined ? `${o.repo}:${o.branch}` : refOf(o.repo, o.number), o, "--force", details, { repo: o.repo, number: null }, asBox).then((r) => {
     // Without this row the pipeline's own PR at this commit is not counted as its own (a person is asked), so a failed write only holds it.

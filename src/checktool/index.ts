@@ -11,7 +11,8 @@ import { CHECK_HISTORY_MIN, CHECK_HISTORY_RUNS, CHECK_LIMIT_FACTOR, CHECK_LIMIT_
 import { scrub } from "../runner/scrub.ts";
 import type { Git } from "../fixup/git.ts";
 import { artifactText, changedRsFiles, lintPlan, lintSteps, readLint } from "../prepush/index.ts";
-import { rustPlan } from "../worker/rust.ts";
+import { cargoTargets, rustPlan } from "../worker/rust.ts";
+import { workspacesOf } from "../verify/crates.ts";
 
 export const CHECK_COMMANDS = ["fmt", "clippy", "check", "test"] as const;
 export type CheckCommand = (typeof CHECK_COMMANDS)[number];
@@ -48,8 +49,11 @@ export function parseCheckInput(raw: unknown): CheckInput {
 /** Wraps a cargo command so its output and exit code come back as artifacts whatever the exit code. The output also streams to the task log, which is what a stopped check shows in the job log. */
 const cargoScript = (name: string, command: string): string => `( ${command}; echo $? > /out/${name}.exit ) 2>&1 | tee /out/${name}.txt; true`;
 
-/** The worker steps for a command on a patch, or null when the command has nothing to do (fmt and clippy on a patch with no `.rs` file). */
-export function checkPlan(i: CheckInput): TaskStep[] | null {
+/**
+ * The worker steps for a command on a patch, or null when the command has nothing to do (fmt and clippy on a patch with no `.rs` file).
+ * `workspaces` (crate name -> workspace directory) runs a test of a crate outside the root workspace from its own.
+ */
+export function checkPlan(i: CheckInput, workspaces: Record<string, string> = {}): TaskStep[] | null {
   const [fetch] = rustPlan({ test: false });
   switch (i.command) {
     case "fmt": {
@@ -60,6 +64,13 @@ export function checkPlan(i: CheckInput): TaskStep[] | null {
     case "check":
       return [fetch!, { name: "check", cmd: ["sh", "-c", cargoScript(OUT.check, "cargo check --offline --locked --workspace --all-targets --color never"), "check"], network: "none", timeoutSec: 3600, artifacts: [`${OUT.check}.txt`, `${OUT.check}.exit`] }];
     case "test": {
+      const [target] = cargoTargets([i.crate!], workspaces);
+      if (target!.manifest) {
+        // The manifest is a validated path (rust.ts manifestOf); it reaches cargo as an argument, never as shell text.
+        const script = cargoScript(OUT.test, 'if [ -n "$2" ]; then cargo test --offline --locked --color never --manifest-path "$3" -p "$1" -- "$2"; else cargo test --offline --locked --color never --manifest-path "$3" -p "$1"; fi');
+        const [own] = rustPlan({ test: false, targets: [target!] });
+        return [own!, { name: "test", cmd: ["sh", "-c", script, "test", i.crate!, i.test_name ?? "", target!.manifest], network: "none", timeoutSec: 3600, artifacts: [`${OUT.test}.txt`, `${OUT.test}.exit`] }];
+      }
       const script = cargoScript(OUT.test, 'if [ -n "$2" ]; then cargo test --offline --locked --color never -p "$1" -- "$2"; else cargo test --offline --locked --color never -p "$1"; fi');
       return [fetch!, { name: "test", cmd: ["sh", "-c", script, "test", i.crate!, ...(i.test_name ? [i.test_name] : [])], network: "none", timeoutSec: 3600, artifacts: [`${OUT.test}.txt`, `${OUT.test}.exit`] }];
     }
@@ -188,7 +199,7 @@ export class CheckTool {
     if (left <= 0) return { text: "refused: the time for checks is used up; answer with your best patch", isError: true };
     const bad = await t.applies(i.patch);
     if (bad) return { text: `the patch does not apply to the head commit: ${bad}`, isError: true };
-    const plan = checkPlan(i);
+    const plan = checkPlan(i, workspacesOf(t.repo, t.head));
     if (plan && PRIVATE_STEPS.includes(t.step) && confidentialReadyAt(t.db) === null) return { text: "no build environment may run checks for this patch right now; answer with your best patch", isError: true };
     if (!plan) return { text: i.command === "fmt" ? "rustfmt: the patch changes no .rs file; nothing to format" : "clippy: the patch changes no .rs file; nothing to lint" };
 

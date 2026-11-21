@@ -11,6 +11,8 @@ import { applyPatch } from "./patch.ts";
 import { discardDir, removeTree, STUCK_PREFIX } from "./rmtree.ts";
 import { downloadAndExtract } from "./tarball.ts";
 import { privateFieldProblem, type PrivateSource } from "./private-source.ts";
+import { acquireCompanion, companionTarget, companionsFieldProblem } from "./companions.ts";
+import type { ExtraMount } from "./environment.ts";
 import { MAX_YAML_BYTES } from "./gate.ts";
 import { copyWarm, storeWarm, taskFieldProblem } from "./warm.ts";
 import { downloadWarm, uploadWarm } from "./warm-sync.ts";
@@ -107,17 +109,18 @@ export function collectArtifacts(out: string, globs: string[], taken: Set<string
  * Runs `task`. `privateSource` (config `privateFetch`) downloads a task the coordinator marked private, and only when
  * the task's owner is its own; a private task is refused otherwise, and every other task downloads anonymously.
  */
-export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: TaskSink, signal: AbortSignal, o: { fetchImpl?: typeof fetch; note?: (s: string) => void; crates?: CrateVerifier; privateSource?: PrivateSource } = {}): Promise<ExecResult> {
+export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: TaskSink, signal: AbortSignal, o: { fetchImpl?: typeof fetch; note?: (s: string) => void; crates?: CrateVerifier; privateSource?: PrivateSource; freeDiskGb?: (path: string) => number } = {}): Promise<ExecResult> {
   const note = o.note ?? (() => {});
   const crates = o.crates ?? (defaultVerifier ??= new CrateVerifier());
   const dir = taskDir(cfg, task.id);
   const results: StepResult[] = [];
   const names: string[] = [];
+  const releases: (() => void)[] = [];
   // Lines the worker writes never carry the token (no container has it); scrubbed anyway.
   const scrub = (s: string) => o.privateSource?.scrub(s) ?? s;
   const emit = (step: string, s: string) => sink.log(step, scrub(s)).catch(() => {});
   try {
-    const bad = taskFieldProblem(task) ?? privateFieldProblem(task.private);
+    const bad = taskFieldProblem(task) ?? privateFieldProblem(task.private) ?? companionsFieldProblem(task.companions);
     if (bad) return { results, summary: `malformed task: ${bad}`, cancelled: false };
     const priv = task.private;
     const source = priv && o.privateSource?.covers(priv.owner) ? o.privateSource : undefined;
@@ -178,6 +181,25 @@ export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: Ta
     }
     seedCargoHome(cacheDir(cfg), join(paths.cache, "cargo"));
 
+    // Companion sources go only to the steps marked for them; one that cannot be had is a note, never a failed task.
+    const companionMounts: ExtraMount[] = [];
+    const companionEnv: Record<string, string> = {};
+    if (task.companions?.length && task.plan.some((s) => s.companions)) {
+      for (const c of task.companions) {
+        const without = `its steps run without ${c.env}`;
+        if (!c.sha) { await emit("source", `companion ${c.owner}/${c.repo} not fetched: ${c.note ?? "no commit given"}; ${without}\n`); continue; }
+        try {
+          const got = await acquireCompanion(cfg, { ...c, sha: c.sha }, { fetchImpl: o.fetchImpl, privateSource: o.privateSource, freeDiskGb: o.freeDiskGb, note });
+          releases.push(got.release);
+          companionMounts.push({ source: got.dir, target: companionTarget(c.repo) });
+          companionEnv[c.env] = companionTarget(c.repo);
+          await emit("source", `companion ${c.owner}/${c.repo}@${c.sha.slice(0, 12)} mounted read-only at ${companionTarget(c.repo)} (${c.env}) for the test steps\n`);
+        } catch (e) {
+          await emit("source", `companion ${c.owner}/${c.repo} not fetched: ${scrub((e as Error).message)}; ${without}\n`);
+        }
+      }
+    }
+
     let failed: string | null = null;
     let cancelled = false;
     const taken = new Set<string>();
@@ -194,7 +216,12 @@ export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: Ta
       const started = Date.now();
       let outcome: RunOutcome;
       try {
-        outcome = await runContainer(cfg, { name, image: prepared.image, env: prepared.env, extraMounts: prepared.mounts, network: step.network, bare: step.bare, mounts: { ...paths, out }, cmd: step.cmd }, {
+        const withCompanions = step.companions === true && companionMounts.length > 0;
+        outcome = await runContainer(cfg, {
+          name, image: prepared.image, network: step.network, bare: step.bare, mounts: { ...paths, out }, cmd: step.cmd,
+          env: withCompanions ? { ...prepared.env, ...companionEnv } : prepared.env,
+          extraMounts: withCompanions ? [...prepared.mounts, ...companionMounts] : prepared.mounts,
+        }, {
           timeoutMs: Math.min(step.timeoutSec, cfg.maxStepSec) * 1000,
           signal,
           onOutput: (b) => void sink.log(step.name, b.toString("utf8")).catch(() => {}),
@@ -241,6 +268,7 @@ export async function executeTask(cfg: WorkerConfig, task: ClaimedTask, sink: Ta
     return { results, summary: failed ?? `${results.length} step${results.length === 1 ? "" : "s"} passed`, cancelled: false, environment };
   } finally {
     for (const n of names) await removeContainer(cfg, n);
+    for (const r of releases) r();
     // A step can leave directories it made unreadable; that never replaces the task's result or keeps the dir under its task name.
     const left = discardDir(dir);
     if (left) note(left);

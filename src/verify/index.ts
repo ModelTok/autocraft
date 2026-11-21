@@ -21,7 +21,7 @@ import { CLAUDE_PROMPTS } from "../prompts/index.ts";
 import { REPO_PATH } from "../sandbox/command.ts";
 import { checkoutForPr } from "../sandbox/index.ts";
 import { cachedDiff, codeDiff, ghDiff, type DiffFetcher } from "../review/diff.ts";
-import { cachedCrates, ghApi, ghCrates, type CratesFetcher } from "./crates.ts";
+import { cachedCrates, cratesCovering, ghApi, ghCrates, type CratesFetcher } from "./crates.ts";
 import { NOT_RUST_REASON, type VerifyCandidate } from "./candidates.ts";
 import { selectCandidates, unavailableCandidates } from "./select.ts";
 import { type VerifyPlan } from "./plan.ts";
@@ -173,12 +173,14 @@ export async function runVerify(db: DatabaseSync, params: VerifyParams, log: (li
       const base = await deps.baseOf(repo, c.number);
       if (!base) { log(`  ${ref}: no base commit`); summary.skipped.push(ref); return; }
 
-      const input = planInput(c, cr.crates, cd, ci);
+      // A repo with more crates than the list holds: the crates that own the changed files are added for the planner.
+      const listed = cr.truncated ? await cratesCovering(repo, c.head_oid, cr, [...cd.files, ...cd.testsOmitted]) : cr;
+      const input = planInput(c, listed.crates, cd, ci);
       const checkout = (await deps.checkout?.(repo, c.number, c.head_oid)) ?? undefined;
       if (checkout) input.repo_dir = REPO_PATH;
       const start = now();
       const planned = await runModelStep(db, VERIFY_PLAN, input, {
-        model: deps.model, checkout, ctx: { ref, crates: cr.crates, label: c.label, ci },
+        model: deps.model, checkout, ctx: { ref, crates: listed.crates, label: c.label, ci },
         usage: { run: runId, agent: `verify-${c.number}`, stage: "verify", items: (ok) => (ok ? 1 : 0) },
       });
       const result = planned.ok ? planned.value : null;
@@ -197,7 +199,7 @@ export async function runVerify(db: DatabaseSync, params: VerifyParams, log: (li
         return;
       }
       try {
-        const ids = queueTasks(db, plan, { repo, number: c.number, head: c.head_oid, base });
+        const ids = queueTasks(db, plan, { repo, number: c.number, head: c.head_oid, base }, listed.workspaces);
         summary.tasks.push(...ids);
         queued = true;
         saveVerification(db, c, { kind: plan.kind, reason: plan.reason, plan: storedPlan(plan), model: deps.model, headTask: ids[0] ?? null, baseTask: ids[1] ?? null, baseSha: base, state: "planned", summary: plan.reason });

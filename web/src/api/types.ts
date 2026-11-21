@@ -1776,6 +1776,7 @@ export type TaskStep = {
   timeoutSec: number;
   artifacts?: string[];                 // globs under /out to return
   bare?: boolean;                       // run without the /target and /cache mounts
+  companions?: boolean;                 // mount the task's companion sources (read-only) and set their variables
 };
 export type TaskState = "queued" | "claimed" | "running" | "done" | "failed" | "cancelled" | "lost";
 export type TaskResult = { step: string; exitCode: number | null; durationMs: number; timedOut: boolean; peakMemBytes?: number; oomKilled?: boolean };

@@ -8,6 +8,7 @@ import { readLint } from "../prepush/index.ts";
 import { baseScopeRepos } from "../pilot.ts";
 import { cloneTask, queueWarmBuild } from "../verify/tasks.ts";
 import { outcomeOf } from "../verify/results.ts";
+import { workspacesOf } from "../verify/crates.ts";
 
 export type RoundRequest = { repo: string; sha: string; crate: string; test: string; patch: string; testPatch: string; step?: string };
 export type RoundRead =
@@ -24,9 +25,9 @@ export function failureTail(db: DatabaseSync, taskId: number, step: string): str
   return rows.reverse().map((r) => r.chunk).join("").slice(-2500);
 }
 
-/** Queues the round's two tasks, [head, base]. Throws BuildError when they cannot be queued. */
+/** Queues the round's two tasks, [head, base]. Throws BuildError when they cannot be queued. The crate's workspace comes from the commit's cached crate list. */
 export function queueRound(db: DatabaseSync, r: RoundRequest): [number, number] {
-  const ids = tasksFor({ repo: r.repo, number: null, main_sha: r.sha, crate: r.crate, test: r.test }, r.patch, r.testPatch, r.step ?? "fix-check").map((t: NewTask) => createTask(db, t));
+  const ids = tasksFor({ repo: r.repo, number: null, main_sha: r.sha, crate: r.crate, test: r.test, workspaces: workspacesOf(r.repo, r.sha) }, r.patch, r.testPatch, r.step ?? "fix-check").map((t: NewTask) => createTask(db, t));
   // The warm build is a pipeline task: it would never be claimed for a repo outside the pipeline scope.
   if (baseScopeRepos(db).has(r.repo)) queueWarmBuild(db, r.repo, r.sha);
   return [ids[0]!, ids[1]!];

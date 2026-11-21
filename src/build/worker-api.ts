@@ -2,6 +2,7 @@
 // default 127.0.0.1:8981), separate from the dashboard. Workers authenticate with a bearer
 // key; every call refreshes the environment's heartbeat. Bodies are size-capped and
 // everything a worker sends is stored as data, never executed, rendered or put in a prompt.
+import { refreshCompanionHeads } from "./companions.ts";
 import { createWriteStream, unlinkSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -27,6 +28,8 @@ export type WorkerServerOptions = {
   /** Calls a key may make: a burst and a refill per second. */
   burst?: number;
   perSec?: number;
+  /** Resolves the companion heads before a claim (build/companions.ts); tests replace it. */
+  refreshCompanions?: (db: DatabaseSync) => Promise<void>;
 };
 
 class Refusal extends Error {
@@ -127,6 +130,13 @@ export function handler(o: WorkerServerOptions) {
       if (typeof b.free !== "number" || !Number.isInteger(b.free) || b.free < 0 || b.free > 1024) throw new Refusal(400, "free must be a whole number");
       const paused = typeof b.pausedReason === "string" ? b.pausedReason.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, 200) || null : null;
       touch(db, env.id, paused);
+      // Companion heads older than their TTL are read from GitHub first, so a task handed out now gets a current commit.
+      // A slow GitHub holds the claim for at most 10 s; the read goes on, and the claim uses the heads known so far.
+      if (b.free > 0) {
+        let timer: NodeJS.Timeout | undefined;
+        await Promise.race([(o.refreshCompanions ?? refreshCompanionHeads)(db), new Promise<void>((r) => { timer = setTimeout(r, 10_000); })]);
+        clearTimeout(timer);
+      }
       return reply(res, 200, claim(db, env.id, b.free));
     }
     const t = /^\/worker\/tasks\/([^/]+)\/(start|log|finish|heartbeat|artifacts\/([^/]+))$/.exec(path);

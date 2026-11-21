@@ -10,6 +10,10 @@ import { readAppSecrets } from "./github/install-token.ts";
 import { PilotError, setRepoPipeline } from "./pilot.ts";
 import { AppReadError, readEnv } from "./github/read.ts";
 import { repoScope, setRepoScope } from "./repo-scope.ts";
+import { DEFAULT_RUST_TOOLCHAIN, parseCompanionArgs, repoCompanions, repoHoldPaths, repoToolchain, setRepoCompanions, setRepoHoldPaths, setRepoToolchain } from "./repo-build.ts";
+import { knownHead, refreshCompanionHeads } from "./build/companions.ts";
+import { listEnvs } from "./build/envs.ts";
+import { ownerOf } from "./owners.ts";
 
 export class RepoError extends Error {}
 
@@ -147,6 +151,8 @@ function list(): void {
   }
 }
 
+const tracked = (db: DatabaseSync, name: string): boolean => !!db.prepare("SELECT 1 FROM main.tracked_repos WHERE name = ?").get(name);
+
 function need(args: string[], usage: string): string {
   if (!args[0]) {
     console.error(`usage: autocraft-server repos ${usage}`);
@@ -199,6 +205,68 @@ const sub: Record<string, (args: string[]) => void | Promise<void>> = {
       process.exit(1);
     }
   },
+  toolchain: (a) => {
+    const usage = "toolchain <name> [<toolchain> | --clear]";
+    const name = need(a, usage);
+    const db = connect();
+    if (a.length === 1) { console.log(repoToolchain(db, name) ?? `${name}: ${DEFAULT_RUST_TOOLCHAIN} (no toolchain set)`); return; }
+    if (a.length !== 2) { need([], usage); return; }
+    const clear = a[1] === "--clear";
+    if (!clear && !tracked(db, name)) { console.error(`${name} is not tracked`); process.exit(1); }
+    try {
+      const changed = setRepoToolchain(db, "cli", name, clear ? null : a[1]!);
+      console.log(clear ? (changed ? `${name}: toolchain cleared; Rust tasks require ${DEFAULT_RUST_TOOLCHAIN}` : `${name}: no toolchain was set`) : changed ? `${name}: Rust tasks require ${a[1]}` : `${name}: toolchain unchanged`);
+      // A task waits in the queue until an environment reports its toolchain; say so now rather than when nothing runs.
+      if (!clear && !listEnvs(db).some((e) => e.enabled && e.online && e.capabilities?.toolchains.includes(a[1]!))) {
+        console.log(`note: no enabled, online build environment reports ${a[1]}; ${name}'s Rust tasks wait in the queue until one does (add it to a worker's "images")`);
+      }
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exit(1);
+    }
+  },
+  companions: async (a) => {
+    const usage = "companions <name> [<repo>=<ENV_VAR>... | --clear]";
+    const name = need(a, usage);
+    const db = connect();
+    const show = (): void => {
+      const list = repoCompanions(db, name);
+      if (!list.length) { console.log(`${name}: no companions set`); return; }
+      for (const c of list) {
+        const h = knownHead(db, ownerOf(name), c.repo);
+        console.log(`${ownerOf(name)}/${c.repo} as ${c.env}: ${h?.sha ? `${h.sha.slice(0, 12)} (${h.private ? "private" : "public"}, read ${h.at})` : "no commit known yet"}${h?.error ? `; last look-up failed: ${h.error}` : ""}`);
+      }
+    };
+    if (a.length === 1) { show(); return; }
+    const clear = a.length === 2 && a[1] === "--clear";
+    if (!clear && !tracked(db, name)) { console.error(`${name} is not tracked`); process.exit(1); }
+    try {
+      const changed = setRepoCompanions(db, "cli", name, clear ? null : parseCompanionArgs(a.slice(1)));
+      console.log(clear ? (changed ? `${name}: companions removed` : `${name}: no companions were set`) : changed ? `${name}: companions set` : `${name}: companions unchanged`);
+      if (!clear) {
+        await refreshCompanionHeads(db, { only: name, force: true });
+        show();
+      }
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exit(1);
+    }
+  },
+  "hold-paths": (a) => {
+    const usage = "hold-paths <name> [<prefix>... | --clear]";
+    const name = need(a, usage);
+    const db = connect();
+    if (a.length === 1) { const held = repoHoldPaths(db, name); console.log(held.length ? held.join("\n") : `${name}: no held paths`); return; }
+    const clear = a.length === 2 && a[1] === "--clear";
+    if (!clear && !tracked(db, name)) { console.error(`${name} is not tracked`); process.exit(1); }
+    try {
+      const changed = setRepoHoldPaths(db, "cli", name, clear ? null : a.slice(1));
+      console.log(clear ? (changed ? `${name}: held paths removed` : `${name}: no held paths were set`) : changed ? `${name}: fix issues leaves changes under ${a.slice(1).join(", ")} to a person` : `${name}: held paths unchanged`);
+    } catch (e) {
+      console.error((e as Error).message);
+      process.exit(1);
+    }
+  },
   purge: (a) => {
     const name = need(a, "purge <name>");
     try {
@@ -230,7 +298,7 @@ export const commands = {
     },
   },
   repos: {
-    summary: "tracked repos: list | track <name> | untrack <name> | pipeline <name> on|off | scope <name> [<text> | --clear] | purge <name>",
+    summary: "tracked repos: list | track <name> | untrack <name> | pipeline <name> on|off | scope <name> [<text> | --clear] | toolchain <name> [<toolchain> | --clear] | companions <name> [<repo>=<ENV>... | --clear] | hold-paths <name> [<prefix>... | --clear] | purge <name>",
     run: (args: string[]) => {
       const f = args[0] ? sub[args[0]] : undefined;
       if (!f) {
