@@ -956,6 +956,9 @@ export async function runSync(db: DatabaseSync, client: Querier, opts: SyncOpts,
   if (withdrawn) console.log(`withdrew ${withdrawn} decision${withdrawn === 1 ? "" : "s"} about closed items`);
   const aside = setAsideSupersededQuestions(db, iso(new Date()));
   if (aside) console.log(`set aside ${aside} superseded decision${aside === 1 ? "" : "s"}`);
+  const { withdrawUnneededScope } = await import("./core/scope-unneeded.ts");
+  const team = withdrawUnneededScope(db, iso(new Date()));
+  if (team) console.log(`withdrew ${team} scope question${team === 1 ? "" : "s"} about items the team wrote`);
   return { mode, items };
 }
 

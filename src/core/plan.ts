@@ -300,6 +300,8 @@ export type ItemFacts = {
   now: number;
   /** Open item as the mirror says (the freshest-checks rule of PrFacts is for the PR path only). */
   draft: boolean;
+  /** Written by the team (outside.ts teamAuthorTest): the classifier's "needs decision" flag asks no scope question of it. */
+  teamAuthor: boolean;
   /** In scope: fast-tracked, or its repo's Pipeline switch is on and, with a pilot set, it is a pilot item. */
   inScope: boolean;
   /** Held for model work because its author is outside the team and over a limit or in a surge (src/outside.ts); such an item is not in scope. */
