@@ -2,6 +2,7 @@
 // by a `role: "build"` task (upstream main) and copied into `role: "use"`
 // tasks. A use task works on its copy, so a PR build never changes the warm dir.
 import { execFile } from "node:child_process";
+import { COMPANIONS_DIR, cleanCompanions } from "./companions.ts";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { WorkerConfig } from "./config.ts";
@@ -73,6 +74,8 @@ export function warmKeys(cfg: WorkerConfig): string[] {
 export function cleanWarm(cfg: WorkerConfig, note: (s: string) => void = () => {}): void {
   mkdirSync(cfg.warmDir, { recursive: true, mode: 0o700 });
   for (const e of readdirSync(cfg.warmDir)) {
+    // Companion sources (worker/companions.ts) are kept across restarts, only their unfinished copies go.
+    if (e === COMPANIONS_DIR) { cleanCompanions(cfg, note); continue; }
     const key = e.replace(/\.json$/, "");
     if (e.startsWith(".") || e.endsWith(".tmp") || !WARM_KEY.test(key) || !existsSync(recOf(cfg, key)) || !existsSync(dirOf(cfg, key))) {
       try {

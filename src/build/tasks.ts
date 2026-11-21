@@ -16,6 +16,8 @@ import { fastTask } from "../fasttrack.ts";
 import { featureOn } from "./features.ts";
 import { slugOf } from "../owners.ts";
 import { privateRepoOf, takesPrivate } from "./private.ts";
+import { COMPANION_STEP, claimCompanions, companionsForTask, type ClaimedCompanion, type TaskCompanion } from "./companions.ts";
+import { DEFAULT_RUST_TOOLCHAIN, repoCompanions, repoToolchain } from "../repo-build.ts";
 
 export const LOST_AFTER_MS = 2 * 60_000;
 /** A task is claimed at most this often: the first time and one requeue after a lost worker. */
@@ -40,7 +42,7 @@ type TaskRow = {
   requires: string; priority: number; plan: string; state: TaskState; env_id: string | null; attempts: number;
   queued_at: string; claimed_at: string | null; started_at: string | null; ended_at: string | null; heartbeat_at: string | null;
   cancel_requested_at: string | null; results: string; summary: string | null; log_bytes: number; artifact_bytes: number;
-  patch?: string | null; warm_key?: string | null; warm_role?: string | null; sandbox_env?: string | null;
+  patch?: string | null; warm_key?: string | null; warm_role?: string | null; sandbox_env?: string | null; companions?: string | null;
   env_label?: string | null; default_branch?: string | null;
 };
 
@@ -120,6 +122,10 @@ export function parsePlan(v: unknown): TaskStep[] {
       if (typeof o.bare !== "boolean") throw new BuildError(400, `${where}.bare must be a boolean`);
       if (o.bare) step.bare = true;
     }
+    if (o.companions !== undefined) {
+      if (typeof o.companions !== "boolean") throw new BuildError(400, `${where}.companions must be a boolean`);
+      if (o.companions) step.companions = true;
+    }
     return step;
   });
 }
@@ -134,15 +140,22 @@ export function createTask(db: DatabaseSync, t: NewTask): number {
   const priority = t.priority ?? 0;
   if (!Number.isInteger(priority) || priority < -100 || priority > 100) throw new BuildError(400, "priority must be -100 to 100");
   const requires = parseRequires(t.requires);
-  const plan = parsePlan(t.plan);
+  // A repo whose Rust builds need their own image (setting repo_toolchain, repo-build.ts) gets it in place of rust-stable.
+  const toolchain = requires.toolchains?.includes(DEFAULT_RUST_TOOLCHAIN) ? repoToolchain(db, t.repo) : undefined;
+  if (toolchain) requires.toolchains = [...new Set(requires.toolchains!.map((x) => (x === DEFAULT_RUST_TOOLCHAIN ? toolchain : x)))];
+  let plan = parsePlan(t.plan);
+  // Companion sources (setting repo_companions) are recorded with their known commit and reach only the steps that run tests.
+  const specs = repoCompanions(db, t.repo);
+  const companions: TaskCompanion[] = specs.length && plan.some((s) => COMPANION_STEP.test(s.name)) ? companionsForTask(db, t.repo, specs) : [];
+  if (companions.length) plan = plan.map((s) => (COMPANION_STEP.test(s.name) ? { ...s, companions: true } : s));
   const patch = t.patch === undefined ? null : parsePatch(t.patch);
   const warm = t.warm === undefined ? null : parseWarm(t.warm);
   const queued = (db.prepare("SELECT COUNT(*) AS n FROM build_tasks WHERE state = 'queued'").get() as { n: number }).n;
   if (queued >= MAX_QUEUED) throw new BuildError(429, `${MAX_QUEUED} tasks are already queued`);
-  const r = db.prepare(`INSERT INTO build_tasks (job_id, step, repo, number, head_sha, base_sha, requires, priority, plan, state, queued_at, patch, warm_key, warm_role)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)`)
+  const r = db.prepare(`INSERT INTO build_tasks (job_id, step, repo, number, head_sha, base_sha, requires, priority, plan, state, queued_at, patch, warm_key, warm_role, companions)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?)`)
     .run(t.jobId ?? currentJobId(), t.step, t.repo, t.number ?? null, t.headSha, t.baseSha ?? null, JSON.stringify(requires), priority, JSON.stringify(plan), nowIso(),
-      patch, warm?.key ?? null, warm?.role ?? null);
+      patch, warm?.key ?? null, warm?.role ?? null, companions.length ? JSON.stringify(companions) : null);
   return Number(r.lastInsertRowid);
 }
 
@@ -159,7 +172,7 @@ export function satisfies(caps: Capabilities, req: Requires): boolean {
 }
 
 /** `private`: the repo is private; the worker downloads it with its privateFetch token and refuses it for any other owner. */
-export type ClaimedTask = { id: number; repo: string; headSha: string; baseSha: string | null; requires: Requires; plan: TaskStep[]; sourceUrl: string; patch?: string; warm?: Warm; private?: { owner: string } };
+export type ClaimedTask = { id: number; repo: string; headSha: string; baseSha: string | null; requires: Requires; plan: TaskStep[]; sourceUrl: string; patch?: string; warm?: Warm; private?: { owner: string }; companions?: ClaimedCompanion[] };
 export type ClaimResult = { tasks: ClaimedTask[]; cancel: number[] };
 
 /**
@@ -216,12 +229,14 @@ export function claim(db: DatabaseSync, envId: string, free: number, nowMs: numb
           // Operator smoke tests and the security fix's builds (an operator's request, under the finding's real repo) run anywhere; pipeline builds only for repos in scope, or for fast-tracked items of any repo.
           if (t.step !== "smoke-test" && t.step !== "fix-check" && !scope.has(t.repo) && !fastTask(db, t)) continue;
           take.run(envId, at, at, t.id);
+          const companions = t.companions ? claimCompanions(db, t.id, json<TaskCompanion[]>(t.companions, []), env, caps) : [];
           out.push({
             id: t.id, repo: t.repo, headSha: t.head_sha, baseSha: t.base_sha, requires: json<Requires>(t.requires, {}), plan: json<TaskStep[]>(t.plan, []),
             sourceUrl: `https://codeload.github.com/${slugOf(t.repo)}/tar.gz/${t.head_sha}`,
             ...(t.patch ? { patch: t.patch } : {}),
             ...(t.warm_key && (t.warm_role === "use" || t.warm_role === "build") ? { warm: { key: t.warm_key, role: t.warm_role } } : {}),
             ...(priv ? { private: { owner: priv.owner } } : {}),
+            ...(companions.length ? { companions } : {}),
           });
         }
       }

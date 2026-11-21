@@ -18,6 +18,13 @@ export function sourcePaths(all: string[], cap: number, scripts: BuildScripts = 
   return all.filter((p) => editable(p, scripts) && !/(^|\/)(target|vendor|node_modules)\//.test(p)).slice(0, cap);
 }
 
+/** The `files` a triage reply names, unchecked (at most MAX_FILES strings); [] when the reply does not read. For finding their crates. */
+export function triageFilesOf(text: string): string[] {
+  const arr = wholeReplyJson(text);
+  const o = Array.isArray(arr) && arr.length === 1 && isObj(arr[0]) ? arr[0] : null;
+  return o && Array.isArray(o.files) ? (o.files as unknown[]).filter((f): f is string => typeof f === "string").slice(0, MAX_FILES) : [];
+}
+
 export function parseTriage(text: string, ref: string, crates: Crate[], paths: string[], scripts: BuildScripts = null): TriageParse {
   const arr = wholeReplyJson(text);
   if (arr === null) return { ok: false, error: "the reply is not exactly one JSON value" };

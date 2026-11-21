@@ -1,7 +1,8 @@
 // Build tasks for a validated plan, and the warm build of the default branch.
 import type { DatabaseSync } from "node:sqlite";
 import { createTask, warmKeyOf, type NewTask } from "../build/tasks.ts";
-import { rustPlan } from "../worker/rust.ts";
+import { cargoTargets, rustPlan } from "../worker/rust.ts";
+import type { Workspaces } from "./workspaces.ts";
 import type { TaskStep } from "../worker/types.ts";
 import { featureOn } from "../build/features.ts";
 import type { VerifyPlan } from "./plan.ts";
@@ -15,15 +16,16 @@ export const WARM_PRIORITY = -10;
 
 type Planned = Exclude<VerifyPlan, { kind: "ci-enough" }>;
 
-/** The tasks that run `plan` at `head` (and, for a regression, at `base`). Order: head first. */
-export function tasksFor(plan: Planned, c: { repo: string; number: number; head: string; base: string }): NewTask[] {
+/** The tasks that run `plan` at `head` (and, for a regression, at `base`). Order: head first. `workspaces` places crates outside the root workspace (verify/workspaces.ts). */
+export function tasksFor(plan: Planned, c: { repo: string; number: number; head: string; base: string }, workspaces: Workspaces = {}): NewTask[] {
   const common = { step: "verify", repo: c.repo, number: c.number, requires: { ...REQUIRES, toolchains: [...REQUIRES.toolchains] }, warm: { key: warmKeyOf(c.repo), role: "use" as const } };
   if (plan.kind === "tests") {
-    const steps = rustPlan({ cargoArgs: plan.crates.flatMap((n) => ["-p", n]) }).map((s): TaskStep =>
-      s.name === "test" && plan.tests.length ? { ...s, cmd: [...s.cmd, "--", ...plan.tests] } : s);
+    // Crates of several workspaces get one test step each ("test", "test 2", ...); the filters apply to every one.
+    const steps = rustPlan({ targets: cargoTargets(plan.crates, workspaces) }).map((s): TaskStep =>
+      /^test( \d+)?$/.test(s.name) && plan.tests.length ? { ...s, cmd: [...s.cmd, "--", ...plan.tests] } : s);
     return [{ ...common, headSha: c.head, baseSha: c.base, plan: steps }];
   }
-  const steps = rustPlan({ cargoArgs: ["-p", plan.crate] }).map((s): TaskStep =>
+  const steps = rustPlan({ targets: cargoTargets([plan.crate], workspaces) }).map((s): TaskStep =>
     s.name === "test" ? { ...s, cmd: [...s.cmd, "--test", plan.test] } : s);
   return [
     { ...common, headSha: c.head, baseSha: c.base, plan: steps, patch: plan.patch },
@@ -32,8 +34,8 @@ export function tasksFor(plan: Planned, c: { repo: string; number: number; head:
 }
 
 /** Queues the tasks; returns their ids, head task first. */
-export function queueTasks(db: DatabaseSync, plan: Planned, c: { repo: string; number: number; head: string; base: string }): number[] {
-  return tasksFor(plan, c).map((t) => createTask(db, t));
+export function queueTasks(db: DatabaseSync, plan: Planned, c: { repo: string; number: number; head: string; base: string }, workspaces: Workspaces = {}): number[] {
+  return tasksFor(plan, c, workspaces).map((t) => createTask(db, t));
 }
 
 /**

@@ -1,0 +1,25 @@
+# Toolchain image "rust-poka" for the poka monorepo (ModelTok/poka): the wasm32-wasip1 parser and viewer
+# workspace at the root, and the Tauri 2 desktop host in 6-hosts/desktop/src-tauri, which links GTK and
+# WebKitGTK on Linux. protoc is not installed: poka's build scripts take it from protoc-bin-vendored.
+#
+#   podman build -f deploy/container/Containerfile.rust-poka -t rust-poka deploy/container
+#
+# The base is rust:1-bookworm pinned by digest (Rust 1.100.0, the image the local worker's config pins rust-stable
+# to); poka needs 1.99 or later. Move this pin and the worker's rust-stable pin together.
+# Measured on 2026-11-21: WebKitGTK alone is enough to build and test the desktop host's lib (`cargo test --lib -p app`);
+# the tray's libayatana-appindicator is loaded at run time, not linked, so it is left out.
+FROM docker.io/library/rust:1-bookworm@sha256:198cd28b4ba92b20fe849d5d8b119ace1bd28423d9e82e9c4de5ee1300d453a0
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+    apt-get update; \
+    # WebKitGTK 4.1 brings GTK 3, libsoup 3 and JavaScriptCore with their -dev packages; the base image already
+    # has build-essential, pkg-config, libssl-dev and Python 3 for poka's scripts.
+    apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev; \
+    rm -rf /var/lib/apt/lists/*; \
+    # clippy and rustfmt are installed now, so a derived image (environment.ts) has nothing to add.
+    rustup component add clippy rustfmt; \
+    rustup target add wasm32-wasip1; \
+    rm -rf "$CARGO_HOME/registry" "$CARGO_HOME/git"; \
+    chmod -R a+rX /usr/local/rustup /usr/local/cargo

@@ -24,7 +24,7 @@ import { RESUME_WINDOW_MS, SessionLedger, parseSessions, storeSessions, touchSto
 import { ownerOf } from "../owners.ts";
 import { REPO_PATH } from "../sandbox/command.ts";
 import { checkoutForCommit } from "../sandbox/index.ts";
-import { cachedCrates, ghCrates, type CratesFetcher } from "../verify/crates.ts";
+import { cachedCrates, cratesCovering, ghCrates, type CratesFetcher } from "../verify/crates.ts";
 import { regressionPath } from "../verify/plan.ts";
 import { regressionName, type Crate } from "../verify/types.ts";
 import {
@@ -142,8 +142,10 @@ export async function runFix(db: DatabaseSync, repo: string, n: number, d: FixDe
       if (!have) return giveUp(db, repo, n, "the pinned commit is no longer in the repository", log);
     }
     const refs = JSON.parse(row.refs) as { path: string; line: number; claim: string }[];
-    const cr = await cachedCrates(repo, sha, d.fetchCrates);
-    if (!cr.ok) return giveUp(db, repo, n, `no crate list: ${cr.error}`, log);
+    const got = await cachedCrates(repo, sha, d.fetchCrates);
+    if (!got.ok) return giveUp(db, repo, n, `no crate list: ${got.error}`, log);
+    // A repo with more crates than the list holds: the crate that owns the finding's file is added (and cached for the round).
+    const cr = got.truncated ? { ok: true as const, ...(await cratesCovering(repo, sha, got, refs[0] ? [refs[0].path] : [])) } : got;
     const crate = cr.rust ? crateOf(cr.crates, refs[0]?.path ?? "") : null;
     if (!crate || !/^[A-Za-z0-9_./-]+$/.test(crate.dir) || crate.dir.split("/").includes("..")) return giveUp(db, repo, n, "the fix step covers Rust crates only, and the finding is not in one", log);
     const listed = (await git.must(["ls-tree", "-r", "--name-only", sha, "--", crate.dir === "." ? "" : crate.dir].filter((x) => x !== ""))).split("\n").filter(Boolean);

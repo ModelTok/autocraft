@@ -7,9 +7,8 @@ import { guardRepo } from "../core/guard.ts";
 import type { By } from "../core/gates.ts";
 import { audit } from "../dash/audit.ts";
 import { Git, type Exec } from "../fixup/git.ts";
-import { branchOf, forkOf } from "../fixissue/index.ts";
+import { branchOf, forkOf, headOwnersOf } from "../fixissue/index.ts";
 import { slugOf, ownerOf } from "../owners.ts";
-import { githubIdentity } from "../github/identity.ts";
 import {
   ghAdvisoryCreate, ghAdvisoryCve, ghAdvisoryRange, ghAdvisoryFork, ghAdvisoryPr, ghAdvisoryPublish, ghAdvisoryPush, ghLandPr, ghLandPush, httpStatus,
   type Writer,
@@ -77,8 +76,8 @@ export async function runLand(db: DatabaseSync, repo: string, n: number, by: By,
     // Nothing is pushed or opened before the whole public text has passed the wording guard.
     const worded = wordedIn(row.fix_title, body, row.fix_branch);
     if (worded) return back(db, repo, n, `the text for GitHub says "${worded}"; write the fix again`, d.log);
-    // On an app repo the branch lives in the base repository, so its head owner is the org.
-    const headOwners = [who.login, ...(githubIdentity(db) === "app" ? [ownerOf(repo)] : [])];
+    // When the branch lives in the base repository (branchesInRepo), its head owner is the repo's owner.
+    const headOwners = headOwnersOf(db, repo, who.login);
     const sel = ownPrSelect(db, repo, headOwners, base);
     const found = await d.exec("gh", ["pr", "list", "--repo", slugOf(repo), "--state", "open", "--head", row.fix_branch, "--json", sel.json, "--jq", sel.jq]);
     let url = found.code === 0 ? found.stdout.trim().split("\n")[0] ?? "" : "";
