@@ -5,6 +5,7 @@ import type { ViewDef, ViewProps } from "../../registry/types";
 import { Pending } from "../../ui/atoms/Pending";
 import { decisionPath, itemPath, parseDecisionRoute } from "../../lib/links";
 import { Refs } from "./Refs";
+import { OpenQuestions } from "../item/ItemDecisions";
 
 /** Puts the old link's query in front of the anchor. */
 const withQuery = (path: string, search: string): string => {
@@ -33,12 +34,17 @@ function DecisionRedirect({ params }: ViewProps) {
   if (!d) return <Pending error={found.error ?? new Error("No such decision")} />;
   const to = decisionPath(d);
   if (!to.startsWith("/needs/decisions/")) return <Navigate to={withQuery(to, loc.search)} replace />;
+  // A question with no item (a repo's red default branch) is answered here, with the same card an item page shows.
   return (
-    <div className="mx-auto max-w-[720px] px-4 py-6 md:px-6">
-      <h1 className="text-lg font-semibold">{d.title}</h1>
-      <p className="mt-2 text-sm font-semibold">
-        <Refs text={d.question} repo={d.repo} />
-      </p>
+    <div className="mx-auto max-w-[720px] space-y-3 px-4 py-6 md:px-6">
+      <h1 className="text-lg font-semibold">{d.repo ? <Refs text={d.repo} repo={d.repo} /> : d.title}</h1>
+      {d.answer ? (
+        <p className="text-sm font-semibold">
+          <Refs text={d.question} repo={d.repo} />
+        </p>
+      ) : (
+        <OpenQuestions ds={[d]} />
+      )}
     </div>
   );
 }
