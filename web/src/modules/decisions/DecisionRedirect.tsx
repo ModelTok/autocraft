@@ -43,7 +43,8 @@ function DecisionRedirect({ params }: ViewProps) {
           <Refs text={d.question} repo={d.repo} />
         </p>
       ) : (
-        <OpenQuestions ds={[d]} />
+        // No prepared choices are read here (a repo-level question gets none): null shows its options as plain answers.
+        <OpenQuestions ds={[d]} choices={null} />
       )}
     </div>
   );
