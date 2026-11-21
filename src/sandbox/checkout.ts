@@ -47,9 +47,12 @@ function lsTree(gitDir: string, sha: string, caps: CheckoutCaps): Promise<{ code
       text += d;
       const recs = (rest + d).split("\0");
       rest = recs.pop() ?? "";
+      // Only the records the checkout keeps count: a repo with committed build output is not refused for files it leaves out.
       for (const r of recs) {
+        const e = entryOf(r, caps);
+        if (!e) continue;
         files++;
-        bytes += Number(/ +(\d+)\t/.exec(r)?.[1] ?? 0);
+        bytes += e.size;
       }
       if (files > caps.maxFiles || bytes > caps.maxBytes) {
         tooLarge = `tree too large (over ${files} files, ${bytes} bytes)`;
@@ -70,15 +73,27 @@ export function safePath(p: string): boolean {
 
 type Entry = { oid: string; size: number; path: string };
 
-/** The regular files (modes 100644 and 100755) of `sha`; symlinks, submodules, unsafe paths and instruction files are left out. */
+/**
+ * Compiled build output, left out of a checkout: a model reads source, and some repos commit their built artefacts
+ * (poka had 136 MB of .wasm under dist/), which would push the checkout over its size cap.
+ */
+const BUILD_OUTPUT = /\.(wasm|so|dylib|dll|exe|o|obj|a|lib|rlib|rmeta|pdb|class|jar)$/i;
+
+/** The entry of one `ls-tree -l` record when the checkout keeps it, else null. */
+function entryOf(rec: string, caps: CheckoutCaps): Entry | null {
+  const m = /^(\d+) (\w+) ([0-9a-f]{40,64}) +(\d+|-)\t(.*)$/s.exec(rec);
+  if (!m || m[2] !== "blob" || (m[1] !== "100644" && m[1] !== "100755")) return null;
+  const size = Number(m[4]);
+  if (size > caps.maxFileBytes || !safePath(m[5]!) || isInstructionPath(m[5]!) || BUILD_OUTPUT.test(m[5]!)) return null;
+  return { oid: m[3]!, size, path: m[5]! };
+}
+
+/** The regular files (modes 100644 and 100755) of `sha`; symlinks, submodules, unsafe paths, instruction files, files over `maxFileBytes` and compiled build output are left out. */
 export function parseTree(listing: string, caps: CheckoutCaps): Entry[] {
   const out: Entry[] = [];
   for (const rec of listing.split("\0")) {
-    const m = /^(\d+) (\w+) ([0-9a-f]{40,64}) +(\d+|-)\t(.*)$/s.exec(rec);
-    if (!m || m[2] !== "blob" || (m[1] !== "100644" && m[1] !== "100755")) continue;
-    const size = Number(m[4]);
-    if (size > caps.maxFileBytes || !safePath(m[5]!) || isInstructionPath(m[5]!)) continue;
-    out.push({ oid: m[3]!, size, path: m[5]! });
+    const e = entryOf(rec, caps);
+    if (e) out.push(e);
   }
   return out;
 }

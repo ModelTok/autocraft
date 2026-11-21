@@ -111,6 +111,14 @@ describe("patch validation", () => {
     assert.match(reason(FIX + NEWTEST.replace("new file mode 100644", "new file mode 100755")), /test file/);
   });
 
+  test("recounts a test file whose hunk header miscounts its lines (poka#1239: 45 said, 51 there)", () => {
+    for (const said of ["@@ -0,0 +1,2 @@", "@@ -0,0 +1,9 @@"]) {
+      const r = ok(FIX + NEWTEST.replace("@@ -0,0 +1,4 @@", said));
+      assert.ok(r.ok, said);
+      if (r.ok) assert.ok(r.testPatch.includes("@@ -0,0 +1,4 @@\n"), said);
+    }
+  });
+
   test("refuses more than 300 changed lines", () => {
     const body = Array.from({ length: 151 }, (_, i) => `-o${i}\n+n${i}\n`).join("");
     const big = `diff --git a/${LIB} b/${LIB}\n--- a/${LIB}\n+++ b/${LIB}\n@@ -1,151 +1,151 @@\n${body}`;
